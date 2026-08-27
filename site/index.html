@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Markets Dashboard</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Markets Dashboard</h1>
+    <div class="meta">As of <span id="as-of">—</span></div>
+    <div id="sample-banner" class="sample-banner" hidden></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="active" data-target="panel-equities">Equity Indices</button>
+    <button data-target="panel-yields">Yield Curves</button>
+    <button data-target="panel-cbrates">Central Bank Rates</button>
+    <button data-target="panel-inflation">Inflation</button>
+    <button data-target="panel-realyields">Real Yields</button>
+    <button data-target="panel-erp">Equity Risk Premia</button>
+    <button data-target="panel-gdp">GDP Growth</button>
+    <button data-target="panel-currencies">Currencies</button>
+    <button data-target="panel-commodities">Commodities</button>
+    <button data-target="panel-valuation">Valuation</button>
+    <button data-target="panel-snapshot">Regional Snapshot</button>
+  </nav>
+
+  <main>
+    <section id="panel-equities" class="panel active"></section>
+    <section id="panel-yields" class="panel"></section>
+    <section id="panel-cbrates" class="panel"></section>
+    <section id="panel-inflation" class="panel"></section>
+    <section id="panel-realyields" class="panel"></section>
+    <section id="panel-erp" class="panel"></section>
+    <section id="panel-gdp" class="panel"></section>
+    <section id="panel-currencies" class="panel"></section>
+    <section id="panel-commodities" class="panel"></section>
+    <section id="panel-valuation" class="panel"></section>
+    <section id="panel-snapshot" class="panel">
+      <h2>Regional Snapshot</h2>
+      <p class="section-note">Equities, yield curve, macro, and FX for one region at a time. Commodities are global — see the Commodities tab.</p>
+      <div class="region-select">
+        <label for="region-selector">Region: </label>
+        <select id="region-selector"></select>
+      </div>
+      <div id="snapshot-cards" class="cards"></div>
+    </section>
+
+    <div class="status-footer">
+      Data sources: see SPEC.md in the repo. Some series are stubbed pending endpoint confirmation on first live run — shown as <span class="stub">not yet wired</span>.
+    </div>
+  </main>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
