@@ -319,20 +319,25 @@ def fetch_mof_jgb(tenor: str) -> pd.DataFrame | None:
 # wired" cell rather than shipping wrong or stale numbers. See NETWORK.md.
 # ---------------------------------------------------------------------------
 def fetch_snb(cube: str, params: dict | None = None) -> pd.DataFrame | None:
-    # data.snb.ch exposes a documented per-cube CSV API, and the 'rendoblid'
-    # cube ("Yields on bond issues") still responds — but its last observation
-    # is 2025-07-31, published 2025-09-01, i.e. over a year stale. It appears
-    # to have been discontinued. Returning None deliberately: a visibly missing
-    # Swiss curve is better than a year-old one presented as today's.
-    # TODO: find the successor cube id for Confederation bond spot rates.
+    # data.snb.ch exposes a documented per-cube CSV API, but the Confederation
+    # bond yield series has been retired: the daily 'rendoblid' and monthly
+    # 'rendoblim' cubes both still return 200 while stopping at 2025-07, with a
+    # shared final publishing date of 2025-09-01. Money-market cubes on the
+    # same portal (e.g. 'zimoma') are current, so this is a discontinued
+    # series, not an outage, and no successor cube id responds.
+    # Returning None deliberately: a visibly missing Swiss curve beats a
+    # year-old one presented as today's. Needs a different institution
+    # (SIX Swiss Exchange or the SNB statistical bulletin).
     logger.info("fetch_snb: no live source (cube %s discontinued/stale)", cube)
     return None
 
 
 def fetch_chinabond(tenor: str) -> pd.DataFrame | None:
-    # yield.chinabond.com.cn returns a JS-rendered HTML shell; the documented
-    # queryGjqxInfo path serves no data to a plain HTTP client.
-    # TODO: identify the underlying XHR/JSON endpoint the page calls.
+    # yield.chinabond.com.cn returns a JS-rendered HTML shell. queryGjqxInfo
+    # serves a 956-byte shell regardless of parameters, and the yield_main
+    # XHR paths (getYieldDataForWeb, queryTypeValues) are 404. No plain-HTTP
+    # data endpoint found. TODO: needs either a headless browser or a
+    # different institution (CFETS) — neither is worth it for one curve yet.
     logger.info("fetch_chinabond: not yet wired up (%s)", tenor)
     return None
 

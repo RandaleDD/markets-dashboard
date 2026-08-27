@@ -45,13 +45,16 @@ wrong fails *silently*.
   2024-12, and `NAEXKP01*Q657S` GDP growth is discontinued. CPI moved to BIS;
   GDP moved to maintained real-GDP level series with growth derived in the
   pipeline.
-- **SNB `rendoblid` cube — discontinued.** Still responds, but its last
-  observation is 2025-07-31 (published 2025-09-01). Deliberately left
-  unsourced rather than showing year-old yields as current. Needs a successor
-  cube id.
-- **ChinaBond — JS-rendered.** `yield.chinabond.com.cn` returns an HTML shell;
-  the documented `queryGjqxInfo` path serves no data to a plain HTTP client.
-  Needs the underlying XHR endpoint identified.
+- **SNB Confederation bond yields — discontinued.** Both the daily
+  `rendoblid` and monthly `rendoblim` cubes still return 200 while stopping at
+  2025-07, sharing a final publishing date of 2025-09-01. Money-market cubes on
+  the same portal (`zimoma`) are current to 2026-08, so the series was retired
+  rather than the portal breaking, and no successor cube id responds. Needs a
+  different institution (SIX, or the SNB statistical bulletin).
+- **ChinaBond — JS-rendered.** `queryGjqxInfo` returns a 956-byte HTML shell
+  regardless of parameters, and the `yield_main` XHR paths
+  (`getYieldDataForWeb`, `queryTypeValues`) are 404. Would need a headless
+  browser or a different institution (CFETS).
 - **Yahoo has no CSI 300 index history** — `000300.SS`/`399300.SZ` accept only
   `period=1d/5d`. The CNY-priced mainland tracker ETF `510300.SS` stands in.
 
