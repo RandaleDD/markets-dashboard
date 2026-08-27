@@ -1,0 +1,27 @@
+name: Monthly slow-data refresh
+
+on:
+  schedule:
+    # 1st of the month, 07:00 UTC — CPI/GDP prints and valuation fact sheets
+    # don't move daily, so this runs separately from daily.yml to keep that
+    # workflow fast and reduce load on slower-changing sources.
+    - cron: "0 7 1 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-slow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      # TODO(Phase 4): once fetch_shiller_cape / fetch_damodaran_erp /
+      # fetch_etf_factsheet are wired up (see fetch/sources.py), call them
+      # here via a --mode live-slow pipeline path so valuation data updates
+      # monthly without the daily job re-fetching it every run.
+      - run: echo "Monthly slow-data refresh placeholder — see SPEC.md Phase 4"
