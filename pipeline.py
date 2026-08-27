@@ -33,6 +33,60 @@ DATA_DIR = Path(__file__).parent / "site" / "data"
 # ---------------------------------------------------------------------------
 # LIVE MODE
 # ---------------------------------------------------------------------------
+
+# A source that returns HTTP 200 and parses cleanly can still be years out of
+# date — the SNB bond-yield cube is the cautionary example. So "ok" means
+# "fresh enough for its publication cadence", and anything older is "stale"
+# so it shows up in source_status instead of quietly passing as current.
+# "policy" is deliberately loose: a central bank rate legitimately sits
+# unchanged for months, and BIS stops emitting observations between moves.
+# "annual" allows for normal publication lag on yearly national accounts.
+MAX_AGE_DAYS = {"daily": 10, "monthly": 70, "quarterly": 200,
+                "policy": 150, "annual": 730}
+
+
+def _as_of(df):
+    if df is None or df.empty:
+        return None
+    return df.iloc[-1]["date"]
+
+
+def _series_status(df, cadence="daily"):
+    """Returns (status, as_of_iso_or_None) for one fetched series."""
+    ts = _as_of(df)
+    if ts is None:
+        return "failed", None
+    age_days = (pd.Timestamp.now() - pd.Timestamp(ts)).days
+    status = "stale" if age_days > MAX_AGE_DAYS[cadence] else "ok"
+    return status, pd.Timestamp(ts).strftime("%Y-%m-%d")
+
+
+# Curve tenors are fetched through one dispatcher so a region only has to name
+# its source in universe.py. Memoised because EZ mirrors DE's Bund keys and
+# would otherwise refetch every tenor a second time.
+_CURVE_FETCHERS = {
+    "fred": lambda k: sources.fetch_fred(k),
+    "bundesbank": lambda k: sources.fetch_bundesbank(k),
+    "boe": lambda k: sources.fetch_boe(k),
+    "mof": lambda k: sources.fetch_mof_jgb(k),
+    "snb": lambda k: sources.fetch_snb(k),
+    "chinabond": lambda k: sources.fetch_chinabond(k),
+}
+
+
+def _fetch_curve_tenor(source, key, cache):
+    if not key:
+        return None
+    fetcher = _CURVE_FETCHERS.get(source)
+    if fetcher is None:
+        logger.warning("No fetcher registered for curve source %r", source)
+        return None
+    ck = (source, key)
+    if ck not in cache:
+        cache[ck] = fetcher(key)
+    return cache[ck]
+
+
 def run_live_pipeline() -> dict:
     status = {}
     out = {
@@ -57,8 +111,8 @@ def run_live_pipeline() -> dict:
 
     # --- Equity indices ---
     for idx in universe.EQUITY_INDICES:
-        df = sources.fetch_stooq(idx.get("stooq"))
-        status[f"equity:{idx['id']}"] = "ok" if df is not None else "failed"
+        df = sources.fetch_yahoo(idx.get("yahoo"))
+        status[f"equity:{idx['id']}"], _ = _series_status(df)
         metrics = compute_return_metrics(df) if df is not None else {}
         out["equity_indices"].setdefault(idx["region"], []).append({
             "id": idx["id"], "name": idx["name"], "currency": idx["currency"],
@@ -68,40 +122,54 @@ def run_live_pipeline() -> dict:
 
     # --- Currencies ---
     for fx in universe.CURRENCIES:
-        df = sources.fetch_stooq(fx.get("stooq"))
-        status[f"fx:{fx['id']}"] = "ok" if df is not None else "failed"
+        df = sources.fetch_yahoo(fx.get("yahoo"))
+        status[f"fx:{fx['id']}"], _ = _series_status(df)
         metrics = compute_return_metrics(df) if df is not None else {}
-        out["currencies"].append({"id": fx["id"], "name": fx["name"], **metrics})
+        out["currencies"].append({"id": fx["id"], "name": fx["name"], **metrics,
+                                  "history_1y": history_for_chart(df, 1.0) if df is not None else []})
 
     # --- Commodities ---
     for cm in universe.COMMODITIES:
-        df = sources.fetch_stooq(cm.get("stooq"))
-        status[f"commodity:{cm['id']}"] = "ok" if df is not None else "failed"
+        df = sources.fetch_yahoo(cm.get("yahoo"))
+        status[f"commodity:{cm['id']}"], _ = _series_status(df)
         metrics = compute_return_metrics(df) if df is not None else {}
-        out["commodities"].append({"id": cm["id"], "name": cm["name"], **metrics})
+        out["commodities"].append({"id": cm["id"], "name": cm["name"], **metrics,
+                                   "history_1y": history_for_chart(df, 1.0) if df is not None else []})
 
     # --- Central bank policy rates ---
     for cb in universe.CENTRAL_BANKS:
         df = sources.fetch_bis_policy_rate(cb["bis_ref_area"])
-        status[f"cbrate:{cb['region']}"] = "ok" if df is not None else "failed"
-        latest = None
-        if df is not None and not df.empty:
-            latest = float(df.iloc[-1]["value"])
-        out["central_bank_rates"][cb["region"]] = {"name": cb["name"], "rate_pct": latest}
+        st, as_of = _series_status(df, "policy")
+        status[f"cbrate:{cb['region']}"] = st
+        latest = float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
+        out["central_bank_rates"][cb["region"]] = {"name": cb["name"], "rate_pct": latest,
+                                                    "as_of": as_of}
 
     # --- Yield curves ---
+    curve_cache = {}
     for region, cfg in universe.YIELD_CURVES.items():
-        tenor_series = {}
-        for tenor, series_id in cfg["tenors"].items():
-            if cfg["source"] == "fred" and series_id:
-                tenor_series[tenor] = sources.fetch_fred(series_id)
-            else:
-                tenor_series[tenor] = None  # non-US sources not yet wired, see universe.py notes
+        tenor_series = {t: _fetch_curve_tenor(cfg["source"], key, curve_cache)
+                        for t, key in cfg["tenors"].items()}
         values = latest_tenor_values(tenor_series)
         shape = curve_shape(values)
-        status[f"curve:{region}"] = "ok" if any(v is not None for v in values.values()) else "stubbed"
+        live = [t for t, df in tenor_series.items() if df is not None]
+        wanted = [t for t, key in cfg["tenors"].items() if key]
+        if not wanted or not live:
+            st = "stubbed"
+        elif len(live) < len(wanted):
+            st = "partial"
+        else:
+            # A curve is only as fresh as its stalest tenor.
+            st = "ok"
+            for df in tenor_series.values():
+                if df is not None and _series_status(df)[0] == "stale":
+                    st = "stale"
+                    break
+        status[f"curve:{region}"] = st
+        as_ofs = [_series_status(df)[1] for df in tenor_series.values() if df is not None]
         out["yield_curves"][region] = {"tenors": values, **shape,
-                                        "source_note": cfg.get("note")}
+                                       "as_of": max(as_ofs) if as_ofs else None,
+                                       "source_note": cfg.get("note")}
 
     # --- Eurozone spread panel (stub) ---
     for entry in universe.EUROZONE_SPREAD_PANEL:
@@ -112,26 +180,28 @@ def run_live_pipeline() -> dict:
         })
 
     # --- Inflation (CPI) ---
+    # BIS returns year-on-year percent directly, so there is no index
+    # arithmetic here any more (see universe.INFLATION_CPI for why).
     for region, cfg in universe.INFLATION_CPI.items():
-        df = sources.fetch_fred(cfg["headline"]) if cfg["source"] == "fred" else None
-        status[f"cpi:{region}"] = "ok" if df is not None else "failed"
-        yoy = None
-        if df is not None and len(df) > 12:
-            latest = df.iloc[-1]["value"]
-            year_ago = df.iloc[-13]["value"]
-            if year_ago:
-                yoy = round((latest / year_ago - 1) * 100, 2)
-        out["inflation"][region] = {"headline_cpi_yoy_pct": yoy}
+        df = sources.fetch_bis_cpi(cfg["ref_area"]) if cfg["source"] == "bis" else None
+        st, as_of = _series_status(df, "monthly")
+        status[f"cpi:{region}"] = st
+        yoy = round(float(df.iloc[-1]["value"]), 2) if df is not None and not df.empty else None
+        out["inflation"][region] = {"headline_cpi_yoy_pct": yoy, "as_of": as_of}
 
     # --- Breakeven inflation ---
     for region, cfg in universe.BREAKEVEN_INFLATION.items():
         if cfg.get("source") == "fred":
-            vals = {}
+            vals, sts = {}, []
             for tenor_key in ("5y", "10y", "5y5y_fwd"):
                 series_id = cfg.get(tenor_key)
                 df = sources.fetch_fred(series_id) if series_id else None
                 vals[tenor_key] = float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
-            status[f"breakeven:{region}"] = "ok" if any(vals.values()) else "failed"
+                if series_id:
+                    sts.append(_series_status(df)[0])
+            status[f"breakeven:{region}"] = ("failed" if all(x == "failed" for x in sts)
+                                             else "stale" if "stale" in sts
+                                             else "partial" if "failed" in sts else "ok")
             out["breakeven_inflation"][region] = vals
         else:
             status[f"breakeven:{region}"] = "stubbed"
@@ -141,20 +211,29 @@ def run_live_pipeline() -> dict:
     for region, cfg in universe.REAL_YIELDS.items():
         if cfg.get("source") == "fred":
             df = sources.fetch_fred(cfg["10y"])
-            status[f"realyield:{region}"] = "ok" if df is not None else "failed"
+            st, as_of = _series_status(df)
+            status[f"realyield:{region}"] = st
             val = float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
-            out["real_yields"][region] = {"10y_pct": val,
-                                           "history": history_for_chart(df, 20.0) if df is not None else []}
+            out["real_yields"][region] = {"10y_pct": val, "as_of": as_of,
+                                          "history": history_for_chart(df, 20.0) if df is not None else []}
         else:
             status[f"realyield:{region}"] = "stubbed"
             out["real_yields"][region] = {"note": cfg.get("note")}
 
     # --- GDP growth ---
+    # Sources are real GDP *levels*; growth is derived here so every region is
+    # on the same year-on-year definition.
     for region, cfg in universe.GDP_GROWTH.items():
         df = sources.fetch_fred(cfg["series"]) if cfg["source"] == "fred" else None
-        status[f"gdp:{region}"] = "ok" if df is not None else "failed"
-        val = float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
-        out["gdp_growth"][region] = {"latest_pct": val}
+        st, as_of = _series_status(df, cfg.get("cadence", "quarterly"))
+        status[f"gdp:{region}"] = st
+        lag = 4 if cfg.get("freq", "Q") == "Q" else 1  # periods in one year
+        val = None
+        if df is not None and len(df) > lag:
+            prior = float(df.iloc[-1 - lag]["value"])
+            if prior:
+                val = round((float(df.iloc[-1]["value"]) / prior - 1) * 100, 2)
+        out["gdp_growth"][region] = {"latest_pct": val, "as_of": as_of}
 
     # --- Valuation (stub for v1 live pipeline; Phase 4 work) ---
     for entry in universe.VALUATION_PROXIES:
@@ -168,8 +247,12 @@ def run_live_pipeline() -> dict:
         y10 = out["yield_curves"].get(region, {}).get("tenors", {}).get("10Y")
         out["equity_risk_premia"][region] = {"erp_pct": compute_erp(pe, y10)}
 
-    ok_count = sum(1 for v in status.values() if v == "ok")
-    logger.info("Live pipeline: %d/%d sources ok", ok_count, len(status))
+    tally = {}
+    for v in status.values():
+        tally[v] = tally.get(v, 0) + 1
+    logger.info("Live pipeline: %d/%d sources ok (%s)",
+                tally.get("ok", 0), len(status),
+                ", ".join(f"{k}={v}" for k, v in sorted(tally.items())))
     return out
 
 

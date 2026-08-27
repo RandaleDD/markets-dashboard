@@ -1,4 +1,5 @@
 """Equity risk premium: regional earnings yield minus regional 10y govt yield."""
+from __future__ import annotations
 
 
 def compute_erp(forward_pe: float | None, govt_10y_yield_pct: float | None) -> float | None:
