@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-27T23:01:24.445221+00:00",
+  "generated_at": "2026-08-27T23:04:53.601573+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -13314,11 +13314,11 @@
       "name": "GBP/USD",
       "as_of": "2026-08-28",
       "level": 1.3596,
-      "chg_1d_pct": -0.01,
+      "chg_1d_pct": -0.0,
       "chg_1w_pct": -0.35,
-      "chg_mtd_pct": 2.3,
+      "chg_mtd_pct": 2.31,
       "chg_ytd_pct": 0.96,
-      "chg_1y_pct": 0.68,
+      "chg_1y_pct": 0.69,
       "drawdown_from_ath_pct": -35.51,
       "realized_vol_20d_pct": 3.74,
       "realized_vol_60d_pct": 5.75,
@@ -16481,13 +16481,13 @@
       "id": "eurchf",
       "name": "EUR/CHF",
       "as_of": "2026-08-28",
-      "level": 0.9368,
-      "chg_1d_pct": -0.15,
-      "chg_1w_pct": 0.25,
-      "chg_mtd_pct": 0.58,
-      "chg_ytd_pct": 0.73,
-      "chg_1y_pct": 0.35,
-      "drawdown_from_ath_pct": -44.22,
+      "level": 0.9367,
+      "chg_1d_pct": -0.16,
+      "chg_1w_pct": 0.24,
+      "chg_mtd_pct": 0.57,
+      "chg_ytd_pct": 0.72,
+      "chg_1y_pct": 0.34,
+      "drawdown_from_ath_pct": -44.23,
       "realized_vol_20d_pct": 4.62,
       "realized_vol_60d_pct": 3.71,
       "history_1y": [
@@ -17529,7 +17529,7 @@
         ],
         [
           "2026-08-28",
-          0.9368
+          0.9367
         ]
       ]
     },
@@ -19619,15 +19619,15 @@
       "id": "natgas",
       "name": "Natural Gas",
       "as_of": "2026-08-27",
-      "level": 2.902,
-      "chg_1d_pct": 2.11,
-      "chg_1w_pct": 6.18,
-      "chg_mtd_pct": 4.88,
-      "chg_ytd_pct": -21.27,
-      "chg_1y_pct": 1.22,
-      "drawdown_from_ath_pct": -81.13,
-      "realized_vol_20d_pct": 34.2,
-      "realized_vol_60d_pct": 37.12,
+      "level": 2.903,
+      "chg_1d_pct": 2.15,
+      "chg_1w_pct": 6.22,
+      "chg_mtd_pct": 4.92,
+      "chg_ytd_pct": -21.24,
+      "chg_1y_pct": 1.26,
+      "drawdown_from_ath_pct": -81.12,
+      "realized_vol_20d_pct": 34.22,
+      "realized_vol_60d_pct": 37.13,
       "history_1y": [
         [
           "2025-08-27",
@@ -20635,7 +20635,7 @@
         ],
         [
           "2026-08-27",
-          2.902
+          2.903
         ]
       ]
     },
@@ -20643,14 +20643,14 @@
       "id": "gold",
       "name": "Gold",
       "as_of": "2026-08-27",
-      "level": 4661.2002,
-      "chg_1d_pct": 1.37,
-      "chg_1w_pct": 3.21,
-      "chg_mtd_pct": 14.4,
-      "chg_ytd_pct": 7.76,
-      "chg_1y_pct": 36.91,
-      "drawdown_from_ath_pct": -12.36,
-      "realized_vol_20d_pct": 21.66,
+      "level": 4662.3999,
+      "chg_1d_pct": 1.4,
+      "chg_1w_pct": 3.23,
+      "chg_mtd_pct": 14.43,
+      "chg_ytd_pct": 7.79,
+      "chg_1y_pct": 36.94,
+      "drawdown_from_ath_pct": -12.33,
+      "realized_vol_20d_pct": 21.67,
       "realized_vol_60d_pct": 25.56,
       "history_1y": [
         [
@@ -21659,7 +21659,7 @@
         ],
         [
           "2026-08-27",
-          4661.2002
+          4662.3999
         ]
       ]
     },
@@ -21667,14 +21667,14 @@
       "id": "silver",
       "name": "Silver",
       "as_of": "2026-08-27",
-      "level": 70.22,
-      "chg_1d_pct": 3.28,
-      "chg_1w_pct": 3.23,
-      "chg_mtd_pct": 20.09,
-      "chg_ytd_pct": 0.12,
-      "chg_1y_pct": 81.5,
-      "drawdown_from_ath_pct": -38.98,
-      "realized_vol_20d_pct": 34.47,
+      "level": 70.21,
+      "chg_1d_pct": 3.27,
+      "chg_1w_pct": 3.21,
+      "chg_mtd_pct": 20.07,
+      "chg_ytd_pct": 0.11,
+      "chg_1y_pct": 81.47,
+      "drawdown_from_ath_pct": -38.99,
+      "realized_vol_20d_pct": 34.46,
       "realized_vol_60d_pct": 44.78,
       "history_1y": [
         [
@@ -22683,7 +22683,7 @@
         ],
         [
           "2026-08-27",
-          70.22
+          70.21
         ]
       ]
     },
@@ -24827,7 +24827,7 @@
       "2s10s_bp": null,
       "3m10y_bp": null,
       "as_of": null,
-      "source_note": "SNB Data Portal 'rendoblid' cube is discontinued \u2014 it still responds but its last observation is 2025-07-31. Left unsourced rather than showing year-old yields as current."
+      "source_note": "SNB discontinued the Confederation bond yield series: both the daily 'rendoblid' and monthly 'rendoblim' cubes still respond but stop at 2025-07, sharing a final publishing date of 2025-09-01 (money-market cubes on the same portal remain current, so this is the series being retired, not an outage). Left unsourced rather than showing year-old yields as today's."
     },
     "CN": {
       "tenors": {

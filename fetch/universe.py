@@ -131,9 +131,12 @@ YIELD_CURVES = {
     },
     "CH": {
         "source": "snb",
-        "note": "SNB Data Portal 'rendoblid' cube is discontinued — it still "
-                "responds but its last observation is 2025-07-31. Left "
-                "unsourced rather than showing year-old yields as current.",
+        "note": "SNB discontinued the Confederation bond yield series: both "
+                "the daily 'rendoblid' and monthly 'rendoblim' cubes still "
+                "respond but stop at 2025-07, sharing a final publishing date "
+                "of 2025-09-01 (money-market cubes on the same portal remain "
+                "current, so this is the series being retired, not an outage). "
+                "Left unsourced rather than showing year-old yields as today's.",
         "tenors": {"2Y": None, "5Y": None, "10Y": None, "30Y": None},
     },
     "CN": {
