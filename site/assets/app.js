@@ -182,7 +182,7 @@ function renderGdp(data) {
     return [regionName(data, region), g.latest_pct != null ? `${g.latest_pct.toFixed(1)}%` : stubCell()];
   });
   document.getElementById("panel-gdp").innerHTML =
-    `<h2>GDP Growth</h2><p class="section-note">Latest QoQ annualized / YoY growth by region.</p>` +
+    `<h2>GDP Growth</h2><p class="section-note">Real GDP, year-on-year, same definition for every region.</p>` +
     table(["Region", "Latest growth"], rows);
 }
 

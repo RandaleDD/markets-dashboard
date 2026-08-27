@@ -1,4 +1,5 @@
 """Yield curve shape metrics: 2s10s, 3m10y spreads, and curve-point extraction."""
+from __future__ import annotations
 
 
 def latest_tenor_values(tenor_series: dict) -> dict:
