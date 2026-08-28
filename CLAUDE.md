@@ -1,63 +1,63 @@
 # CLAUDE.md — session anchor
 
-Personal markets dashboard for Marco. CHF-based (Zurich), covers US/UK/Eurozone/
-Germany/Switzerland/China/Japan across equity indices, yield curves, central
-bank rates, inflation, real yields, equity risk premia, GDP growth, currencies,
-commodities, and equity valuation metrics. Daily EOD refresh, static site on
-GitHub Pages, no server to maintain.
+Personal markets dashboard for Marco. CHF-based (Zurich), 8 regions
+(US/UK/Eurozone/Germany/Switzerland/China/Japan/Norway) across equities, yield
+curves, macro, currencies, commodities and valuation. Daily EOD refresh, static
+site on GitHub Pages, no server to maintain.
 
-Read `SPEC.md` for the full design (content scope, sourcing map, architecture,
-phased roadmap). Read `NETWORK.md` before touching `fetch/sources.py` — it
-records what every endpoint actually returns and which ones have no free
-source at all.
+Live: https://randaledd.github.io/markets-dashboard/
+
+- `SPEC.md` — scope decisions, the sourcing table (what every category uses and
+  where the permanent gaps are), architecture, roadmap. **The sourcing table is
+  authoritative; don't restate it here.**
+- `NETWORK.md` — what each endpoint actually returns, its quirks, and the dead
+  ends already ruled out. Read it before touching `fetch/sources.py`.
 
 ## Current status
-Live and deployed at https://randaledd.github.io/markets-dashboard/.
-Last verified run: 63/88 sources `ok`, 4 `stale`, 21 `stubbed`, 0 `failed`.
+Last verified live run: **63/88 `ok`, 4 `stale`, 21 `stubbed`, 0 `failed`.**
 
-Working: equities/FX/commodities (Yahoo, with clickable multi-period charts),
-US curve + TIPS real yields + breakevens (FRED), UK nominal/real/implied-inflation
-curves (BoE GLC workbooks), Eurozone all-bonds curve and per-country spreads
-(ECB), Bund curve (Bundesbank), JGB curve (MOF), Norwegian curve and policy rate
-(Norges Bank), policy rates and CPI for all regions (BIS), GDP (FRED real levels),
-US CAPE (Shiller) and ERP (Damodaran).
+`stale` and `stubbed` here are expected, not a to-do list. The 4 stale are real
+publication lag (UK and Norway GDP, the Swiss monthly 10y, Shiller's CAPE file
+ending 2024-09). The 21 stubbed are the gaps SPEC.md records as having no free
+source — the China curve, six regions' inflation expectations, and non-US
+valuation and risk premia. Chasing them again is wasted effort unless a new
+source appears; NETWORK.md lists what has already been tried and failed.
 
-Still stubbed: Swiss curve beyond a monthly lagged 10y, China curve entirely,
-euro-area market-implied inflation, and non-US P/E and dividend yield.
-
-The four `stale` entries are all genuine publication lag, not bugs: UK and
-Norway GDP, the Swiss monthly 10y, and Shiller's CAPE file (ends 2024-09).
-
-`NETWORK.md` is the record of what each endpoint actually returns — read it
-before touching `fetch/sources.py`. The User-Agent section is not optional:
-FRED breaks if you send a browser UA, BoE and MOF break if you don't.
+Re-run `python3 pipeline.py --mode live` to refresh these numbers before
+trusting them — this section is a snapshot and goes stale on its own.
 
 ## Working conventions
 - One series/region = one entry in `fetch/universe.py`. Never hardcode a
   ticker or series ID anywhere else.
 - Every fetcher in `fetch/sources.py` returns `None` on failure, never
   raises — the pipeline must survive individual source outages.
-- `python pipeline.py --mode sample` regenerates synthetic data for frontend
-  work without needing live network access.
-- `python pipeline.py --mode live` is the real thing — run it, then open
-  `site/index.html` via a local server (not `file://`, the JSON fetch needs
-  http) to check what actually came back.
-- Update `source_status` handling in `pipeline.py` if you add a new fetcher —
-  the frontend's "not yet wired" stub label is driven by `None` values in the
-  JSON, not by `source_status` directly, so make sure a failed fetch degrades
-  to `None` rather than a partial/malformed value.
-- A source returning HTTP 200 is not the same as a source being current. Every
-  series is age-checked against `MAX_AGE_DAYS` and marked `stale` if it's
-  behind its publication cadence — `stale` is a failure, not a pass. Give any
-  new fetcher the right cadence.
-- Sources disagree on headers, so pass them per-source via `_get(...)`; there
-  is no global header set that works (see NETWORK.md).
-- Every displayed number must state its definition. Contract and unit for
+- `python3 pipeline.py --mode sample` regenerates synthetic data for frontend
+  work without network access. It must keep producing the same JSON shape as
+  live mode, or the no-network path silently rots.
+- `python3 pipeline.py --mode live` is the real thing — run it, then serve the
+  site over http (`cd site && python3 -m http.server 8000`). `file://` will not
+  work; the JSON fetch needs http.
+- A failed fetch must degrade to `None`, never a partial or malformed value —
+  the frontend's "not yet wired" label is driven by `None` in the JSON, not by
+  `source_status`.
+- HTTP 200 is not the same as current. Every series is age-checked against
+  `MAX_AGE_DAYS` and marked `stale` if it is behind its publication cadence.
+  **`stale` is a failure, not a pass.** Give any new fetcher the right cadence.
+- Pass headers per-source via `_get(...)`; there is no global set that works.
+  FRED breaks if you send a browser User-Agent, BoE and MOF break if you don't.
+- Prefer one request per curve over one per tenor, and bound big payloads with
+  `startPeriod`. Per-tenor fetching turned a single transient failure into a
+  `partial` curve, and unbounded ECB/BIS history hit read timeouts.
+- Every displayed number must state its definition — contract and unit for
   commodities, real-vs-nominal and YoY-vs-annualised for GDP, tenor and index
-  basis for inflation expectations. An unlabelled number that is not comparable
+  basis for inflation expectations. An unlabelled number that isn't comparable
   to the ones beside it is a reporting error, not a data point.
-- Derived spreads must take both legs from the same source and vintage —
-  ECB's German yield differs from the Bundesbank's, so mixing them would put
-  the methodology gap into the spread.
-- `pipeline.py` must attach `out["source_status"] = status` before returning;
-  `_empty_payload` creates its own empty dict.
+- Derived spreads must take both legs from the same source and vintage. ECB's
+  German yield differs from the Bundesbank's, so mixing them would put that
+  methodology gap into the spread.
+- `pipeline.py` must set `out["source_status"] = status` before returning —
+  `_empty_payload()` creates its own empty dict, so forgetting this silently
+  ships a payload with no status block.
+- `daily.yml` commits the refreshed `latest.json` on every run, so expect merge
+  conflicts on that file when pushing local work. It is generated output: take
+  your regenerated version, don't hand-merge it.
