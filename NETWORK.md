@@ -149,3 +149,23 @@ Two findings worth recording:
   cost-of-capital stack's credit leg stays US-only — mixing an IG spread for
   one region with an HY spread for another would make the stacks silently
   non-comparable.
+
+## Deploy integrity: asset cache busting (2026-08-28)
+
+GitHub Pages serves both `index.html` and the assets under
+`cache-control: max-age=600`, and the assets were referenced with no version
+string. A browser could therefore hold a cached `app.js` while picking up
+fresh HTML — which is exactly what happened when the Cross-Asset & Regime tab
+shipped: the new markup carried the tab button and its empty `<section>`,
+the cached JS had no renderer for it, and the panel rendered blank with
+nothing wrong in the code or the data.
+
+`pipeline.py:stamp_asset_versions()` now rewrites the asset URLs with a short
+content hash on every run. The URL changes only when the file does, so this
+adds no churn on runs where the assets are untouched.
+
+**Debugging note for next time:** this machine has no Node, and Homebrew's
+node install fails on a missing `simdjson` bottle. `osascript -l JavaScript`
+runs JavaScriptCore and will execute `app.js` against a small DOM shim, which
+is how the renderer was cleared of blame here — it produced 16KB of correct
+HTML while the live page showed nothing.
