@@ -91,7 +91,7 @@ def _fetch_curve_tenor(cfg, key, cache):
     elif src == "mof":
         df = sources.fetch_mof_jgb(key)
     elif src == "norges":
-        df = sources.fetch_norges(f"GOVT_ZEROCOUPON/B.{key}")
+        df = sources.fetch_norges_curve(key)
     elif src == "chinabond":
         df = sources.fetch_chinabond(key)
     elif src == "snb":
