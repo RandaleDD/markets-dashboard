@@ -261,3 +261,14 @@ h2.mt { margin-top: 30px; }
 }
 .approx-warning ul { margin: 6px 0 0 16px; padding: 0; }
 .approx-warning li { margin: 3px 0; }
+
+/* --- Regime quadrant map --- */
+.regime-chart { width: 100%; height: auto; max-height: 480px; display: block; }
+.regime-chart .axis-line { stroke: var(--baseline); stroke-width: 1.5; }
+.regime-chart .axis { fill: var(--text-muted); font-size: 11px; }
+.regime-chart .quad-label { fill: var(--text-muted); font-size: 10px; opacity: 0.8; letter-spacing: 0.04em; }
+.regime-pt circle { fill: var(--series-1); opacity: 0.85; }
+.regime-pt text { fill: var(--text-primary); font-size: 11px; font-weight: 600; }
+.regime-pt.lagged circle { fill: var(--text-muted); opacity: 0.55; }
+.regime-controls { display: flex; align-items: center; gap: 12px; margin: 6px 0 10px; flex-wrap: wrap; }
+.regime-controls input[type="range"] { flex: 1; min-width: 200px; max-width: 420px; }

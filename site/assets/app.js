@@ -25,6 +25,7 @@ async function main() {
   renderCurrencies();
   renderCommodities();
   renderValuation();
+  renderCrossAsset();
   populateRegionSelector();
   renderSnapshot(REGION_ORDER[0]);
   setupTabs();
@@ -536,6 +537,105 @@ function renderValuation() {
     `<h2 class="mt">Valuation Detail</h2>` +
     note("Forward P/E and dividend yield are the fields awaiting non-US sourcing.") +
     table(["Region", "Index", "Fwd P/E", "Div Yield", "ERP method", "As of"], detailRows);
+}
+
+
+// ---------------------------------------------------------------------------
+// Growth / inflation regime quadrant map
+// Axes are the CHANGE in the year-on-year rate over one quarter — direction of
+// travel, not level. Quadrant names describe the data, nothing more.
+// ---------------------------------------------------------------------------
+let regimeIndex = null;   // which quarter is selected; null = latest
+
+function regimeQuarters() {
+  const regions = (DATA.regime && DATA.regime.regions) || {};
+  const dates = new Set();
+  Object.values(regions).forEach((pts) => (pts || []).forEach((p) => dates.add(p.date)));
+  return Array.from(dates).sort();
+}
+
+function regimeChart(quarterDate) {
+  const regions = (DATA.regime && DATA.regime.regions) || {};
+  const pts = [];
+  REGION_ORDER.forEach((r) => {
+    const series = regions[r] || [];
+    if (!series.length) return;
+    // Nearest point at or before the selected quarter, so regions reporting on
+    // a lag still plot rather than vanishing.
+    const eligible = series.filter((p) => p.date <= quarterDate);
+    const p = eligible.length ? eligible[eligible.length - 1] : null;
+    if (p) pts.push({ region: r, ...p, lagged: p.date !== quarterDate,
+                      annual: p.delta_basis === "year" });
+  });
+  if (!pts.length) return `<div class="chart-empty">No regime data.</div>`;
+
+  const W = 720, H = 460, PAD = 54;
+  const xs = pts.map((p) => p.growth_delta), ys = pts.map((p) => p.inflation_delta);
+  const bound = (arr) => {
+    const m = Math.max(0.5, ...arr.map((v) => Math.abs(v)));
+    return m * 1.25;
+  };
+  const bx = bound(xs), by = bound(ys);
+  const X = (v) => PAD + ((v + bx) / (2 * bx)) * (W - 2 * PAD);
+  const Y = (v) => H - PAD - ((v + by) / (2 * by)) * (H - 2 * PAD);
+
+  const quadLabels = [
+    { x: W - PAD - 6, y: PAD + 14, t: "growth ↑ · inflation ↑", anchor: "end" },
+    { x: PAD + 6, y: PAD + 14, t: "growth ↓ · inflation ↑", anchor: "start" },
+    { x: W - PAD - 6, y: H - PAD - 8, t: "growth ↑ · inflation ↓", anchor: "end" },
+    { x: PAD + 6, y: H - PAD - 8, t: "growth ↓ · inflation ↓", anchor: "start" },
+  ].map((q) => `<text class="quad-label" x="${q.x}" y="${q.y}" text-anchor="${q.anchor}">${q.t}</text>`).join("");
+
+  const dots = pts.map((p) => {
+    const cx = X(p.growth_delta), cy = Y(p.inflation_delta);
+    const title = `${regionName(p.region)} — ${p.date}\nGrowth ${p.growth_yoy.toFixed(2)}% YoY (${p.growth_delta >= 0 ? "+" : ""}${p.growth_delta.toFixed(2)}pp this quarter)\nInflation ${p.inflation_yoy.toFixed(2)}% YoY (${p.inflation_delta >= 0 ? "+" : ""}${p.inflation_delta.toFixed(2)}pp this quarter)${p.lagged ? "\n(latest available — reports on a lag)" : ""}`;
+    return `<g class="regime-pt${p.lagged ? " lagged" : ""}"><title>${title}</title>
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="6"/>
+      <text x="${(cx + 9).toFixed(1)}" y="${(cy + 4).toFixed(1)}">${p.region}${p.lagged ? "*" : ""}${p.annual ? "†" : ""}</text></g>`;
+  }).join("");
+
+  const anyLagged = pts.some((p) => p.lagged);
+  const anyAnnual = pts.some((p) => p.annual);
+  return `
+    <svg class="regime-chart" viewBox="0 0 ${W} ${H}" role="img">
+      <line class="axis-line" x1="${PAD}" x2="${W - PAD}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>
+      <line class="axis-line" x1="${X(0).toFixed(1)}" x2="${X(0).toFixed(1)}" y1="${PAD}" y2="${H - PAD}"/>
+      ${quadLabels}
+      <text class="axis" x="${W / 2}" y="${H - 14}" text-anchor="middle">← growth slowing   ·   Δ real GDP YoY (pp per quarter)   ·   growth accelerating →</text>
+      <text class="axis" transform="translate(16 ${H / 2}) rotate(-90)" text-anchor="middle">← inflation falling   ·   Δ CPI YoY (pp)   ·   rising →</text>
+      ${dots}
+    </svg>
+    ${anyLagged ? `<p class="section-note">* latest available reading; that region publishes on a lag.</p>` : ""}
+    ${anyAnnual ? `<p class="section-note">† only an annual GDP series exists for this region, so its horizontal move spans a year rather than a quarter and is not comparable with the others on that axis.</p>` : ""}`;
+}
+
+function renderCrossAsset() {
+  const quarters = regimeQuarters();
+  if (!quarters.length) {
+    document.getElementById("panel-crossasset").innerHTML =
+      `<h2>Cross-Asset &amp; Regime</h2>` + note("No regime data available.");
+    return;
+  }
+  const idx = regimeIndex == null ? quarters.length - 1 : regimeIndex;
+  const selected = quarters[idx];
+
+  document.getElementById("panel-crossasset").innerHTML =
+    `<h2>Growth / Inflation Regime Map</h2>` +
+    note((DATA.regime && DATA.regime.axis_definition) || "") +
+    `<div class="regime-controls">
+       <label for="regime-slider">Quarter: <strong id="regime-label">${selected}</strong></label>
+       <input id="regime-slider" type="range" min="0" max="${quarters.length - 1}" value="${idx}" step="1"/>
+     </div>` +
+    regimeChart(selected) +
+    `<div id="crossasset-corr"></div>`;
+
+  const slider = document.getElementById("regime-slider");
+  if (slider) {
+    slider.addEventListener("input", (e) => {
+      regimeIndex = parseInt(e.target.value, 10);
+      renderCrossAsset();
+    });
+  }
 }
 
 function populateRegionSelector() {
