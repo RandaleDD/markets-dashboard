@@ -77,3 +77,31 @@ def history_for_chart(df: pd.DataFrame, lookback_years: float = 1.0) -> list:
 
 def _round_or_none(x, ndigits=2):
     return round(x, ndigits) if x is not None and not (isinstance(x, float) and np.isnan(x)) else None
+
+
+def compact_history(df: pd.DataFrame, years: float = 5.0, daily_years: float = 1.0) -> list:
+    """
+    History for the interactive chart: full daily resolution for the most
+    recent `daily_years`, weekly (Friday) sampling before that, out to `years`.
+
+    Storing 5 years at daily resolution for every series would roughly triple
+    latest.json for detail nobody can see on a 5-year chart. This keeps
+    3M/YTD/1Y exact while making 2Y/3Y/5Y cheap.
+    """
+    if df is None or df.empty:
+        return []
+    df = df.dropna(subset=["value"]).sort_values("date")
+    if df.empty:
+        return []
+    end = df["date"].max()
+    start = end - pd.DateOffset(days=int(365.25 * years))
+    daily_start = end - pd.DateOffset(days=int(365.25 * daily_years))
+
+    recent = df[df["date"] >= daily_start]
+    older = df[(df["date"] >= start) & (df["date"] < daily_start)]
+    if not older.empty:
+        older = older.set_index("date").resample("W-FRI").last().dropna(subset=["value"]).reset_index()
+
+    out = pd.concat([older, recent], ignore_index=True) if not older.empty else recent
+    return [[d.strftime("%Y-%m-%d"), round(float(v), 4)]
+            for d, v in zip(out["date"], out["value"])]

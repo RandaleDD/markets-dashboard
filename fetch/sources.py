@@ -173,10 +173,12 @@ def _start_period(years=3):
 #   628 = index level
 # so filtering on unit_measure is mandatory, not cosmetic.
 # ---------------------------------------------------------------------------
-CPI_UNIT_YOY = "771"
+CPI_UNIT_YOY = "771"   # year-on-year percent change
+CPI_UNIT_INDEX = "628"  # index level
 
 
-def fetch_bis_cpi(ref_area: str) -> pd.DataFrame | None:
+def fetch_bis_cpi(ref_area: str, unit: str = CPI_UNIT_YOY) -> pd.DataFrame | None:
+    """unit=771 -> year-on-year percent; unit=628 -> index level."""
     if not ref_area:
         return None
     url = f"https://stats.bis.org/api/v2/data/dataflow/BIS/WS_LONG_CPI/1.0/M.{ref_area}"
@@ -189,11 +191,11 @@ def fetch_bis_cpi(ref_area: str) -> pd.DataFrame | None:
         if "unit_measure" not in df.columns:
             logger.warning("BIS CPI for %s: no unit_measure column", ref_area)
             return None
-        yoy = df[df["unit_measure"].astype(str) == CPI_UNIT_YOY]
-        if yoy.empty:
-            logger.warning("BIS CPI for %s: no year-on-year rows (unit %s)", ref_area, CPI_UNIT_YOY)
+        sub = df[df["unit_measure"].astype(str) == str(unit)]
+        if sub.empty:
+            logger.warning("BIS CPI for %s: no rows for unit %s", ref_area, unit)
             return None
-        return _frame(yoy["time_period"], yoy["obs_value"])
+        return _frame(sub["time_period"], sub["obs_value"])
     except Exception as exc:  # noqa: BLE001
         logger.warning("BIS CPI parse failed for %s: %s", ref_area, exc)
         return None
@@ -315,6 +317,144 @@ def fetch_mof_jgb(tenor: str) -> pd.DataFrame | None:
 
 
 # ---------------------------------------------------------------------------
+# ECB Data Portal (data-api.ecb.europa.eu). Used for the euro area yield curve
+# and for per-country long-term government bond yields.
+#
+# The euro area curve comes in two flavours: G_N_A (AAA-rated issuers only)
+# and G_N_C (all government bonds). We use G_N_C — AAA tracks the Bund almost
+# exactly, which made the old Eurozone row a duplicate of Germany.
+# ---------------------------------------------------------------------------
+def fetch_ecb(series_key: str) -> pd.DataFrame | None:
+    if not series_key:
+        return None
+    resp = _get(f"https://data-api.ecb.europa.eu/service/data/{series_key}",
+                params={"format": "csvdata"})
+    if resp is None or not resp.text:
+        return None
+    try:
+        df = pd.read_csv(io.StringIO(resp.text))
+        df.columns = [c.strip().upper() for c in df.columns]
+        if "TIME_PERIOD" not in df.columns or "OBS_VALUE" not in df.columns:
+            logger.warning("ECB %s: unexpected columns %s", series_key, df.columns.tolist())
+            return None
+        return _frame(df["TIME_PERIOD"], df["OBS_VALUE"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ECB parse failed for %s: %s", series_key, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Bank of England GLC yield curves. One zip holds four workbooks — nominal,
+# real and implied-inflation spot curves plus OIS — so it is downloaded once
+# per run and every tenor read from the cached parse.
+#
+# Layout per workbook, sheet "4. spot curve": row index 3 carries maturities
+# in years, and dated observation rows follow. This replaces the IADB series,
+# which only publish 5y/10y/20y and have no 2y or 30y.
+# ---------------------------------------------------------------------------
+_GLC_CACHE = {}
+_GLC_URL = "https://www.bankofengland.co.uk/-/media/boe/files/statistics/yield-curves/latest-yield-curve-data.zip"
+_GLC_FILES = {
+    "nominal": "GLC Nominal daily data current month.xlsx",
+    "real": "GLC Real daily data current month.xlsx",
+    "inflation": "GLC Inflation daily data current month.xlsx",
+}
+
+
+def _glc_book(which: str):
+    """Returns (maturities_series, dated_rows_df) for one GLC workbook."""
+    if which in _GLC_CACHE:
+        return _GLC_CACHE[which]
+    _GLC_CACHE[which] = None
+    if "zip" not in _GLC_CACHE:
+        _GLC_CACHE["zip"] = None
+        resp = _get(_GLC_URL, headers=BROWSER_HEADERS)
+        if resp is not None and resp.content:
+            try:
+                import zipfile
+                _GLC_CACHE["zip"] = zipfile.ZipFile(io.BytesIO(resp.content))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("BoE GLC zip open failed: %s", exc)
+    zf = _GLC_CACHE.get("zip")
+    if zf is None:
+        return None
+    try:
+        name = _GLC_FILES[which]
+        # The real and inflation workbooks start their long-end sheet well
+        # beyond 2 years, so both sheets are read and concatenated to give one
+        # continuous maturity axis per date.
+        books = []
+        for sheet in ("3. spot, short end", "4. spot curve"):
+            try:
+                df = pd.read_excel(io.BytesIO(zf.read(name)), sheet_name=sheet, header=None)
+            except Exception:  # noqa: BLE001 - sheet may not exist in every workbook
+                continue
+            maturities = pd.to_numeric(df.iloc[3], errors="coerce")
+            dates = pd.to_datetime(df[0], errors="coerce", format="mixed")
+            rows = df[dates.notna()].copy()
+            if rows.empty:
+                continue
+            rows[0] = dates[dates.notna()]
+            books.append((maturities, rows))
+        if not books:
+            return None
+        _GLC_CACHE[which] = books
+        return books
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("BoE GLC parse failed for %s: %s", which, exc)
+        return None
+
+
+def fetch_boe_glc(which: str, tenor_years: str) -> pd.DataFrame | None:
+    """which is 'nominal' | 'real' | 'inflation'; tenor_years like '2', '10', '30'."""
+    books = _glc_book(which)
+    if not books:
+        return None
+    try:
+        target = float(tenor_years)
+        best = None
+        for maturities, rows in books:
+            if not maturities.notna().any():
+                continue
+            col = (maturities - target).abs().idxmin()
+            gap = abs(float(maturities[col]) - target)
+            if best is None or gap < best[0]:
+                best = (gap, rows, col)
+        if best is None or best[0] > 0.3:
+            logger.warning("BoE GLC %s: no column near %sy", which, tenor_years)
+            return None
+        _, rows, col = best
+        return _frame(rows[0], rows[col])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("BoE GLC tenor extract failed (%s %s): %s", which, tenor_years, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Norges Bank SDMX API — Norwegian policy rate and the zero-coupon government
+# curve. Semicolon-delimited CSV. The published curve stops at 10 years.
+# ---------------------------------------------------------------------------
+def fetch_norges(key: str) -> pd.DataFrame | None:
+    """key is a dataflow path such as 'IR/B.KPRA.SD' or 'GOVT_ZEROCOUPON/B.10Y'."""
+    if not key:
+        return None
+    resp = _get(f"https://data.norges-bank.no/api/data/{key}",
+                params={"format": "csv", "startPeriod": _start_period(years=3)})
+    if resp is None or not resp.text:
+        return None
+    try:
+        df = pd.read_csv(io.StringIO(resp.text), sep=";")
+        df.columns = [c.strip().upper() for c in df.columns]
+        if "TIME_PERIOD" not in df.columns or "OBS_VALUE" not in df.columns:
+            logger.warning("Norges %s: unexpected columns %s", key, df.columns.tolist())
+            return None
+        return _frame(df["TIME_PERIOD"], df["OBS_VALUE"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Norges parse failed for %s: %s", key, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Still unsourced. Each returns None so the pipeline degrades to a "not yet
 # wired" cell rather than shipping wrong or stale numbers. See NETWORK.md.
 # ---------------------------------------------------------------------------
@@ -342,30 +482,98 @@ def fetch_chinabond(tenor: str) -> pd.DataFrame | None:
     return None
 
 
-def fetch_ecb(series_key: str) -> pd.DataFrame | None:
-    # ECB SDMX REST (data-api.ecb.europa.eu). Phase 3 work — the eurozone
-    # breakeven series key is still TBD.
-    logger.info("fetch_ecb: not yet wired up (%s)", series_key)
-    return None
-
-
-def fetch_periphery_spread(country: str) -> pd.DataFrame | None:
-    # France: Banque de France Webstat. Italy: Banca d'Italia Infostat.
-    # Spain: Banco de España. Phase 3 work — exact series still TBD.
-    logger.info("fetch_periphery_spread: not yet wired up (%s)", country)
-    return None
+# ---------------------------------------------------------------------------
+# Robert Shiller's CAPE dataset (shillerdata.com, served from a wsimg blob).
+# Genuine legacy .xls, so this needs xlrd rather than openpyxl. The "Data"
+# sheet carries a fractional date (1871.01 = Jan 1871) and CAPE in a column
+# whose header row sits several rows down, so the header is located by
+# scanning rather than assumed.
+# ---------------------------------------------------------------------------
+SHILLER_URL = "https://img1.wsimg.com/blobby/go/e5e77e0b-59d1-44d9-ab25-4763ac982e53/downloads/ie_data.xls"
 
 
 def fetch_shiller_cape() -> pd.DataFrame | None:
-    # Shiller's ie_data.xls (shillerdata.com / econ.yale.edu). Phase 4.
-    logger.info("fetch_shiller_cape: not yet wired up")
-    return None
+    resp = _get(SHILLER_URL, headers=BROWSER_HEADERS)
+    if resp is None or not resp.content:
+        return None
+    try:
+        raw = pd.read_excel(io.BytesIO(resp.content), sheet_name="Data", header=None)
+        # The header spans two rows. The upper one also contains a cell reading
+        # "CAPE" belonging to the Excess CAPE Yield block on the right, so match
+        # the lower row precisely: column 0 is exactly "Date" there.
+        hdr = None
+        for i in range(min(15, len(raw))):
+            if str(raw.iloc[i, 0]).strip().upper() == "DATE":
+                hdr = i
+                break
+        if hdr is None:
+            logger.warning("Shiller: could not locate header row")
+            return None
+        cape_col = None
+        for j in range(raw.shape[1]):
+            if str(raw.iloc[hdr, j]).strip().upper() == "CAPE":
+                cape_col = j
+                break
+        if cape_col is None:
+            logger.warning("Shiller: no exact CAPE column on header row %s", hdr)
+            return None
+        body = raw.iloc[hdr + 1:]
+        # Fractional dates: 1871.01 is Jan 1871, 1871.1 is Oct 1871.
+        d = pd.to_numeric(body[0], errors="coerce")
+        keep = d.notna()
+        d = d[keep]
+        year = d.astype(int)
+        month = ((d - year) * 100).round().astype(int).clip(1, 12)
+        dates = pd.to_datetime(dict(year=year, month=month, day=1), errors="coerce")
+        return _frame(dates, body[cape_col][keep])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Shiller CAPE parse failed: %s", exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Damodaran (NYU Stern) implied US equity risk premium history.
+# ---------------------------------------------------------------------------
+DAMODARAN_URL = "https://pages.stern.nyu.edu/~adamodar/pc/datasets/histimpl.xls"
 
 
 def fetch_damodaran_erp() -> pd.DataFrame | None:
-    # pages.stern.nyu.edu/~adamodar histimpl spreadsheet. Phase 4.
-    logger.info("fetch_damodaran_erp: not yet wired up")
-    return None
+    resp = _get(DAMODARAN_URL, headers=BROWSER_HEADERS)
+    if resp is None or not resp.content:
+        return None
+    try:
+        raw = pd.read_excel(io.BytesIO(resp.content), sheet_name=0, header=None)
+        hdr = None
+        for i in range(min(15, len(raw))):
+            row = [str(x).strip().lower() for x in raw.iloc[i].tolist()]
+            if "year" in row and any("implied" in c for c in row):
+                hdr = i
+                break
+        if hdr is None:
+            logger.warning("Damodaran: could not locate header row")
+            return None
+        df = raw.iloc[hdr + 1:].copy()
+        df.columns = [str(x).strip() for x in raw.iloc[hdr]]
+        year_col = next(c for c in df.columns if c.strip().lower() == "year")
+        # Column order matters: "Implied Premium (DDM)" sits to the left of the
+        # headline "Implied ERP (FCFE)" and is a different, lower measure.
+        cols = [str(c) for c in df.columns]
+        erp_col = next((c for c in cols if c.strip().lower() == "implied erp (fcfe)"), None)
+        if erp_col is None:
+            erp_col = next((c for c in cols if "implied erp" in c.lower()), None)
+        if erp_col is None:
+            erp_col = next(c for c in cols if "implied" in c.lower() and "premium" in c.lower())
+        years = pd.to_numeric(df[year_col], errors="coerce")
+        dates = pd.to_datetime(years.dropna().astype(int).astype(str) + "-12-31", errors="coerce")
+        vals = pd.to_numeric(df[erp_col], errors="coerce").loc[years.dropna().index]
+        # Damodaran stores these as fractions (0.0433), the dashboard wants percent.
+        out = _frame(dates, vals)
+        if out is not None and out["value"].abs().max() < 1.0:
+            out["value"] = out["value"] * 100.0
+        return out
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Damodaran ERP parse failed: %s", exc)
+        return None
 
 
 def fetch_etf_factsheet(ticker: str) -> dict | None:

@@ -33,6 +33,12 @@ wrong fails *silently*.
 | Bundesbank | `api.statistiken.bundesbank.de/rest/download/BBSIS/<key>?format=csv&lang=en` | ~9-line metadata preamble before `date,value,flag`; `.` for missing. Tenor is the `R__XX` segment: `R02XX`/`R05XX`/`R10XX`/`R30XX`. |
 | BoE | `boeapps/iadb/fromshowcolumns.asp?csv.x=yes&...&UsingCodes=Y` | Browser UA required. `IUDSNZC`/`IUDMNZC`/`IUDLNZC` = 5y/10y/**20y** nominal zero-coupon. There is no 2y or 30y in this set. |
 | MOF Japan | `mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv` | Whole 1Y–40Y curve in one file. **Shift-JIS (cp932), not UTF-8**; line 1 is a title row. Current month only (`jgbcm_all.csv` is 404). |
+| ECB curve | `data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_C.SV_C_YM.SR_<t>?format=csvdata` | `G_N_C` is the ALL-bonds euro area curve; `G_N_A` is AAA-only and tracks the Bund so closely it is a duplicate of Germany. Full history is ~3MB per tenor. |
+| ECB per-country | `.../IRS/M.<cc>.L.L40.CI.0000.EUR.N.Z` | Monthly long-term government yield for convergence purposes. Used for euro-area spreads — **both legs must come from this same series**, since ECB's German figure (3.07) differs from Bundesbank's daily curve (3.22). |
+| BoE GLC | `.../statistics/yield-curves/latest-yield-curve-data.zip` | Browser UA required. Four xlsx workbooks: nominal, **real**, **inflation**, OIS. Sheet `4. spot curve` holds the long end and `3. spot, short end` the front — the real and inflation books start their long-end sheet past 2y, so **both sheets must be read** to get a 2y. Row index 3 carries maturities in years. |
+| Norges Bank | `data.norges-bank.no/api/data/<flow>/<key>?format=csv` | **Semicolon-delimited.** `IR/B.KPRA.SD` is the policy rate; `GOVT_ZEROCOUPON/B.<tenor>` the curve. The published curve **stops at 10 years** — there is no 30y. |
+| Shiller CAPE | `img1.wsimg.com/blobby/.../ie_data.xls` | Genuine legacy .xls, needs **xlrd**. The header spans two rows and the upper one contains a second cell reading "CAPE" belonging to the Excess CAPE Yield block — match the lower row, where column 0 is exactly "Date". Dates are fractional (1871.01 = Jan). File currently ends 2024-09. |
+| Damodaran ERP | `pages.stern.nyu.edu/~adamodar/pc/datasets/histimpl.xls` | Header on row 6. Use **"Implied ERP (FCFE)"** — "Implied Premium (DDM)" sits to its left and is a different, materially lower measure (1.69% vs 4.23% for 2025). Values are fractions, not percent. |
 
 ## Dead or blocked
 
@@ -71,3 +77,20 @@ Read `source_status` after every run; `stale` is not a pass.
 `python pipeline.py --mode live`, then check `source_status`. Serve the site
 over http (`cd site && python3 -m http.server 8000`) — `file://` will not work,
 the JSON fetch needs it.
+
+
+## Added 2026-08-28
+
+- **Euro-area market-implied inflation has no free source.** The practitioner
+  standard is the EUR HICPx zero-coupon inflation swap, which is not published
+  free. The ECB `FM` dataflow contains no ILS series — its `ILS` codes are
+  Israeli shekel — and the Bundesbank REST API exposes no index-linked term
+  structure. Shown as unavailable with the reason, rather than substituting a
+  survey number into a market-implied column.
+- **CFETS (chinamoney.com.cn) is closed too.** Its edge gateway answers
+  `{"Error":"Path not found."}` to every path, including plain HTML pages —
+  so the last remaining lead for a China curve is dead. China stays blank.
+- **UK implied inflation is RPI-based**, because UK linkers reference RPI. It
+  runs roughly 0.8-1.0pp above the equivalent CPI rate, so it must never be
+  compared directly with US CPI breakevens. The basis is displayed next to
+  every figure.
