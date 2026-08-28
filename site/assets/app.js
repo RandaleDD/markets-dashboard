@@ -102,6 +102,38 @@ function table(headers, rows) {
   return `<div class="table-wrap"><table><thead>${thead}</thead><tbody>${body}</tbody></table></div>`;
 }
 
+
+// ---------------------------------------------------------------------------
+// Percentile / z-score context
+// Descriptive only: where a reading sits against its own history. Never a
+// composite score, never a cheap/expensive judgement.
+// ---------------------------------------------------------------------------
+const CTX_WINDOW_ORDER = ["10y", "5y", "full"];
+
+function ordinal(n) {
+  const v = Math.round(n);
+  if (v % 100 >= 11 && v % 100 <= 13) return `${v}th`;
+  return `${v}${["th", "st", "nd", "rd"][v % 10] || "th"}`;
+}
+
+/** Small inline annotation, or "" when no window resolved (hidden, not N/A). */
+function ctxTag(context) {
+  if (!context) return "";
+  const key = CTX_WINDOW_ORDER.find((k) => context[k]);
+  if (!key) return "";
+  const c = context[key];
+  const label = key === "full" ? "full" : key;
+  const detail = CTX_WINDOW_ORDER
+    .filter((k) => context[k])
+    .map((k) => {
+      const w = context[k];
+      const z = w.z != null ? `, z ${w.z > 0 ? "+" : ""}${w.z.toFixed(2)}` : "";
+      return `${k === "full" ? "full history" : k}: ${ordinal(w.pct)} pctl${z} (n=${w.n}, since ${w.since})`;
+    })
+    .join(" \u00b7 ");
+  return ` <span class="pctl" title="${detail}">${ordinal(c.pct)} ${label}</span>`;
+}
+
 // ---------------------------------------------------------------------------
 // Expandable chart
 // ---------------------------------------------------------------------------
@@ -240,8 +272,9 @@ function renderEquities() {
         `${idx.name} <span class="ccy">${idx.currency}</span>`,
         fmtNum(idx.level, (idx.level || 0) > 100 ? 1 : 4),
         fmtPct(idx.chg_1d_pct), fmtPct(idx.chg_1w_pct), fmtPct(idx.chg_mtd_pct),
-        fmtPct(idx.chg_ytd_pct), fmtPct(idx.chg_1y_pct), fmtPct(idx.drawdown_from_ath_pct),
-        idx.realized_vol_20d_pct != null ? `${idx.realized_vol_20d_pct.toFixed(1)}%` : dash(),
+        fmtPct(idx.chg_ytd_pct), fmtPct(idx.chg_1y_pct),
+        fmtPct(idx.drawdown_from_ath_pct) + ctxTag(idx.drawdown_context),
+        (idx.realized_vol_20d_pct != null ? `${idx.realized_vol_20d_pct.toFixed(1)}%` : dash()) + ctxTag(idx.vol_context),
       ];
       chartableRows(key, idx.name, idx.history, cells, headers.length).forEach((r) => rows.push(r));
     });
@@ -270,9 +303,11 @@ function curveRows(source, showBasis) {
     if (!c) return null;
     const t = c.tenors || {};
     const flag = c.lagged ? ` <span class="flag">${c.cadence}, lagged</span>` : "";
+    const cc = c.context || {};
     const cells = [
       regionName(region) + flag,
-      pctPlain(t["2Y"]), pctPlain(t["5Y"]), pctPlain(t["10Y"]), pctPlain(t["30Y"]),
+      pctPlain(t["2Y"]) + ctxTag(cc["2Y"]), pctPlain(t["5Y"]) + ctxTag(cc["5Y"]),
+      pctPlain(t["10Y"]) + ctxTag(cc["10Y"]), pctPlain(t["30Y"]) + ctxTag(cc["30Y"]),
       c["2s10s_bp"] != null ? fmtBp(c["2s10s_bp"]) : dash(),
       c.as_of || dash(),
     ];
@@ -295,7 +330,8 @@ function renderYields() {
       return;
     }
     const t = e.tenors || {};
-    const parts = Object.keys(t).map((k) => `${k.replace("_", " ")}: <strong>${t[k] != null ? t[k].toFixed(2) + "%" : "—"}</strong>`).join(" &nbsp;·&nbsp; ");
+    const ec = e.context || {};
+    const parts = Object.keys(t).map((k) => `${k.replace("_", " ")}: <strong>${t[k] != null ? t[k].toFixed(2) + "%" : "—"}</strong>${ctxTag(ec[k])}`).join(" &nbsp;·&nbsp; ");
     expRows.push([
       regionName(region),
       `<span class="badge badge-${e.kind}">${e.kind}-implied</span> <span class="ccy">${e.basis || ""}</span>`,
@@ -315,7 +351,7 @@ function renderYields() {
   const sp = DATA.eurozone_spreads || { rows: [] };
   const spreadRows = (sp.rows || []).map((r) => [
     r.country, pctPlain(r.yield_pct, 3),
-    r.spread_bp != null ? fmtBp(r.spread_bp) : dash(), r.as_of || dash(),
+    (r.spread_bp != null ? fmtBp(r.spread_bp) : dash()) + ctxTag(r.context), r.as_of || dash(),
   ]);
 
   document.getElementById("panel-yields").innerHTML =
@@ -339,11 +375,11 @@ function renderYields() {
 function renderMacro() {
   const rateRows = REGION_ORDER.map((region) => {
     const cb = (DATA.macro.policy_rates || {})[region] || {};
-    return [regionName(region), pctPlain(cb.rate_pct), cb.as_of || dash()];
+    return [regionName(region), pctPlain(cb.rate_pct) + ctxTag(cb.context), cb.as_of || dash()];
   });
   const infRows = REGION_ORDER.map((region) => {
     const i = (DATA.macro.inflation || {})[region] || {};
-    return [regionName(region), pctPlain(i.yoy_pct, 1), pctPlain(i.qoq_ann_pct, 1), i.as_of || dash()];
+    return [regionName(region), pctPlain(i.yoy_pct, 1) + ctxTag(i.context), pctPlain(i.qoq_ann_pct, 1), i.as_of || dash()];
   });
   const gdpRows = REGION_ORDER.map((region) => {
     const g = (DATA.macro.gdp || {})[region] || {};
@@ -371,7 +407,7 @@ function renderCurrencies() {
   const headers = ["Pair", "Level", "1D", "1W", "YTD", "1Y trend"];
   const rows = [];
   (DATA.currencies || []).forEach((fx) => {
-    const cells = [fx.name, fmtNum(fx.level, 4), fmtPct(fx.chg_1d_pct), fmtPct(fx.chg_1w_pct), fmtPct(fx.chg_ytd_pct)];
+    const cells = [fx.name, fmtNum(fx.level, 4) + ctxTag(fx.context), fmtPct(fx.chg_1d_pct), fmtPct(fx.chg_1w_pct), fmtPct(fx.chg_ytd_pct)];
     chartableRows(`fx:${fx.id}`, fx.name, fx.history, cells, headers.length).forEach((r) => rows.push(r));
   });
   document.getElementById("panel-currencies").innerHTML =
@@ -386,7 +422,7 @@ function renderCommodities() {
       cm.name,
       `<span class="ccy">${cm.exchange || ""} ${cm.contract || ""}</span>`,
       `<span class="ccy">${cm.unit || ""}</span>`,
-      fmtNum(cm.level, 2), fmtPct(cm.chg_1d_pct), fmtPct(cm.chg_1w_pct), fmtPct(cm.chg_ytd_pct),
+      fmtNum(cm.level, 2) + ctxTag(cm.context), fmtPct(cm.chg_1d_pct), fmtPct(cm.chg_1w_pct), fmtPct(cm.chg_ytd_pct),
     ];
     chartableRows(`commodity:${cm.id}`, `${cm.name} (${cm.unit || ""})`, cm.history, cells, headers.length).forEach((r) => rows.push(r));
   });
@@ -402,10 +438,10 @@ function renderValuation() {
     const e = (DATA.equity_risk_premia || {})[region] || {};
     return [
       regionName(region), v.name || "",
-      v.cape != null ? v.cape.toFixed(1) : (v.note ? `<span class="stub">${v.note}</span>` : dash()),
+      v.cape != null ? v.cape.toFixed(1) + ctxTag(v.cape_context) : (v.note ? `<span class="stub">${v.note}</span>` : dash()),
       v.forward_pe != null ? v.forward_pe.toFixed(1) : dash(),
       v.dividend_yield_pct != null ? `${v.dividend_yield_pct.toFixed(1)}%` : dash(),
-      e.erp_pct != null ? `${e.erp_pct.toFixed(2)}%` : dash(),
+      e.erp_pct != null ? `${e.erp_pct.toFixed(2)}%` + ctxTag(e.context) : dash(),
       e.method ? `<span class="ccy">${e.method}</span>` : dash(),
       v.cape_as_of || e.as_of || dash(),
     ];

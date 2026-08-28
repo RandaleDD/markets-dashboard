@@ -23,6 +23,7 @@ from fetch import sources, universe
 from transform.returns import compute_return_metrics, compact_history
 from transform.curves import latest_tenor_values, curve_shape
 from transform.erp import compute_erp
+from transform.percentile import percentile_context, has_any
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("markets_dashboard.pipeline")
@@ -69,6 +70,39 @@ def _pct_change(df, lag, annualise=1):
     if ratio <= 0:
         return None
     return round((ratio ** annualise - 1) * 100, 2)
+
+
+def _ctx(df, latest_value=None):
+    """
+    Percentile/z-score context from a source's FULL history, or None.
+
+    Deliberately fed the untrimmed fetch, not compact_history's stored archive:
+    the archive only reaches back to this project's launch, so a 10y window
+    computed from it cannot resolve (and its "full" would silently mean
+    "since we started collecting"). Proven on US 10y — 98th percentile over a
+    real 10 years, 42nd over the actual series back to 1962.
+    """
+    ctx = percentile_context(df, latest_value)
+    return ctx if has_any(ctx) else None
+
+
+def _drawdown_series(df):
+    """Drawdown from running peak, as a percentage — mean-reverting, so a
+    percentile against its own history is informative."""
+    if df is None or len(df) < 2:
+        return None
+    out = df.dropna(subset=["value"]).sort_values("date").copy()
+    out["value"] = (out["value"] / out["value"].cummax() - 1.0) * 100.0
+    return out
+
+
+def _rolling_vol_series(df, window=20):
+    """Annualised rolling close-to-close volatility, as a percentage."""
+    if df is None or len(df) < window + 2:
+        return None
+    out = df.dropna(subset=["value"]).sort_values("date").copy()
+    out["value"] = out["value"].pct_change().rolling(window).std() * (252 ** 0.5) * 100.0
+    return out.dropna(subset=["value"])
 
 
 # Curve tenors go through one dispatcher so a region only names its source in
@@ -122,8 +156,11 @@ def _build_curve(region, cfg, status, cache, prefix):
                 break
     status[f"{prefix}:{region}"] = st
     as_ofs = [_series_status(df, cadence)[1] for df in tenor_series.values() if df is not None]
+    context = {t: _ctx(df) for t, df in tenor_series.items() if df is not None}
+    context = {t: c for t, c in context.items() if c}
     return {
         "tenors": values,
+        "context": context or None,
         **curve_shape(values),
         "as_of": max(as_ofs) if as_ofs else None,
         "source_note": cfg.get("note"),
@@ -144,9 +181,14 @@ def run_live_pipeline() -> dict:
     for idx in universe.EQUITY_INDICES:
         df = sources.fetch_yahoo(idx.get("yahoo"))
         status[f"equity:{idx['id']}"], _ = _series_status(df)
+        # A price level's percentile is near-meaningless for a trending series
+        # (any index in an uptrend sits at ~100th). Volatility and drawdown are
+        # mean-reverting, so those are what carry context here.
         out["equity_indices"].setdefault(idx["region"], []).append({
             "id": idx["id"], "name": idx["name"], "currency": idx["currency"],
             **(compute_return_metrics(df) if df is not None else {}),
+            "vol_context": _ctx(_rolling_vol_series(df)) if df is not None else None,
+            "drawdown_context": _ctx(_drawdown_series(df)) if df is not None else None,
             "history": compact_history(df) if df is not None else [],
         })
 
@@ -157,6 +199,7 @@ def run_live_pipeline() -> dict:
         out["currencies"].append({
             "id": fx["id"], "name": fx["name"],
             **(compute_return_metrics(df) if df is not None else {}),
+            "context": _ctx(df) if df is not None else None,
             "history": compact_history(df) if df is not None else [],
         })
 
@@ -168,6 +211,7 @@ def run_live_pipeline() -> dict:
             "id": cm["id"], "name": cm["name"], "exchange": cm["exchange"],
             "contract": cm["contract"], "unit": cm["unit"],
             **(compute_return_metrics(df) if df is not None else {}),
+            "context": _ctx(df) if df is not None else None,
             "history": compact_history(df) if df is not None else [],
         })
 
@@ -180,7 +224,8 @@ def run_live_pipeline() -> dict:
         st, as_of = _series_status(df, "policy")
         status[f"cbrate:{cb['region']}"] = st
         out["macro"]["policy_rates"][cb["region"]] = {
-            "name": cb["name"], "rate_pct": _latest(df), "as_of": as_of}
+            "name": cb["name"], "rate_pct": _latest(df), "as_of": as_of,
+            "context": _ctx(df) if df is not None else None}
 
     # --- Macro: inflation (YoY from BIS, annualised QoQ from the index) ---
     for region, cfg in universe.INFLATION_CPI.items():
@@ -193,6 +238,7 @@ def run_live_pipeline() -> dict:
             # 3 monthly observations = one quarter, compounded to a yearly rate.
             "qoq_ann_pct": _pct_change(idx_df, 3, annualise=4),
             "as_of": as_of,
+            "context": _ctx(yoy_df) if yoy_df is not None else None,
         }
 
     # --- Macro: GDP (real, chain-linked, local currency, SA) ---
@@ -231,6 +277,15 @@ def run_live_pipeline() -> dict:
     out["eurozone_spreads"]["cadence"] = "monthly"
     for entry in universe.EUROZONE_SPREAD_PANEL:
         df = sources.fetch_ecb(entry["ecb_key"])
+        # Context belongs on the spread's own history, not the yield's — a
+        # spread and its underlying yield sit at very different percentiles.
+        spread_hist = None
+        if df is not None and bench_df is not None:
+            merged = df.merge(bench_df, on="date", suffixes=("_c", "_b"))
+            if not merged.empty:
+                spread_hist = pd.DataFrame({
+                    "date": merged["date"],
+                    "value": (merged["value_c"] - merged["value_b"]) * 100.0})
         st, as_of = _series_status(df, "monthly")
         status[f"spread:{entry['country']}"] = st if bench_st != "failed" else "failed"
         y = _latest(df)
@@ -239,6 +294,7 @@ def run_live_pipeline() -> dict:
             "spread_bp": round((y - bench_yield) * 100, 1)
             if (y is not None and bench_yield is not None) else None,
             "as_of": as_of,
+            "context": _ctx(spread_hist) if spread_hist is not None else None,
         })
 
     # --- Valuation (CAPE) and ERP ---
@@ -254,6 +310,7 @@ def run_live_pipeline() -> dict:
             "name": entry["name"],
             "cape": round(_latest(cape_df), 2) if (is_us and _latest(cape_df) is not None) else None,
             "cape_as_of": cape_as_of if is_us else None,
+            "cape_context": (_ctx(cape_df) if is_us and cape_df is not None else None),
             "forward_pe": None, "dividend_yield_pct": None,
             "note": None if is_us else "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4).",
         }
@@ -265,6 +322,7 @@ def run_live_pipeline() -> dict:
                 "erp_pct": round(_latest(erp_df), 2),
                 "method": "Damodaran implied ERP (FCFE), S&P 500",
                 "as_of": erp_as_of,
+                "context": _ctx(erp_df),
             }
             continue
         pe = out["valuation"].get(region, {}).get("forward_pe")
@@ -275,6 +333,7 @@ def run_live_pipeline() -> dict:
             "erp_pct": val,
             "method": "Earnings yield minus 10y govt yield" if val is not None else None,
             "as_of": None,
+            "context": None,
         }
 
     out["source_status"] = status
@@ -292,7 +351,7 @@ def _inflation_expectations(region, cfg, status, cache):
         status[f"inflexp:{region}"] = "stubbed"
         return {"kind": "unavailable", "note": cfg.get("note"), "tenors": {}}
 
-    tenors, sts = {}, []
+    tenors, sts, context = {}, [], {}
     for label, key in cfg["tenors"].items():
         if cfg["source"] == "fred":
             df = sources.fetch_fred(key)
@@ -302,10 +361,14 @@ def _inflation_expectations(region, cfg, status, cache):
             df = None
         v = _latest(df)
         tenors[label] = round(v, 2) if v is not None else None
+        if df is not None:
+            c = _ctx(df)
+            if c:
+                context[label] = c
         sts.append(_series_status(df)[0])
 
     out = {"kind": cfg.get("kind", "market"), "basis": cfg.get("basis"),
-           "note": cfg.get("note"), "tenors": tenors}
+           "note": cfg.get("note"), "tenors": tenors, "context": context or None}
 
     model = cfg.get("model")
     if model:
@@ -366,6 +429,12 @@ def run_sample_pipeline() -> dict:
             vals.append([d.strftime("%Y-%m-%d"), round(v, 4)])
         return vals
 
+    def fake_ctx(seed_hi=True):
+        pct = rng.uniform(55, 99) if seed_hi else rng.uniform(2, 60)
+        return {w: {"pct": round(pct + rng.gauss(0, 6), 1), "z": round(rng.gauss(0.5, 0.8), 2),
+                    "n": rng.randint(300, 3000), "since": "2016-01-04"}
+                for w in ("5y", "10y", "full")}
+
     def fake_metrics(base, vol_pct=1.0):
         hist = fake_history(base, vol_pct)
         return {
@@ -377,6 +446,9 @@ def run_sample_pipeline() -> dict:
             "realized_vol_20d_pct": round(abs(rng.gauss(14, 4)), 2),
             "realized_vol_60d_pct": round(abs(rng.gauss(15, 4)), 2),
             "history": hist,
+            "vol_context": fake_ctx(False),
+            "drawdown_context": fake_ctx(),
+            "context": fake_ctx(),
         }
 
     base_levels = {"sp500": 5600, "nasdaq100": 19500, "russell2000": 2200, "ftse100": 8300,
@@ -406,7 +478,7 @@ def run_sample_pipeline() -> dict:
     for cb in universe.CENTRAL_BANKS:
         out["macro"]["policy_rates"][cb["region"]] = {
             "name": cb["name"], "rate_pct": cb_rates.get(cb["region"]),
-            "as_of": today.strftime("%Y-%m-%d")}
+            "as_of": today.strftime("%Y-%m-%d"), "context": fake_ctx()}
 
     cpi_base = {"US": 2.9, "UK": 2.6, "EZ": 2.2, "DE": 2.1, "CH": 0.6,
                 "CN": 0.3, "JP": 2.8, "NO": 3.0}
@@ -416,7 +488,7 @@ def run_sample_pipeline() -> dict:
         out["macro"]["inflation"][region] = {
             "yoy_pct": cpi_base.get(region),
             "qoq_ann_pct": round((cpi_base.get(region) or 0) + rng.gauss(0, 0.5), 2),
-            "as_of": today.strftime("%Y-%m-01")}
+            "as_of": today.strftime("%Y-%m-01"), "context": fake_ctx()}
         out["macro"]["gdp"][region] = {
             "yoy_pct": gdp_base.get(region),
             "qoq_ann_pct": None if region == "CN" else round((gdp_base.get(region) or 0) + rng.gauss(0, 0.8), 2),
@@ -435,6 +507,7 @@ def run_sample_pipeline() -> dict:
         tenors = curve_base.get(region, {"2Y": None, "5Y": None, "10Y": None, "30Y": None})
         out["yield_curves"][region] = {
             "tenors": tenors, **curve_shape(tenors), "as_of": today.strftime("%Y-%m-%d"),
+            "context": {t: fake_ctx() for t, v in tenors.items() if v is not None} or None,
             "source_note": cfg.get("note"), "cadence": cfg.get("cadence", "daily"),
             "lagged": cfg.get("lagged", False), "basis": None}
 
@@ -473,11 +546,13 @@ def run_sample_pipeline() -> dict:
         out["valuation"][entry["region"]] = {
             "name": entry["name"], "cape": 34.2 if is_us else None,
             "cape_as_of": today.strftime("%Y-%m-01") if is_us else None,
+            "cape_context": fake_ctx() if is_us else None,
             "forward_pe": None, "dividend_yield_pct": None,
             "note": None if is_us else "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."}
     for region in universe.REGIONS:
         out["equity_risk_premia"][region] = (
-            {"erp_pct": 4.23, "method": "Damodaran implied ERP (FCFE), S&P 500", "as_of": "2025-12-31"}
+            {"erp_pct": 4.23, "method": "Damodaran implied ERP (FCFE), S&P 500",
+             "as_of": "2025-12-31", "context": fake_ctx()}
             if region == "US" else {"erp_pct": None, "method": None, "as_of": None})
 
     return out
