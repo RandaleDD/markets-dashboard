@@ -143,3 +143,98 @@ tbody tr:last-child td { border-bottom: none; }
   margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border);
   color: var(--text-muted); font-size: 0.75rem;
 }
+
+/* --- Region bands in the equity table --- */
+tr.region-band td {
+  background: var(--stub-bg);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 7px 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- Clickable trend cell --- */
+.trend-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+.trend-cell:hover { background: var(--stub-bg); }
+.trend-cell .expand-hint { font-size: 10px; opacity: 0.55; transition: transform 0.15s ease; }
+.trend-cell.expanded .expand-hint { transform: rotate(180deg); }
+
+/* --- Expandable chart row --- */
+tr.chart-row { display: none; }
+tr.chart-row.open { display: table-row; }
+tr.chart-row > td { padding: 0; background: var(--page-plane); }
+.chart-wrap { padding: 14px 16px 18px; }
+.chart-title { font-weight: 600; margin-bottom: 8px; }
+.period-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.period-btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.period-btn:hover { background: var(--stub-bg); }
+.period-btn.active {
+  background: var(--series-1);
+  border-color: var(--series-1);
+  color: var(--surface-1);
+}
+.chart-head {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+.chart-change.up { color: var(--delta-up); }
+.chart-change.down { color: var(--delta-down); }
+.line-chart { width: 100%; height: auto; max-height: 260px; display: block; }
+.line-chart .grid { stroke: var(--gridline); stroke-width: 1; }
+.line-chart .axis { fill: var(--text-muted); font-size: 10px; }
+.chart-empty { font-size: 12px; opacity: 0.7; padding: 18px 0; }
+
+/* --- Inline annotations --- */
+.ccy { opacity: 0.6; font-size: 11px; }
+.stub.small { font-size: 11px; display: block; margin-top: 3px; }
+.flag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--stub-bg);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.badge {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.badge-market { background: var(--stub-bg); color: var(--delta-up); }
+.badge-model { background: var(--stub-bg); color: var(--series-1); }
+
+h2.mt { margin-top: 30px; }
+.snap-head {
+  margin: 22px 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.card.empty { opacity: 0.55; }

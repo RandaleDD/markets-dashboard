@@ -16,11 +16,7 @@
   <nav class="tabs">
     <button class="active" data-target="panel-equities">Equity Indices</button>
     <button data-target="panel-yields">Yield Curves</button>
-    <button data-target="panel-cbrates">Central Bank Rates</button>
-    <button data-target="panel-inflation">Inflation</button>
-    <button data-target="panel-realyields">Real Yields</button>
-    <button data-target="panel-erp">Equity Risk Premia</button>
-    <button data-target="panel-gdp">GDP Growth</button>
+    <button data-target="panel-macro">Macroeconomics</button>
     <button data-target="panel-currencies">Currencies</button>
     <button data-target="panel-commodities">Commodities</button>
     <button data-target="panel-valuation">Valuation</button>
@@ -30,26 +26,22 @@
   <main>
     <section id="panel-equities" class="panel active"></section>
     <section id="panel-yields" class="panel"></section>
-    <section id="panel-cbrates" class="panel"></section>
-    <section id="panel-inflation" class="panel"></section>
-    <section id="panel-realyields" class="panel"></section>
-    <section id="panel-erp" class="panel"></section>
-    <section id="panel-gdp" class="panel"></section>
+    <section id="panel-macro" class="panel"></section>
     <section id="panel-currencies" class="panel"></section>
     <section id="panel-commodities" class="panel"></section>
     <section id="panel-valuation" class="panel"></section>
     <section id="panel-snapshot" class="panel">
       <h2>Regional Snapshot</h2>
-      <p class="section-note">Equities, yield curve, macro, and FX for one region at a time. Commodities are global — see the Commodities tab.</p>
+      <p class="section-note">Everything tracked for one region, grouped the same way as the tabs. Commodities are global — see the Commodities tab.</p>
       <div class="region-select">
         <label for="region-selector">Region: </label>
         <select id="region-selector"></select>
       </div>
-      <div id="snapshot-cards" class="cards"></div>
+      <div id="snapshot-body"></div>
     </section>
 
     <div class="status-footer">
-      Data sources: see SPEC.md in the repo. Some series are stubbed pending endpoint confirmation on first live run — shown as <span class="stub">not yet wired</span>.
+      Sources and their quirks are documented in <code>NETWORK.md</code>. Anything without a confirmed free source shows as <span class="stub">not yet wired</span> rather than a guess.
     </div>
   </main>
 

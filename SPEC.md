@@ -6,27 +6,38 @@ Marco's "Markets dashboard" Claude project as `content-taxonomy.md`,
 build-facing version.
 
 ## Scope decisions (confirmed)
-- Regions at full depth: US, UK, Eurozone, Germany, Switzerland, China, Japan.
+- Regions at full depth: US, UK, Eurozone, Germany, Switzerland, China, Japan,
+  Norway (added 2026-08).
   Everything else (broader EM, rest of APAC) is secondary/thin.
 - Refresh: daily, end-of-day. No intraday/real-time.
 - Equity index returns: local/respective currency, no CHF conversion.
-- Eurozone yield curve: Germany's Bund curve is the benchmark shown directly
-  (Deutsche Bundesbank, literal single-issuer curve — not the ECB's AAA-rated
-  aggregate). A separate periphery spread panel (France/Italy/Spain vs. Bund)
-  sits alongside it.
+- Eurozone yield curve: **superseded 2026-08.** The Bund was originally the
+  euro benchmark, but that made the Eurozone row a duplicate of Germany (ECB
+  AAA 10Y 3.28 vs Bund 3.22). The Eurozone row is now the ECB's ALL-bonds euro
+  area curve — a genuine multi-sovereign blend (3.70 the same day) — with
+  Germany kept alongside as the single-issuer Bund curve. A euro-area sovereign
+  spread panel (France/Italy/Spain vs. Bund) sits below; "periphery" was
+  dropped as a label since these are core economies.
 - China equities: CSI 300 (mainland) and Hang Seng (Hong Kong) both shown,
   not merged.
 - Oil: Brent only, WTI deliberately dropped.
 - PMI / economic surprise index: dropped entirely (no clean free multi-country
   historical source exists). GDP section is actual growth data only.
-- Primary layout: organized by asset class (10 sections), each showing all
-  regions side by side. A secondary "Regional Snapshot" page has a region
+- Primary layout: organized by asset class, in 7 tabs — Equity Indices, Yield
+  Curves (nominal + real + implied inflation + euro spreads), Macroeconomics
+  (policy rates + inflation + GDP), Currencies, Commodities, Valuation
+  (+ risk premia), Regional Snapshot — each showing all regions side by side. A secondary "Regional Snapshot" page has a region
   selector showing that region's equities/yield curve/macro/FX in one place
   (commodities excluded there — they're global).
-- Visualization: tables carry current-state data with sparklines; full line
-  charts where history shape is the point (equity levels, real yields, ERP,
-  CAPE). Lookback: 1Y default, except CAPE/Shiller and real yields, which
-  need a multi-decade baseline to mean anything.
+- Visualization: tables carry current-state data with sparklines. Clicking any
+  sparkline expands an inline line chart with selectable lookback
+  (3M/YTD/1Y/2Y/3Y/5Y, default 1Y). History is stored daily for the most recent
+  year and weekly before that, so five years costs ~460 points per series
+  rather than ~1260.
+- Every figure states its definition: commodity contracts carry exchange and
+  unit, GDP is labelled real/chain-linked/local-currency/SA with both YoY and
+  annualised QoQ, and inflation expectations carry tenor and index basis
+  (CPI vs RPI).
 
 ## Data sourcing (confirmed institutions — see NETWORK.md for endpoint status)
 | Category | Source |

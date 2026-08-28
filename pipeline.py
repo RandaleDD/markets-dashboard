@@ -6,7 +6,7 @@ Pipeline orchestrator. Two modes:
   python pipeline.py --mode sample  # synthetic representative data, for testing the
                                      # frontend/layout without live network access
 
-Writes data/latest.json in both modes so the frontend never has to know
+Writes site/data/latest.json in both modes so the frontend never has to know
 which mode produced it (sample runs are marked with "is_sample": true at
 the top level so this is never mistaken for real data).
 """
@@ -20,7 +20,7 @@ from pathlib import Path
 import pandas as pd
 
 from fetch import sources, universe
-from transform.returns import compute_return_metrics, history_for_chart
+from transform.returns import compute_return_metrics, compact_history
 from transform.curves import latest_tenor_values, curve_shape
 from transform.erp import compute_erp
 
@@ -29,18 +29,12 @@ logger = logging.getLogger("markets_dashboard.pipeline")
 
 DATA_DIR = Path(__file__).parent / "site" / "data"
 
-
-# ---------------------------------------------------------------------------
-# LIVE MODE
-# ---------------------------------------------------------------------------
-
 # A source that returns HTTP 200 and parses cleanly can still be years out of
-# date — the SNB bond-yield cube is the cautionary example. So "ok" means
-# "fresh enough for its publication cadence", and anything older is "stale"
-# so it shows up in source_status instead of quietly passing as current.
-# "policy" is deliberately loose: a central bank rate legitimately sits
-# unchanged for months, and BIS stops emitting observations between moves.
-# "annual" allows for normal publication lag on yearly national accounts.
+# date. "ok" means "fresh enough for its publication cadence"; anything older
+# is "stale" so it shows up in source_status instead of passing as current.
+# "policy" is deliberately loose (a rate sits unchanged for months, and BIS
+# stops emitting observations between moves); "annual" allows for normal
+# publication lag on yearly national accounts.
 MAX_AGE_DAYS = {"daily": 10, "monthly": 70, "quarterly": 200,
                 "policy": 150, "annual": 730}
 
@@ -57,331 +51,434 @@ def _series_status(df, cadence="daily"):
     if ts is None:
         return "failed", None
     age_days = (pd.Timestamp.now() - pd.Timestamp(ts)).days
-    status = "stale" if age_days > MAX_AGE_DAYS[cadence] else "ok"
-    return status, pd.Timestamp(ts).strftime("%Y-%m-%d")
+    return ("stale" if age_days > MAX_AGE_DAYS[cadence] else "ok"), pd.Timestamp(ts).strftime("%Y-%m-%d")
 
 
-# Curve tenors are fetched through one dispatcher so a region only has to name
-# its source in universe.py. Memoised because EZ mirrors DE's Bund keys and
-# would otherwise refetch every tenor a second time.
-_CURVE_FETCHERS = {
-    "fred": lambda k: sources.fetch_fred(k),
-    "bundesbank": lambda k: sources.fetch_bundesbank(k),
-    "boe": lambda k: sources.fetch_boe(k),
-    "mof": lambda k: sources.fetch_mof_jgb(k),
-    "snb": lambda k: sources.fetch_snb(k),
-    "chinabond": lambda k: sources.fetch_chinabond(k),
-}
+def _latest(df):
+    return float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
 
 
-def _fetch_curve_tenor(source, key, cache):
+def _pct_change(df, lag, annualise=1):
+    """Growth over `lag` periods, optionally annualised (lag=1 quarter -> **4)."""
+    if df is None or len(df) <= lag:
+        return None
+    prior = float(df.iloc[-1 - lag]["value"])
+    if not prior:
+        return None
+    ratio = float(df.iloc[-1]["value"]) / prior
+    if ratio <= 0:
+        return None
+    return round((ratio ** annualise - 1) * 100, 2)
+
+
+# Curve tenors go through one dispatcher so a region only names its source in
+# universe.py. Memoised because several regions share underlying downloads.
+def _fetch_curve_tenor(cfg, key, cache):
     if not key:
         return None
-    fetcher = _CURVE_FETCHERS.get(source)
-    if fetcher is None:
-        logger.warning("No fetcher registered for curve source %r", source)
-        return None
-    ck = (source, key)
-    if ck not in cache:
-        cache[ck] = fetcher(key)
-    return cache[ck]
+    src = cfg["source"]
+    ck = (src, cfg.get("glc_file"), key)
+    if ck in cache:
+        return cache[ck]
+    if src == "fred":
+        df = sources.fetch_fred(key)
+    elif src == "bundesbank":
+        df = sources.fetch_bundesbank(key)
+    elif src == "ecb":
+        df = sources.fetch_ecb(key)
+    elif src == "boe_glc":
+        df = sources.fetch_boe_glc(cfg.get("glc_file", "nominal"), key)
+    elif src == "mof":
+        df = sources.fetch_mof_jgb(key)
+    elif src == "norges":
+        df = sources.fetch_norges(f"GOVT_ZEROCOUPON/B.{key}")
+    elif src == "chinabond":
+        df = sources.fetch_chinabond(key)
+    elif src == "snb":
+        df = sources.fetch_snb(key)
+    else:
+        logger.warning("No fetcher registered for curve source %r", src)
+        df = None
+    cache[ck] = df
+    return df
 
 
+def _build_curve(region, cfg, status, cache, prefix):
+    """Shared assembly for nominal and real curve tables."""
+    tenor_series = {t: _fetch_curve_tenor(cfg, key, cache) for t, key in cfg["tenors"].items()}
+    values = latest_tenor_values(tenor_series)
+    live = [t for t, df in tenor_series.items() if df is not None]
+    wanted = [t for t, key in cfg["tenors"].items() if key]
+    cadence = cfg.get("cadence", "daily")
+    if not wanted or not live:
+        st = "stubbed"
+    elif len(live) < len(wanted):
+        st = "partial"
+    else:
+        st = "ok"
+        for df in tenor_series.values():
+            if df is not None and _series_status(df, cadence)[0] == "stale":
+                st = "stale"
+                break
+    status[f"{prefix}:{region}"] = st
+    as_ofs = [_series_status(df, cadence)[1] for df in tenor_series.values() if df is not None]
+    return {
+        "tenors": values,
+        **curve_shape(values),
+        "as_of": max(as_ofs) if as_ofs else None,
+        "source_note": cfg.get("note"),
+        "cadence": cadence,
+        "lagged": cfg.get("lagged", False),
+        "basis": cfg.get("basis"),
+    }
+
+
+# ---------------------------------------------------------------------------
+# LIVE MODE
+# ---------------------------------------------------------------------------
 def run_live_pipeline() -> dict:
     status = {}
-    out = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "is_sample": False,
-        "regions": universe.REGIONS,
-        "region_names": universe.REGION_NAMES,
-        "equity_indices": {},
-        "currencies": [],
-        "commodities": [],
-        "central_bank_rates": {},
-        "yield_curves": {},
-        "eurozone_spread_panel": [],
-        "inflation": {},
-        "breakeven_inflation": {},
-        "real_yields": {},
-        "gdp_growth": {},
-        "equity_risk_premia": {},
-        "valuation": {},
-        "source_status": status,
-    }
+    out = _empty_payload(False)
 
     # --- Equity indices ---
     for idx in universe.EQUITY_INDICES:
         df = sources.fetch_yahoo(idx.get("yahoo"))
         status[f"equity:{idx['id']}"], _ = _series_status(df)
-        metrics = compute_return_metrics(df) if df is not None else {}
         out["equity_indices"].setdefault(idx["region"], []).append({
             "id": idx["id"], "name": idx["name"], "currency": idx["currency"],
-            **metrics,
-            "history_1y": history_for_chart(df, 1.0) if df is not None else [],
+            **(compute_return_metrics(df) if df is not None else {}),
+            "history": compact_history(df) if df is not None else [],
         })
 
     # --- Currencies ---
     for fx in universe.CURRENCIES:
         df = sources.fetch_yahoo(fx.get("yahoo"))
         status[f"fx:{fx['id']}"], _ = _series_status(df)
-        metrics = compute_return_metrics(df) if df is not None else {}
-        out["currencies"].append({"id": fx["id"], "name": fx["name"], **metrics,
-                                  "history_1y": history_for_chart(df, 1.0) if df is not None else []})
+        out["currencies"].append({
+            "id": fx["id"], "name": fx["name"],
+            **(compute_return_metrics(df) if df is not None else {}),
+            "history": compact_history(df) if df is not None else [],
+        })
 
-    # --- Commodities ---
+    # --- Commodities (each carries exchange/contract/unit) ---
     for cm in universe.COMMODITIES:
         df = sources.fetch_yahoo(cm.get("yahoo"))
         status[f"commodity:{cm['id']}"], _ = _series_status(df)
-        metrics = compute_return_metrics(df) if df is not None else {}
-        out["commodities"].append({"id": cm["id"], "name": cm["name"], **metrics,
-                                   "history_1y": history_for_chart(df, 1.0) if df is not None else []})
-
-    # --- Central bank policy rates ---
-    for cb in universe.CENTRAL_BANKS:
-        df = sources.fetch_bis_policy_rate(cb["bis_ref_area"])
-        st, as_of = _series_status(df, "policy")
-        status[f"cbrate:{cb['region']}"] = st
-        latest = float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
-        out["central_bank_rates"][cb["region"]] = {"name": cb["name"], "rate_pct": latest,
-                                                    "as_of": as_of}
-
-    # --- Yield curves ---
-    curve_cache = {}
-    for region, cfg in universe.YIELD_CURVES.items():
-        tenor_series = {t: _fetch_curve_tenor(cfg["source"], key, curve_cache)
-                        for t, key in cfg["tenors"].items()}
-        values = latest_tenor_values(tenor_series)
-        shape = curve_shape(values)
-        live = [t for t, df in tenor_series.items() if df is not None]
-        wanted = [t for t, key in cfg["tenors"].items() if key]
-        if not wanted or not live:
-            st = "stubbed"
-        elif len(live) < len(wanted):
-            st = "partial"
-        else:
-            # A curve is only as fresh as its stalest tenor.
-            st = "ok"
-            for df in tenor_series.values():
-                if df is not None and _series_status(df)[0] == "stale":
-                    st = "stale"
-                    break
-        status[f"curve:{region}"] = st
-        as_ofs = [_series_status(df)[1] for df in tenor_series.values() if df is not None]
-        out["yield_curves"][region] = {"tenors": values, **shape,
-                                       "as_of": max(as_ofs) if as_ofs else None,
-                                       "source_note": cfg.get("note")}
-
-    # --- Eurozone spread panel (stub) ---
-    for entry in universe.EUROZONE_SPREAD_PANEL:
-        status[f"spread:{entry['country']}"] = "stubbed"
-        out["eurozone_spread_panel"].append({
-            "country": entry["country"], "institution": entry["institution"],
-            "spread_vs_bund_bp": None,
+        out["commodities"].append({
+            "id": cm["id"], "name": cm["name"], "exchange": cm["exchange"],
+            "contract": cm["contract"], "unit": cm["unit"],
+            **(compute_return_metrics(df) if df is not None else {}),
+            "history": compact_history(df) if df is not None else [],
         })
 
-    # --- Inflation (CPI) ---
-    # BIS returns year-on-year percent directly, so there is no index
-    # arithmetic here any more (see universe.INFLATION_CPI for why).
+    # --- Macro: policy rates ---
+    for cb in universe.CENTRAL_BANKS:
+        if cb["source"] == "norges":
+            df = sources.fetch_norges(cb["norges_key"])
+        else:
+            df = sources.fetch_bis_policy_rate(cb["bis_ref_area"])
+        st, as_of = _series_status(df, "policy")
+        status[f"cbrate:{cb['region']}"] = st
+        out["macro"]["policy_rates"][cb["region"]] = {
+            "name": cb["name"], "rate_pct": _latest(df), "as_of": as_of}
+
+    # --- Macro: inflation (YoY from BIS, annualised QoQ from the index) ---
     for region, cfg in universe.INFLATION_CPI.items():
-        df = sources.fetch_bis_cpi(cfg["ref_area"]) if cfg["source"] == "bis" else None
-        st, as_of = _series_status(df, "monthly")
+        yoy_df = sources.fetch_bis_cpi(cfg["ref_area"], sources.CPI_UNIT_YOY)
+        idx_df = sources.fetch_bis_cpi(cfg["ref_area"], sources.CPI_UNIT_INDEX)
+        st, as_of = _series_status(yoy_df, "monthly")
         status[f"cpi:{region}"] = st
-        yoy = round(float(df.iloc[-1]["value"]), 2) if df is not None and not df.empty else None
-        out["inflation"][region] = {"headline_cpi_yoy_pct": yoy, "as_of": as_of}
+        out["macro"]["inflation"][region] = {
+            "yoy_pct": round(_latest(yoy_df), 2) if _latest(yoy_df) is not None else None,
+            # 3 monthly observations = one quarter, compounded to a yearly rate.
+            "qoq_ann_pct": _pct_change(idx_df, 3, annualise=4),
+            "as_of": as_of,
+        }
 
-    # --- Breakeven inflation ---
-    for region, cfg in universe.BREAKEVEN_INFLATION.items():
-        if cfg.get("source") == "fred":
-            vals, sts = {}, []
-            for tenor_key in ("5y", "10y", "5y5y_fwd"):
-                series_id = cfg.get(tenor_key)
-                df = sources.fetch_fred(series_id) if series_id else None
-                vals[tenor_key] = float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
-                if series_id:
-                    sts.append(_series_status(df)[0])
-            status[f"breakeven:{region}"] = ("failed" if all(x == "failed" for x in sts)
-                                             else "stale" if "stale" in sts
-                                             else "partial" if "failed" in sts else "ok")
-            out["breakeven_inflation"][region] = vals
-        else:
-            status[f"breakeven:{region}"] = "stubbed"
-            out["breakeven_inflation"][region] = {"note": cfg.get("note")}
-
-    # --- Real yields ---
-    for region, cfg in universe.REAL_YIELDS.items():
-        if cfg.get("source") == "fred":
-            df = sources.fetch_fred(cfg["10y"])
-            st, as_of = _series_status(df)
-            status[f"realyield:{region}"] = st
-            val = float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
-            out["real_yields"][region] = {"10y_pct": val, "as_of": as_of,
-                                          "history": history_for_chart(df, 20.0) if df is not None else []}
-        else:
-            status[f"realyield:{region}"] = "stubbed"
-            out["real_yields"][region] = {"note": cfg.get("note")}
-
-    # --- GDP growth ---
-    # Sources are real GDP *levels*; growth is derived here so every region is
-    # on the same year-on-year definition.
+    # --- Macro: GDP (real, chain-linked, local currency, SA) ---
     for region, cfg in universe.GDP_GROWTH.items():
         df = sources.fetch_fred(cfg["series"]) if cfg["source"] == "fred" else None
         st, as_of = _series_status(df, cfg.get("cadence", "quarterly"))
         status[f"gdp:{region}"] = st
-        lag = 4 if cfg.get("freq", "Q") == "Q" else 1  # periods in one year
-        val = None
-        if df is not None and len(df) > lag:
-            prior = float(df.iloc[-1 - lag]["value"])
-            if prior:
-                val = round((float(df.iloc[-1]["value"]) / prior - 1) * 100, 2)
-        out["gdp_growth"][region] = {"latest_pct": val, "as_of": as_of}
+        quarterly = cfg.get("freq", "Q") == "Q"
+        out["macro"]["gdp"][region] = {
+            "yoy_pct": _pct_change(df, 4 if quarterly else 1),
+            "qoq_ann_pct": _pct_change(df, 1, annualise=4) if quarterly else None,
+            "freq": cfg.get("freq", "Q"),
+            "as_of": as_of,
+        }
+    out["macro"]["gdp_definition"] = universe.GDP_DEFINITION
 
-    # --- Valuation (stub for v1 live pipeline; Phase 4 work) ---
+    # --- Nominal and real yield curves ---
+    cache = {}
+    for region, cfg in universe.YIELD_CURVES.items():
+        out["yield_curves"][region] = _build_curve(region, cfg, status, cache, "curve")
+    for region, cfg in universe.REAL_YIELD_CURVES.items():
+        out["real_yield_curves"][region] = _build_curve(region, cfg, status, cache, "realyield")
+
+    # --- Inflation expectations ---
+    for region, cfg in universe.INFLATION_EXPECTATIONS.items():
+        out["inflation_expectations"][region] = _inflation_expectations(region, cfg, status, cache)
+
+    # --- Euro-area sovereign spreads (both legs from the same ECB series) ---
+    bench = universe.EUROZONE_SPREAD_BENCHMARK
+    bench_df = sources.fetch_ecb(bench["ecb_key"])
+    bench_yield = _latest(bench_df)
+    bench_st, bench_as_of = _series_status(bench_df, "monthly")
+    out["eurozone_spreads"]["benchmark"] = bench["country"]
+    out["eurozone_spreads"]["benchmark_yield_pct"] = bench_yield
+    out["eurozone_spreads"]["as_of"] = bench_as_of
+    out["eurozone_spreads"]["cadence"] = "monthly"
+    for entry in universe.EUROZONE_SPREAD_PANEL:
+        df = sources.fetch_ecb(entry["ecb_key"])
+        st, as_of = _series_status(df, "monthly")
+        status[f"spread:{entry['country']}"] = st if bench_st != "failed" else "failed"
+        y = _latest(df)
+        out["eurozone_spreads"]["rows"].append({
+            "country": entry["country"], "yield_pct": round(y, 3) if y is not None else None,
+            "spread_bp": round((y - bench_yield) * 100, 1)
+            if (y is not None and bench_yield is not None) else None,
+            "as_of": as_of,
+        })
+
+    # --- Valuation (CAPE) and ERP ---
+    cape_df = sources.fetch_shiller_cape()
+    cape_st, cape_as_of = _series_status(cape_df, "monthly")
+    erp_df = sources.fetch_damodaran_erp()
+    erp_st, erp_as_of = _series_status(erp_df, "annual")
     for entry in universe.VALUATION_PROXIES:
-        status[f"valuation:{entry['region']}"] = "stubbed"
-        out["valuation"][entry["region"]] = {"name": entry["name"], "forward_pe": None,
-                                              "cape": None, "dividend_yield_pct": None}
+        region = entry["region"]
+        is_us = entry.get("cape_source") == "shiller"
+        status[f"valuation:{region}"] = cape_st if is_us else "stubbed"
+        out["valuation"][region] = {
+            "name": entry["name"],
+            "cape": round(_latest(cape_df), 2) if (is_us and _latest(cape_df) is not None) else None,
+            "cape_as_of": cape_as_of if is_us else None,
+            "forward_pe": None, "dividend_yield_pct": None,
+            "note": None if is_us else "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4).",
+        }
 
-    # --- Equity risk premia (computed once valuation + yields are live) ---
     for region in universe.REGIONS:
+        if region == "US" and _latest(erp_df) is not None:
+            status["erp:US"] = erp_st
+            out["equity_risk_premia"]["US"] = {
+                "erp_pct": round(_latest(erp_df), 2),
+                "method": "Damodaran implied ERP (FCFE), S&P 500",
+                "as_of": erp_as_of,
+            }
+            continue
         pe = out["valuation"].get(region, {}).get("forward_pe")
         y10 = out["yield_curves"].get(region, {}).get("tenors", {}).get("10Y")
-        out["equity_risk_premia"][region] = {"erp_pct": compute_erp(pe, y10)}
+        val = compute_erp(pe, y10)
+        status[f"erp:{region}"] = "ok" if val is not None else "stubbed"
+        out["equity_risk_premia"][region] = {
+            "erp_pct": val,
+            "method": "Earnings yield minus 10y govt yield" if val is not None else None,
+            "as_of": None,
+        }
 
+    out["source_status"] = status
     tally = {}
     for v in status.values():
         tally[v] = tally.get(v, 0) + 1
-    logger.info("Live pipeline: %d/%d sources ok (%s)",
-                tally.get("ok", 0), len(status),
+    logger.info("Live pipeline: %d/%d sources ok (%s)", tally.get("ok", 0), len(status),
                 ", ".join(f"{k}={v}" for k, v in sorted(tally.items())))
     return out
 
 
+def _inflation_expectations(region, cfg, status, cache):
+    """Market-implied where linkers exist; model-implied or explicit gap otherwise."""
+    if cfg.get("kind") == "unavailable" or not cfg.get("source"):
+        status[f"inflexp:{region}"] = "stubbed"
+        return {"kind": "unavailable", "note": cfg.get("note"), "tenors": {}}
+
+    tenors, sts = {}, []
+    for label, key in cfg["tenors"].items():
+        if cfg["source"] == "fred":
+            df = sources.fetch_fred(key)
+        elif cfg["source"] == "boe_glc":
+            df = sources.fetch_boe_glc(cfg.get("glc_file", "inflation"), key)
+        else:
+            df = None
+        v = _latest(df)
+        tenors[label] = round(v, 2) if v is not None else None
+        sts.append(_series_status(df)[0])
+
+    out = {"kind": cfg.get("kind", "market"), "basis": cfg.get("basis"),
+           "note": cfg.get("note"), "tenors": tenors}
+
+    model = cfg.get("model")
+    if model:
+        mt = {}
+        for label, key in model["tenors"].items():
+            v = _latest(sources.fetch_fred(key))
+            mt[label] = round(v, 2) if v is not None else None
+        out["model"] = {"kind": "model", "basis": model.get("basis"), "tenors": mt,
+                        "note": "Cleveland Fed model-implied (TIPS + swaps + survey); "
+                                "no 1y TIPS breakeven is published."}
+
+    status[f"inflexp:{region}"] = ("failed" if all(x == "failed" for x in sts)
+                                   else "stale" if "stale" in sts
+                                   else "partial" if "failed" in sts else "ok")
+    return out
+
+
+def _empty_payload(is_sample: bool) -> dict:
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "is_sample": is_sample,
+        "regions": universe.REGIONS,
+        "region_names": universe.REGION_NAMES,
+        "chart_periods": universe.CHART_PERIODS,
+        "equity_indices": {},
+        "currencies": [],
+        "commodities": [],
+        "macro": {"policy_rates": {}, "inflation": {}, "gdp": {}, "gdp_definition": ""},
+        "yield_curves": {},
+        "real_yield_curves": {},
+        "inflation_expectations": {},
+        "eurozone_spreads": {"benchmark": None, "benchmark_yield_pct": None,
+                             "as_of": None, "cadence": "monthly", "rows": []},
+        "valuation": {},
+        "equity_risk_premia": {},
+        "source_status": {},
+    }
+
+
 # ---------------------------------------------------------------------------
-# SAMPLE MODE — synthetic but structurally realistic data, so the frontend
-# and layout can be built/tested without live network access.
+# SAMPLE MODE — synthetic but structurally realistic, so the frontend can be
+# built and tested without live network access. Must produce the same shape as
+# live mode or the no-network path silently rots.
 # ---------------------------------------------------------------------------
 def run_sample_pipeline() -> dict:
     rng = random.Random(42)
     today = datetime.now(timezone.utc)
+    out = _empty_payload(True)
 
-    def fake_history(base, vol_pct, days=380):
-        vals = []
-        v = base
+    def fake_history(base, vol_pct, days=1830):
+        vals, v = [], base
         for i in range(days, 0, -1):
             v *= (1 + rng.gauss(0, vol_pct / 100))
             d = today - timedelta(days=i)
-            vals.append([d.strftime("%Y-%m-%d"), round(v, 2)])
+            # Weekly before the last year, daily after — mirrors compact_history.
+            if i > 365 and d.weekday() != 4:
+                continue
+            vals.append([d.strftime("%Y-%m-%d"), round(v, 4)])
         return vals
 
     def fake_metrics(base, vol_pct=1.0):
         hist = fake_history(base, vol_pct)
-        level = hist[-1][1]
         return {
-            "as_of": today.strftime("%Y-%m-%d"),
-            "level": level,
-            "chg_1d_pct": round(rng.gauss(0, 0.6), 2),
-            "chg_1w_pct": round(rng.gauss(0, 1.5), 2),
-            "chg_mtd_pct": round(rng.gauss(0, 2.5), 2),
-            "chg_ytd_pct": round(rng.gauss(5, 8), 2),
+            "as_of": today.strftime("%Y-%m-%d"), "level": hist[-1][1],
+            "chg_1d_pct": round(rng.gauss(0, 0.6), 2), "chg_1w_pct": round(rng.gauss(0, 1.5), 2),
+            "chg_mtd_pct": round(rng.gauss(0, 2.5), 2), "chg_ytd_pct": round(rng.gauss(5, 8), 2),
             "chg_1y_pct": round(rng.gauss(8, 12), 2),
             "drawdown_from_ath_pct": round(-abs(rng.gauss(4, 4)), 2),
             "realized_vol_20d_pct": round(abs(rng.gauss(14, 4)), 2),
             "realized_vol_60d_pct": round(abs(rng.gauss(15, 4)), 2),
-            "history_1y": hist,
+            "history": hist,
         }
 
-    out = {
-        "generated_at": today.isoformat(),
-        "is_sample": True,
-        "regions": universe.REGIONS,
-        "region_names": universe.REGION_NAMES,
-        "equity_indices": {},
-        "currencies": [],
-        "commodities": [],
-        "central_bank_rates": {},
-        "yield_curves": {},
-        "eurozone_spread_panel": [],
-        "inflation": {},
-        "breakeven_inflation": {},
-        "real_yields": {},
-        "gdp_growth": {},
-        "equity_risk_premia": {},
-        "valuation": {},
-        "source_status": {},
-    }
-
     base_levels = {"sp500": 5600, "nasdaq100": 19500, "russell2000": 2200, "ftse100": 8300,
-                   "stoxx600": 520, "dax": 18800, "smi": 12200, "csi300": 3700,
-                   "hangseng": 18500, "nikkei225": 39500, "msci_em": 42}
+                   "stoxx600": 520, "dax": 18800, "smi": 12200, "csi300": 4.6,
+                   "hangseng": 18500, "nikkei225": 39500, "osebx": 1500, "msci_em": 42}
     for idx in universe.EQUITY_INDICES:
-        m = fake_metrics(base_levels.get(idx["id"], 1000))
         out["equity_indices"].setdefault(idx["region"], []).append({
-            "id": idx["id"], "name": idx["name"], "currency": idx["currency"], **m,
-        })
+            "id": idx["id"], "name": idx["name"], "currency": idx["currency"],
+            **fake_metrics(base_levels.get(idx["id"], 1000))})
 
     fx_base = {"dxy": 103, "eurusd": 1.09, "gbpusd": 1.27, "usdjpy": 152, "usdchf": 0.88,
-               "eurchf": 0.96, "usdcny": 7.2}
+               "eurchf": 0.96, "usdcny": 7.2, "eurnok": 11.5}
     for fx in universe.CURRENCIES:
         out["currencies"].append({"id": fx["id"], "name": fx["name"],
-                                   **fake_metrics(fx_base.get(fx["id"], 1), vol_pct=0.4)})
+                                  **fake_metrics(fx_base.get(fx["id"], 1), vol_pct=0.4)})
 
-    cmd_base = {"brent": 78, "natgas": 2.6, "gold": 2450, "silver": 29, "copper": 4.3, "bcom": 22}
+    cmd_base = {"brent": 78, "natgas_hh": 2.6, "natgas_ttf": 34, "gold": 2450,
+                "silver": 29, "copper": 4.3, "bcom": 22}
     for cm in universe.COMMODITIES:
-        out["commodities"].append({"id": cm["id"], "name": cm["name"],
-                                    **fake_metrics(cmd_base.get(cm["id"], 100), vol_pct=1.2)})
+        out["commodities"].append({
+            "id": cm["id"], "name": cm["name"], "exchange": cm["exchange"],
+            "contract": cm["contract"], "unit": cm["unit"],
+            **fake_metrics(cmd_base.get(cm["id"], 100), vol_pct=1.2)})
 
-    cb_rates = {"US": 4.50, "UK": 4.25, "EZ": 3.00, "CH": 1.00, "CN": 3.10, "JP": 0.50}
+    cb_rates = {"US": 4.50, "UK": 4.25, "EZ": 3.00, "DE": 3.00, "CH": 1.00,
+                "CN": 3.10, "JP": 0.50, "NO": 4.25}
     for cb in universe.CENTRAL_BANKS:
-        out["central_bank_rates"][cb["region"]] = {"name": cb["name"], "rate_pct": cb_rates.get(cb["region"])}
+        out["macro"]["policy_rates"][cb["region"]] = {
+            "name": cb["name"], "rate_pct": cb_rates.get(cb["region"]),
+            "as_of": today.strftime("%Y-%m-%d")}
+
+    cpi_base = {"US": 2.9, "UK": 2.6, "EZ": 2.2, "DE": 2.1, "CH": 0.6,
+                "CN": 0.3, "JP": 2.8, "NO": 3.0}
+    gdp_base = {"US": 2.3, "UK": 1.1, "EZ": 0.9, "DE": 0.4, "CH": 1.3,
+                "CN": 4.8, "JP": 0.7, "NO": 1.2}
+    for region in universe.REGIONS:
+        out["macro"]["inflation"][region] = {
+            "yoy_pct": cpi_base.get(region),
+            "qoq_ann_pct": round((cpi_base.get(region) or 0) + rng.gauss(0, 0.5), 2),
+            "as_of": today.strftime("%Y-%m-01")}
+        out["macro"]["gdp"][region] = {
+            "yoy_pct": gdp_base.get(region),
+            "qoq_ann_pct": None if region == "CN" else round((gdp_base.get(region) or 0) + rng.gauss(0, 0.8), 2),
+            "freq": "A" if region == "CN" else "Q", "as_of": today.strftime("%Y-%m-01")}
+    out["macro"]["gdp_definition"] = universe.GDP_DEFINITION
 
     curve_base = {"US": {"2Y": 4.1, "5Y": 4.0, "10Y": 4.3, "30Y": 4.6},
                   "UK": {"2Y": 4.0, "5Y": 4.0, "10Y": 4.4, "30Y": 4.9},
+                  "EZ": {"2Y": 2.9, "5Y": 3.1, "10Y": 3.7, "30Y": 4.3},
                   "DE": {"2Y": 2.3, "5Y": 2.4, "10Y": 2.7, "30Y": 3.1},
-                  "CH": {"2Y": 0.4, "5Y": 0.5, "10Y": 0.7, "30Y": 1.0},
-                  "CN": {"2Y": 1.6, "5Y": 1.8, "10Y": 2.1, "30Y": 2.4},
-                  "JP": {"2Y": 0.5, "5Y": 0.7, "10Y": 1.1, "30Y": 2.2}}
-    for region in universe.REGIONS:
+                  "CH": {"2Y": None, "5Y": None, "10Y": 0.7, "30Y": None},
+                  "CN": {"2Y": None, "5Y": None, "10Y": None, "30Y": None},
+                  "JP": {"2Y": 0.5, "5Y": 0.7, "10Y": 1.1, "30Y": 2.2},
+                  "NO": {"2Y": 4.4, "5Y": 4.3, "10Y": 4.3, "30Y": None}}
+    for region, cfg in universe.YIELD_CURVES.items():
         tenors = curve_base.get(region, {"2Y": None, "5Y": None, "10Y": None, "30Y": None})
-        shape = {}
-        if tenors.get("2Y") is not None and tenors.get("10Y") is not None:
-            shape["2s10s_bp"] = round((tenors["10Y"] - tenors["2Y"]) * 100, 1)
-        out["yield_curves"][region] = {"tenors": tenors, **shape}
-        if region == "EZ":
-            out["yield_curves"][region]["tenors"] = curve_base["DE"]  # Bund is the EZ benchmark
+        out["yield_curves"][region] = {
+            "tenors": tenors, **curve_shape(tenors), "as_of": today.strftime("%Y-%m-%d"),
+            "source_note": cfg.get("note"), "cadence": cfg.get("cadence", "daily"),
+            "lagged": cfg.get("lagged", False), "basis": None}
 
-    for entry in universe.EUROZONE_SPREAD_PANEL:
-        out["eurozone_spread_panel"].append({"country": entry["country"],
-                                              "institution": entry["institution"],
-                                              "spread_vs_bund_bp": round(abs(rng.gauss(60, 30)), 1)})
+    real_base = {"US": {"2Y": None, "5Y": 1.8, "10Y": 2.0, "30Y": 2.4},
+                 "UK": {"2Y": 0.4, "5Y": 1.0, "10Y": 1.8, "30Y": 2.5}}
+    for region, cfg in universe.REAL_YIELD_CURVES.items():
+        t = real_base[region]
+        out["real_yield_curves"][region] = {
+            "tenors": t, **curve_shape(t), "as_of": today.strftime("%Y-%m-%d"),
+            "source_note": None, "cadence": "daily", "lagged": False, "basis": cfg.get("basis")}
 
-    cpi_base = {"US": 2.9, "UK": 2.6, "EZ": 2.2, "DE": 2.1, "CH": 0.6, "CN": 0.3, "JP": 2.8}
-    for region in universe.REGIONS:
-        out["inflation"][region] = {"headline_cpi_yoy_pct": cpi_base.get(region)}
+    for region, cfg in universe.INFLATION_EXPECTATIONS.items():
+        if cfg.get("kind") == "unavailable":
+            out["inflation_expectations"][region] = {"kind": "unavailable", "note": cfg.get("note"), "tenors": {}}
+        elif region == "US":
+            out["inflation_expectations"][region] = {
+                "kind": "market", "basis": "CPI", "note": None,
+                "tenors": {"5y": 2.3, "10y": 2.35, "5y5y_fwd": 2.4},
+                "model": {"kind": "model", "basis": "CPI",
+                          "tenors": {"1y": 2.4, "5y": 2.5, "10y": 2.5},
+                          "note": "Cleveland Fed model-implied."}}
+        else:
+            out["inflation_expectations"][region] = {
+                "kind": "market", "basis": cfg.get("basis"), "note": cfg.get("note"),
+                "tenors": {"2y": 3.9, "5y": 3.5, "10y": 3.3}}
 
-    out["breakeven_inflation"] = {
-        "US": {"5y": 2.3, "10y": 2.35, "5y5y_fwd": 2.4},
-        "UK": {"note": "stubbed — BoE source not yet wired"},
-        "EZ": {"note": "stubbed — ECB source not yet wired"},
-    }
-    out["real_yields"] = {"US": {"10y_pct": 2.0, "history": fake_history(2.0, 3.0, days=3650)},
-                           "UK": {"note": "stubbed — BoE source not yet wired"}}
+    out["eurozone_spreads"].update({
+        "benchmark": "Germany", "benchmark_yield_pct": 3.07,
+        "as_of": today.strftime("%Y-%m-01"), "cadence": "monthly",
+        "rows": [{"country": e["country"], "yield_pct": round(3.07 + abs(rng.gauss(0.6, 0.3)), 3),
+                  "spread_bp": round(abs(rng.gauss(60, 30)), 1), "as_of": today.strftime("%Y-%m-01")}
+                 for e in universe.EUROZONE_SPREAD_PANEL]})
 
-    gdp_base = {"US": 2.3, "UK": 1.1, "EZ": 0.9, "DE": 0.4, "CH": 1.3, "CN": 4.8, "JP": 0.7}
-    for region in universe.REGIONS:
-        out["gdp_growth"][region] = {"latest_pct": gdp_base.get(region)}
-
-    val_base = {"US": (22.5, 34.2, 1.3), "UK": (13.1, None, 3.4), "EZ": (14.8, None, 3.0),
-                "DE": (13.9, None, 3.1), "CH": (18.2, None, 2.6), "CN": (11.4, None, 2.5),
-                "JP": (16.7, None, 2.1)}
     for entry in universe.VALUATION_PROXIES:
-        pe, cape, dy = val_base.get(entry["region"], (None, None, None))
-        out["valuation"][entry["region"]] = {"name": entry["name"], "forward_pe": pe,
-                                              "cape": cape, "dividend_yield_pct": dy}
-
+        is_us = entry["region"] == "US"
+        out["valuation"][entry["region"]] = {
+            "name": entry["name"], "cape": 34.2 if is_us else None,
+            "cape_as_of": today.strftime("%Y-%m-01") if is_us else None,
+            "forward_pe": None, "dividend_yield_pct": None,
+            "note": None if is_us else "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."}
     for region in universe.REGIONS:
-        pe = out["valuation"].get(region, {}).get("forward_pe")
-        y10 = out["yield_curves"].get(region, {}).get("tenors", {}).get("10Y")
-        out["equity_risk_premia"][region] = {"erp_pct": compute_erp(pe, y10)}
+        out["equity_risk_premia"][region] = (
+            {"erp_pct": 4.23, "method": "Damodaran implied ERP (FCFE), S&P 500", "as_of": "2025-12-31"}
+            if region == "US" else {"erp_pct": None, "method": None, "as_of": None})
 
     return out
 
@@ -396,7 +493,7 @@ def main():
 
     out_path = DATA_DIR / "latest.json"
     out_path.write_text(json.dumps(data, indent=2))
-    logger.info("Wrote %s (%d bytes, mode=%s)", out_path, out_path.stat().st_size, args.mode)
+    logger.info("Wrote %s (%.0f KB, mode=%s)", out_path, out_path.stat().st_size / 1024, args.mode)
 
 
 if __name__ == "__main__":
