@@ -26,6 +26,7 @@ from transform.erp import compute_erp
 from transform.cost_of_capital import stack_cost_of_capital
 from transform.fx_hedging import approx_hedging_cost
 from transform.regime import regime_coordinates, AXIS_DEFINITION
+from transform.correlation import rolling_correlation_matrix
 from transform.percentile import percentile_context, has_any
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -386,6 +387,23 @@ def run_live_pipeline() -> dict:
         })
 
 
+    # --- Cross-asset rolling correlations ---
+    ca_frames = {}
+    for a in universe.CROSS_ASSET_SET:
+        df = sources.fetch_yahoo(a["yahoo"])
+        status[f"crossasset:{a['id']}"] = _series_status(df)[0]
+        if df is not None:
+            ca_frames[a["label"]] = df
+    out["correlation"]["note"] = (
+        "Pearson correlation of daily returns, not price levels — two trending "
+        "price series correlate near 1.0 whether or not they move together day "
+        "to day. Computed on shared trading days only, since these assets "
+        "trade on different calendars.")
+    for w in universe.CORRELATION_WINDOWS:
+        m = rolling_correlation_matrix(ca_frames, w)
+        status[f"correlation:{w}d"] = "ok" if m["labels"] and m["n_obs"] else "stubbed"
+        out["correlation"]["windows"][str(w)] = m
+
     # --- FX hedging cost (CHF investor) ---
     chf_rate = (out["macro"]["policy_rates"].get(universe.FX_HEDGING_HOME_REGION, {}) or {}).get("rate_pct")
     for h in universe.FX_HEDGING:
@@ -477,6 +495,7 @@ def _empty_payload(is_sample: bool) -> dict:
         "liquidity": [],
         "fx_hedging": [],
         "regime": {"axis_definition": "", "regions": {}},
+        "correlation": {"windows": {}, "note": ""},
         "cost_of_capital": {},
         "cost_of_capital_note": "",
         "valuation": {},
@@ -626,6 +645,15 @@ def run_sample_pipeline() -> dict:
             "cape_context": fake_ctx() if is_us else None,
             "forward_pe": None, "dividend_yield_pct": None,
             "note": None if is_us else "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."}
+    labels=[a["label"] for a in universe.CROSS_ASSET_SET]
+    out["correlation"]["note"]="Sample data."
+    for w in universe.CORRELATION_WINDOWS:
+        mat=[[1.0 if i==j else None for j in range(len(labels))] for i in range(len(labels))]
+        for i in range(len(labels)):
+            for j in range(i+1,len(labels)):
+                v=round(rng.uniform(-0.7,0.9),3); mat[i][j]=v; mat[j][i]=v
+        out["correlation"]["windows"][str(w)]={"labels":labels,"matrix":mat,"window_days":w,
+            "as_of":today.strftime("%Y-%m-%d"),"start":(today-timedelta(days=w)).strftime("%Y-%m-%d"),"n_obs":w}
     out["regime"]["axis_definition"] = AXIS_DEFINITION
     import datetime as _dt
     for i_r, region in enumerate(universe.REGIONS):

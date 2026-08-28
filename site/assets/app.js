@@ -232,6 +232,10 @@ function setupChartToggles() {
       }
       return;
     }
+    const cw = e.target.closest("[data-corr-window]");
+    if (cw) { corrWindow = cw.getAttribute("data-corr-window"); renderCrossAsset(); return; }
+    const ct = e.target.closest("[data-corr-table]");
+    if (ct) { corrTableView = !corrTableView; renderCrossAsset(); return; }
     const btn = e.target.closest(".period-btn");
     if (btn) {
       const key = btn.getAttribute("data-chart-key");
@@ -609,6 +613,101 @@ function regimeChart(quarterDate) {
     ${anyAnnual ? `<p class="section-note">† only an annual GDP series exists for this region, so its horizontal move spans a year rather than a quarter and is not comparable with the others on that axis.</p>` : ""}`;
 }
 
+
+// ---------------------------------------------------------------------------
+// Cross-asset correlation heatmap
+// Correlation is polarity data, so the scale is diverging: two poles with a
+// NEUTRAL GRAY midpoint (never a rainbow, never a hue at zero), per the
+// dataviz skill. Blue = negative, red = positive, gray = uncorrelated.
+// ---------------------------------------------------------------------------
+let corrWindow = null;
+let corrTableView = false;
+
+function corrPalette() {
+  const cs = getComputedStyle(document.documentElement);
+  const read = (n, fb) => (cs.getPropertyValue(n) || "").trim() || fb;
+  return {
+    neg: read("--div-neg", "#2a78d6"),
+    mid: read("--div-mid", "#f0efec"),
+    pos: read("--div-pos", "#e34948"),
+  };
+}
+
+function hexToRgb(h) {
+  const m = h.replace("#", "");
+  return [0, 2, 4].map((i) => parseInt(m.slice(i, i + 2), 16));
+}
+
+/** Diverging fill: interpolate pole -> neutral midpoint by |r|. */
+function corrColor(v, pal) {
+  if (v === null || v === undefined) return "transparent";
+  const t = Math.min(1, Math.abs(v));
+  const pole = hexToRgb(v >= 0 ? pal.pos : pal.neg);
+  const mid = hexToRgb(pal.mid);
+  const c = mid.map((m, i) => Math.round(m + (pole[i] - m) * t));
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
+/** Label ink picked by cell luminance so the number stays readable on any step. */
+function inkFor(v, pal) {
+  if (v === null || v === undefined) return "var(--text-muted)";
+  const rgb = corrColor(v, pal).match(/\d+/g).map(Number);
+  const lum = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+  return lum > 0.55 ? "#0b0b0b" : "#ffffff";
+}
+
+function correlationBlock() {
+  const corr = DATA.correlation || {};
+  const windows = Object.keys(corr.windows || {}).sort((a, b) => +a - +b);
+  if (!windows.length) return "";
+  const w = corrWindow && corr.windows[corrWindow] ? corrWindow : windows[0];
+  const m = corr.windows[w];
+  if (!m || !m.labels || !m.labels.length) {
+    return `<h2 class="mt">Cross-Asset Correlation</h2>` + note("Not enough overlapping history.");
+  }
+  const pal = corrPalette();
+
+  const buttons = windows.map((k) =>
+    `<button class="period-btn${k === w ? " active" : ""}" data-corr-window="${k}">${k}d</button>`
+  ).join("");
+
+  let grid = "";
+  if (!corrTableView) {
+    const head = `<tr><th class="corner"></th>${m.labels.map((l) => `<th class="col-head"><span>${l}</span></th>`).join("")}</tr>`;
+    const body = m.labels.map((rowLabel, i) => {
+      const cells = m.matrix[i].map((v, j) => {
+        if (v === null) return `<td class="corr-cell empty" title="insufficient overlap">—</td>`;
+        const title = `${rowLabel} vs ${m.labels[j]}: ${v >= 0 ? "+" : ""}${v.toFixed(3)} over ${m.window_days} trading days (${m.start} to ${m.as_of})`;
+        return `<td class="corr-cell" style="background:${corrColor(v, pal)};color:${inkFor(v, pal)}" title="${title}">${v >= 0 ? "+" : ""}${v.toFixed(2)}</td>`;
+      }).join("");
+      return `<tr><th class="row-head">${rowLabel}</th>${cells}</tr>`;
+    }).join("");
+    grid = `<div class="table-wrap"><table class="corr-grid"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  } else {
+    const rows = [];
+    for (let i = 0; i < m.labels.length; i++) {
+      for (let j = i + 1; j < m.labels.length; j++) {
+        const v = m.matrix[i][j];
+        rows.push([m.labels[i], m.labels[j], v === null ? dash() : `${v >= 0 ? "+" : ""}${v.toFixed(3)}`]);
+      }
+    }
+    grid = table(["Asset A", "Asset B", "Correlation"], rows);
+  }
+
+  const legend = `
+    <div class="corr-legend">
+      <span>−1 inverse</span>
+      <span class="ramp" style="background:linear-gradient(to right, ${pal.neg}, ${pal.mid}, ${pal.pos})"></span>
+      <span>+1 together</span>
+    </div>`;
+
+  return `<h2 class="mt">Cross-Asset Correlation</h2>` +
+    note(`${corr.note || ""} Window: ${m.window_days} trading days, ${m.start} to ${m.as_of} (n=${m.n_obs}).`) +
+    `<div class="period-bar">${buttons}
+       <button class="period-btn${corrTableView ? " active" : ""}" data-corr-table="1">${corrTableView ? "Heatmap view" : "Table view"}</button>
+     </div>` + legend + grid;
+}
+
 function renderCrossAsset() {
   const quarters = regimeQuarters();
   if (!quarters.length) {
@@ -627,7 +726,7 @@ function renderCrossAsset() {
        <input id="regime-slider" type="range" min="0" max="${quarters.length - 1}" value="${idx}" step="1"/>
      </div>` +
     regimeChart(selected) +
-    `<div id="crossasset-corr"></div>`;
+    correlationBlock();
 
   const slider = document.getElementById("regime-slider");
   if (slider) {
