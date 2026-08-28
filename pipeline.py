@@ -25,6 +25,7 @@ from transform.curves import latest_tenor_values, curve_shape
 from transform.erp import compute_erp
 from transform.cost_of_capital import stack_cost_of_capital
 from transform.fx_hedging import approx_hedging_cost
+from transform.regime import regime_coordinates, AXIS_DEFINITION
 from transform.percentile import percentile_context, has_any
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -230,8 +231,10 @@ def run_live_pipeline() -> dict:
             "context": _ctx(df) if df is not None else None}
 
     # --- Macro: inflation (YoY from BIS, annualised QoQ from the index) ---
+    cpi_frames = {}
     for region, cfg in universe.INFLATION_CPI.items():
         yoy_df = sources.fetch_bis_cpi(cfg["ref_area"], sources.CPI_UNIT_YOY)
+        cpi_frames[region] = yoy_df
         idx_df = sources.fetch_bis_cpi(cfg["ref_area"], sources.CPI_UNIT_INDEX)
         st, as_of = _series_status(yoy_df, "monthly")
         status[f"cpi:{region}"] = st
@@ -244,8 +247,10 @@ def run_live_pipeline() -> dict:
         }
 
     # --- Macro: GDP (real, chain-linked, local currency, SA) ---
+    gdp_frames = {}
     for region, cfg in universe.GDP_GROWTH.items():
         df = sources.fetch_fred(cfg["series"]) if cfg["source"] == "fred" else None
+        gdp_frames[region] = df
         st, as_of = _series_status(df, cfg.get("cadence", "quarterly"))
         status[f"gdp:{region}"] = st
         quarterly = cfg.get("freq", "Q") == "Q"
@@ -256,6 +261,15 @@ def run_live_pipeline() -> dict:
             "as_of": as_of,
         }
     out["macro"]["gdp_definition"] = universe.GDP_DEFINITION
+
+    # --- Growth / inflation regime coordinates (no new fetches) ---
+    out["regime"]["axis_definition"] = AXIS_DEFINITION
+    for region in universe.REGIONS:
+        cfg = universe.GDP_GROWTH.get(region, {})
+        pts = regime_coordinates(gdp_frames.get(region), cpi_frames.get(region),
+                                 cfg.get("freq", "Q"), quarters=8)
+        status[f"regime:{region}"] = "ok" if len(pts) >= 2 else "stubbed"
+        out["regime"]["regions"][region] = pts
 
     # --- Nominal and real yield curves ---
     cache = {}
@@ -462,6 +476,7 @@ def _empty_payload(is_sample: bool) -> dict:
         "credit_spreads": [],
         "liquidity": [],
         "fx_hedging": [],
+        "regime": {"axis_definition": "", "regions": {}},
         "cost_of_capital": {},
         "cost_of_capital_note": "",
         "valuation": {},
@@ -611,6 +626,23 @@ def run_sample_pipeline() -> dict:
             "cape_context": fake_ctx() if is_us else None,
             "forward_pe": None, "dividend_yield_pct": None,
             "note": None if is_us else "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."}
+    out["regime"]["axis_definition"] = AXIS_DEFINITION
+    import datetime as _dt
+    for i_r, region in enumerate(universe.REGIONS):
+        pts = []
+        for q in range(8):
+            d0 = today - timedelta(days=(7 - q) * 91)
+            pts.append({"date": d0.strftime("%Y-%m-%d"),
+                        "delta_basis": "year" if region == "CN" else "quarter",
+                        "growth_yoy": round(rng.gauss(1.5, 1.0), 2),
+                        "inflation_yoy": round(rng.gauss(2.5, 0.8), 2),
+                        "growth_delta": round(rng.gauss(0, 0.5), 2),
+                        "inflation_delta": round(rng.gauss(0, 0.4), 2)})
+        for pt in pts:
+            pt["quadrant"] = ("growth_" + ("up" if pt["growth_delta"] >= 0 else "down")
+                              + "_infl_" + ("up" if pt["inflation_delta"] >= 0 else "down"))
+        out["regime"]["regions"][region] = pts
+
     cs_base = {"us_ig": 0.79, "us_hy": 2.63, "eu_hy": 2.56, "em_corp": 1.39}
     for cs in universe.CREDIT_SPREADS:
         out["credit_spreads"].append({
