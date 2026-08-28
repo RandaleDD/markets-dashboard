@@ -293,6 +293,22 @@ COST_OF_CAPITAL_NOTE = (
 )
 
 # ---------------------------------------------------------------------------
+# 7c. Liquidity / lending conditions.
+#
+# The Fed's Senior Loan Officer Survey is quarterly, so it MUST carry its own
+# cadence — under the default daily staleness threshold every reading would be
+# flagged stale within a fortnight of publication.
+# ---------------------------------------------------------------------------
+LIQUIDITY_INDICATORS = [
+    {"id": "sloos_ci", "region": "US", "cadence": "quarterly",
+     "name": "SLOOS — banks tightening C&I standards (large/medium firms)",
+     "series": "DRTSCILM", "unit": "net % of banks tightening",
+     "note": "US only. The ECB runs an equivalent Bank Lending Survey, but not "
+             "on any keyless feed found — so this panel is deliberately "
+             "single-country rather than showing seven empty rows."},
+]
+
+# ---------------------------------------------------------------------------
 # 8. Equity valuation + equity risk premium.
 # ---------------------------------------------------------------------------
 VALUATION_PROXIES = [

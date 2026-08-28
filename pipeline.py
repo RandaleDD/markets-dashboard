@@ -353,6 +353,23 @@ def run_live_pipeline() -> dict:
         if cs.get("stack_leg") and level is not None:
             stack_credit[cs["region"]] = round(level, 2)
 
+    # --- Liquidity / lending conditions ---
+    for li in universe.LIQUIDITY_INDICATORS:
+        df = sources.fetch_fred(li["series"])
+        # Quarterly cadence, not the daily default — see universe.py.
+        st, as_of = _series_status(df, li.get("cadence", "quarterly"))
+        status[f"liquidity:{li['id']}"] = st
+        level = _latest(df)
+        prior = float(df.iloc[-2]["value"]) if df is not None and len(df) > 1 else None
+        out["liquidity"].append({
+            "id": li["id"], "region": li["region"], "name": li["name"],
+            "unit": li["unit"], "note": li.get("note"),
+            "level": round(level, 1) if level is not None else None,
+            "change": round(level - prior, 1) if (level is not None and prior is not None) else None,
+            "as_of": as_of, "cadence": li.get("cadence", "quarterly"),
+            "context": _ctx(df) if df is not None else None,
+        })
+
     # --- Cost-of-capital stack (real risk-free + IG spread + ERP) ---
     out["cost_of_capital_note"] = universe.COST_OF_CAPITAL_NOTE
     for region in universe.REGIONS:
@@ -430,6 +447,7 @@ def _empty_payload(is_sample: bool) -> dict:
         "eurozone_spreads": {"benchmark": None, "benchmark_yield_pct": None,
                              "as_of": None, "cadence": "monthly", "rows": []},
         "credit_spreads": [],
+        "liquidity": [],
         "cost_of_capital": {},
         "cost_of_capital_note": "",
         "valuation": {},
@@ -585,6 +603,11 @@ def run_sample_pipeline() -> dict:
             "id": cs["id"], "region": cs["region"], "name": cs["name"], "grade": cs["grade"],
             "spread_pct": cs_base.get(cs["id"]), "as_of": today.strftime("%Y-%m-%d"),
             "context": fake_ctx()})
+    for li in universe.LIQUIDITY_INDICATORS:
+        out["liquidity"].append({
+            "id": li["id"], "region": li["region"], "name": li["name"], "unit": li["unit"],
+            "note": li.get("note"), "level": 0.0, "change": -3.2,
+            "as_of": today.strftime("%Y-%m-01"), "cadence": "quarterly", "context": fake_ctx(False)})
     out["cost_of_capital_note"] = universe.COST_OF_CAPITAL_NOTE
     for region in universe.REGIONS:
         real = (out["real_yield_curves"].get(region, {}).get("tenors", {}) or {}).get("10Y")
