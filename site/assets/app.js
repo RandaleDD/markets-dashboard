@@ -367,6 +367,29 @@ function renderYields() {
     note("Breakeven / implied inflation with the tenor and index basis stated for each. These are not directly comparable across regions: UK figures are RPI-based and historically run roughly 0.8–1.0pp above the equivalent CPI rate. Where no inflation-linked market exists, the practitioner standard is the zero-coupon inflation swap, which has no free feed.") +
     table(["Region", "Type", "Tenors"], expRows) +
 
+    `<h2 class="mt">Cost of Capital</h2>` +
+    note(DATA.cost_of_capital_note || "") +
+    table(["Region", "Real risk-free (10y)", "IG credit spread", "Equity risk premium", "Total", "Coverage"],
+      REGION_ORDER.map((region) => {
+        const s2 = (DATA.cost_of_capital || {})[region];
+        if (!s2) return null;
+        const L = s2.legs || {};
+        const cov = s2.complete
+          ? '<span class="badge badge-market">all 3 legs</span>'
+          : (s2.total_pct != null
+              ? `<span class="flag">partial — no ${s2.missing_labels.join(", ").toLowerCase()}</span>`
+              : `<span class="stub">no legs sourced</span>`);
+        return [
+          regionName(region), pctPlain(L.real_risk_free), pctPlain(L.credit_spread),
+          pctPlain(L.erp),
+          s2.total_pct != null
+            ? `<strong>${s2.total_pct.toFixed(2)}%</strong>${s2.complete ? "" : "*"}`
+            : dash(),
+          cov,
+        ];
+      }).filter(Boolean)) +
+    `<p class="section-note">* A partial total sums only the legs that are sourced, so it is not comparable with a complete stack.</p>` +
+
     `<h2 class="mt">Euro-Area Sovereign Spreads vs. ${sp.benchmark || "Bund"}</h2>` +
     note(`Both legs come from the same ECB long-term rate series, so the spread is not distorted by mixing sources. Benchmark: ${sp.benchmark || "—"} at ${sp.benchmark_yield_pct != null ? sp.benchmark_yield_pct.toFixed(3) + "%" : "—"} (${sp.cadence || "monthly"}).`) +
     table(["Country", "10y yield", "Spread", "As of"], spreadRows);
@@ -433,23 +456,39 @@ function renderCommodities() {
 }
 
 function renderValuation() {
-  const rows = REGION_ORDER.map((region) => {
+  const scoreRows = REGION_ORDER.map((region) => {
+    const v = (DATA.valuation || {})[region] || {};
+    const e = (DATA.equity_risk_premia || {})[region] || {};
+    const hasAny = v.cape != null || e.erp_pct != null;
+    return [
+      regionName(region),
+      v.cape != null ? `<strong>${v.cape.toFixed(1)}</strong>${ctxTag(v.cape_context)}` : dash(),
+      e.erp_pct != null ? `<strong>${e.erp_pct.toFixed(2)}%</strong>${ctxTag(e.context)}` : dash(),
+      hasAny ? "" : `<span class="stub">awaiting non-US valuation sourcing</span>`,
+    ];
+  });
+  const covered = REGION_ORDER.filter((r) => ((DATA.valuation || {})[r] || {}).cape != null).length;
+
+  const detailRows = REGION_ORDER.map((region) => {
     const v = (DATA.valuation || {})[region] || {};
     const e = (DATA.equity_risk_premia || {})[region] || {};
     return [
       regionName(region), v.name || "",
-      v.cape != null ? v.cape.toFixed(1) + ctxTag(v.cape_context) : (v.note ? `<span class="stub">${v.note}</span>` : dash()),
       v.forward_pe != null ? v.forward_pe.toFixed(1) : dash(),
       v.dividend_yield_pct != null ? `${v.dividend_yield_pct.toFixed(1)}%` : dash(),
-      e.erp_pct != null ? `${e.erp_pct.toFixed(2)}%` + ctxTag(e.context) : dash(),
       e.method ? `<span class="ccy">${e.method}</span>` : dash(),
       v.cape_as_of || e.as_of || dash(),
     ];
   });
+
   document.getElementById("panel-valuation").innerHTML =
-    `<h2>Equity Valuation &amp; Risk Premia</h2>` +
-    note("CAPE from Robert Shiller (Yale); US equity risk premium from Damodaran's implied ERP (FCFE). Non-US P/E and dividend yield need ETF fact-sheet parsing, which is not implemented.") +
-    table(["Region", "Index", "CAPE", "Fwd P/E", "Div Yield", "ERP", "ERP method", "As of"], rows);
+    `<h2>Valuation Scorecard</h2>` +
+    note(`CAPE and equity risk premium across regions, with each reading's percentile against its own history. <strong>${covered} of ${REGION_ORDER.length} regions have CAPE today</strong> — non-US coverage needs ETF fact-sheet parsing (SPEC.md Phase 4) and is not implemented, so the empty rows are a known sourcing gap, not a load failure.`) +
+    table(["Region", "CAPE", "ERP", ""], scoreRows) +
+
+    `<h2 class="mt">Valuation Detail</h2>` +
+    note("Forward P/E and dividend yield are the fields awaiting non-US sourcing.") +
+    table(["Region", "Index", "Fwd P/E", "Div Yield", "ERP method", "As of"], detailRows);
 }
 
 function populateRegionSelector() {

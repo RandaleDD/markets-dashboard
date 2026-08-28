@@ -129,3 +129,23 @@ showing "N/A". Revisit only if the archive gets a lighter endpoint.
 Also no context: the China curve (unsourced entirely) and non-US ERP
 (Damodaran is annual, so a 5y window is 5 observations — below the 24-point
 minimum, and it correctly falls back to the full-history window).
+
+## ICE BofA credit spreads (added 2026-08-28)
+
+`BAMLC0A0CM` (US IG OAS), `BAMLH0A0HYM2` (US HY OAS) and `DRTSCILM` (SLOOS
+net tightening) all resolve on keyless `fredgraph.csv`.
+
+Two findings worth recording:
+
+- **The OAS series are capped at a rolling ~3 years.** Every ICE BofA spread
+  series starts on exactly the same date, three years back, and passing an
+  explicit `cosd=1997-01-01` changes nothing. This is an ICE licensing limit
+  on FRED's free tier, not a fetch bug. Consequence: percentile context on
+  spreads can only resolve the `full` window; 5y and 10y correctly stay hidden.
+  `DRTSCILM` is unaffected and returns 1990 onward.
+- **Non-US OAS does exist**, contrary to the V2 plan's assumption of US-only.
+  `BAMLHE00EHYIOAS` (Euro high yield) and `BAMLEMCBPIOAS` (EM corporate) both
+  resolve. No free euro *investment-grade* OAS was found, which is why the
+  cost-of-capital stack's credit leg stays US-only — mixing an IG spread for
+  one region with an HY spread for another would make the stacks silently
+  non-comparable.
