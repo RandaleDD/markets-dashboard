@@ -24,6 +24,7 @@ from transform.returns import compute_return_metrics, compact_history
 from transform.curves import latest_tenor_values, curve_shape
 from transform.erp import compute_erp
 from transform.cost_of_capital import stack_cost_of_capital
+from transform.fx_hedging import approx_hedging_cost
 from transform.percentile import percentile_context, has_any
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -370,6 +371,18 @@ def run_live_pipeline() -> dict:
             "context": _ctx(df) if df is not None else None,
         })
 
+
+    # --- FX hedging cost (CHF investor) ---
+    chf_rate = (out["macro"]["policy_rates"].get(universe.FX_HEDGING_HOME_REGION, {}) or {}).get("rate_pct")
+    for h in universe.FX_HEDGING:
+        foreign = (out["macro"]["policy_rates"].get(h["foreign_region"], {}) or {}).get("rate_pct")
+        calc = approx_hedging_cost(foreign, chf_rate)
+        status[f"fxhedge:{h['id']}"] = "ok" if calc["cost_pct"] is not None else "stubbed"
+        out["fx_hedging"].append({
+            "id": h["id"], "name": h["name"], "foreign_ccy": h["foreign_ccy"],
+            "foreign_rate_pct": foreign, "chf_rate_pct": chf_rate, **calc,
+        })
+
     # --- Cost-of-capital stack (real risk-free + IG spread + ERP) ---
     out["cost_of_capital_note"] = universe.COST_OF_CAPITAL_NOTE
     for region in universe.REGIONS:
@@ -448,6 +461,7 @@ def _empty_payload(is_sample: bool) -> dict:
                              "as_of": None, "cadence": "monthly", "rows": []},
         "credit_spreads": [],
         "liquidity": [],
+        "fx_hedging": [],
         "cost_of_capital": {},
         "cost_of_capital_note": "",
         "valuation": {},
@@ -608,6 +622,13 @@ def run_sample_pipeline() -> dict:
             "id": li["id"], "region": li["region"], "name": li["name"], "unit": li["unit"],
             "note": li.get("note"), "level": 0.0, "change": -3.2,
             "as_of": today.strftime("%Y-%m-01"), "cadence": "quarterly", "context": fake_ctx(False)})
+    chf_rate = cb_rates.get("CH")
+    for h in universe.FX_HEDGING:
+        foreign = cb_rates.get(h["foreign_region"])
+        out["fx_hedging"].append({
+            "id": h["id"], "name": h["name"], "foreign_ccy": h["foreign_ccy"],
+            "foreign_rate_pct": foreign, "chf_rate_pct": chf_rate,
+            **approx_hedging_cost(foreign, chf_rate)})
     out["cost_of_capital_note"] = universe.COST_OF_CAPITAL_NOTE
     for region in universe.REGIONS:
         real = (out["real_yield_curves"].get(region, {}).get("tenors", {}) or {}).get("10Y")

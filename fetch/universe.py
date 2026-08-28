@@ -309,6 +309,17 @@ LIQUIDITY_INDICATORS = [
 ]
 
 # ---------------------------------------------------------------------------
+# 7d. FX hedging cost, from a CHF investor's seat — the two pairs Marco named.
+# See transform/fx_hedging.py for why this is an approximation and what it
+# leaves out; the caveats must travel with the number to the UI.
+# ---------------------------------------------------------------------------
+FX_HEDGING = [
+    {"id": "usd_chf", "name": "USD exposure hedged to CHF", "foreign_region": "US", "foreign_ccy": "USD"},
+    {"id": "eur_chf", "name": "EUR exposure hedged to CHF", "foreign_region": "EZ", "foreign_ccy": "EUR"},
+]
+FX_HEDGING_HOME_REGION = "CH"
+
+# ---------------------------------------------------------------------------
 # 8. Equity valuation + equity risk premium.
 # ---------------------------------------------------------------------------
 VALUATION_PROXIES = [
