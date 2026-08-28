@@ -454,8 +454,34 @@ function renderCurrencies() {
     const cells = [fx.name, fmtNum(fx.level, 4) + ctxTag(fx.context), fmtPct(fx.chg_1d_pct), fmtPct(fx.chg_1w_pct), fmtPct(fx.chg_ytd_pct)];
     chartableRows(`fx:${fx.id}`, fx.name, fx.history, cells, headers.length).forEach((r) => rows.push(r));
   });
+
+  const hedges = DATA.fx_hedging || [];
+  let hedgeHtml = "";
+  if (hedges.length) {
+    const caveats = (hedges[0].caveats || []).map((c) => `<li>${c}</li>`).join("");
+    hedgeHtml =
+      `<h2 class="mt">Cost of Hedging back to CHF</h2>` +
+      `<div class="approx-warning">
+         <strong>Approximation, not a market quote.</strong> This is
+         ${hedges[0].method || ""}. Cross-currency basis swaps are interbank OTC
+         instruments with no free feed, so this is the covered-interest-parity
+         proxy — the dominant driver of hedging cost, but not the traded price.
+         <ul>${caveats}</ul>
+       </div>` +
+      table(["Exposure", "Foreign policy rate", "CHF policy rate", "Approx. annual cost"],
+        hedges.map((h) => [
+          h.name,
+          pctPlain(h.foreign_rate_pct),
+          pctPlain(h.chf_rate_pct),
+          h.cost_pct != null
+            ? `<span class="${h.direction === "cost" ? "down" : "up"}"><strong>${h.cost_pct > 0 ? "−" : "+"}${Math.abs(h.cost_pct).toFixed(2)}%</strong></span> <span class="ccy">per year, ${h.direction === "cost" ? "paid to hedge" : "earned by hedging"}</span>`
+            : dash(),
+        ]));
+  }
+
   document.getElementById("panel-currencies").innerHTML =
-    `<h2>Currencies</h2>` + note("Click a trend to open a chart.") + tableWithRaw(headers, rows);
+    `<h2>Currencies</h2>` + note("Click a trend to open a chart.") +
+    tableWithRaw(headers, rows) + hedgeHtml;
 }
 
 function renderCommodities() {
