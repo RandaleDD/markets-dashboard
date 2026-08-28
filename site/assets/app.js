@@ -417,6 +417,27 @@ function renderMacro() {
     note("Source: BIS Data Portal (CBPOL); Norges Bank for Norway. A policy rate legitimately sits unchanged for months, so an older date is not a stale figure.") +
     table(["Region", "Policy Rate", "As of"], rateRows) +
 
+    `<h2 class="mt">Credit &amp; Liquidity</h2>` +
+    note("Credit spreads are option-adjusted spreads over governments — what the market charges for corporate credit risk. FRED serves these on a rolling three-year window under an ICE licensing limit, so their percentile context can only be measured against that window and 5y/10y are hidden rather than faked.") +
+    table(["Region", "Index", "Grade", "OAS", "As of"],
+      (DATA.credit_spreads || []).map((c) => [
+        c.region === "EM" ? "Emerging Markets" : regionName(c.region),
+        c.name, `<span class="ccy">${c.grade}</span>`,
+        c.spread_pct != null ? `${c.spread_pct.toFixed(2)} pp${ctxTag(c.context)}` : dash(),
+        c.as_of || dash(),
+      ])) +
+    ((DATA.liquidity || []).length
+      ? table(["Lending conditions", "Latest", "Change vs prior", "As of"],
+          (DATA.liquidity || []).map((l) => [
+            `${l.name}<div class="stub small">${l.note || ""}</div>`,
+            l.level != null ? `${l.level.toFixed(1)} <span class="ccy">${l.unit}</span>${ctxTag(l.context)}` : dash(),
+            l.change != null
+              ? `<span class="${l.change > 0 ? "down" : "up"}">${l.change > 0 ? "+" : ""}${l.change.toFixed(1)} pp</span> <span class="ccy">${l.change > 0 ? "tightening" : "easing"}</span>`
+              : dash(),
+            `${l.as_of || "—"} <span class="ccy">(${l.cadence})</span>`,
+          ]))
+      : "") +
+
     `<h2 class="mt">Inflation</h2>` +
     note("Headline consumer prices. Year-on-year, plus the latest quarter annualised — the second is noisier but turns sooner.") +
     table(["Region", "CPI YoY", "QoQ annualised", "As of"], infRows) +
