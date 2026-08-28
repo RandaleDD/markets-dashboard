@@ -15,6 +15,9 @@
   --series-1:       #2a78d6; /* blue — default chart line color */
   --stub-bg:        #f0efec;
   --stub-text:      #898781;
+  --div-neg:        #2a78d6;
+  --div-mid:        #f0efec;
+  --div-pos:        #e34948;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -27,6 +30,9 @@
     --gridline:       #2c2c2a;
     --baseline:       #383835;
     --border:         rgba(255,255,255,0.10);
+    --div-neg:        #3987e5;
+    --div-mid:        #383835;
+    --div-pos:        #e66767;
     --delta-up:       #0ca30c;
     --delta-down:     #e66767;
     --series-1:       #3987e5;
@@ -44,6 +50,9 @@
   --gridline:       #2c2c2a;
   --baseline:       #383835;
   --border:         rgba(255,255,255,0.10);
+  --div-neg:        #3987e5;
+  --div-mid:        #383835;
+  --div-pos:        #e66767;
   --delta-up:       #0ca30c;
   --delta-down:     #e66767;
   --series-1:       #3987e5;
@@ -272,3 +281,29 @@ h2.mt { margin-top: 30px; }
 .regime-pt.lagged circle { fill: var(--text-muted); opacity: 0.55; }
 .regime-controls { display: flex; align-items: center; gap: 12px; margin: 6px 0 10px; flex-wrap: wrap; }
 .regime-controls input[type="range"] { flex: 1; min-width: 200px; max-width: 420px; }
+
+/* --- Cross-asset correlation heatmap --- */
+table.corr-grid { border-collapse: separate; border-spacing: 2px; }
+table.corr-grid th.corner { background: transparent; }
+table.corr-grid th.col-head {
+  font-size: 10px; font-weight: 600; color: var(--text-secondary);
+  vertical-align: bottom; text-align: center; padding: 0 2px 6px; max-width: 70px;
+  white-space: normal; line-height: 1.15;
+}
+table.corr-grid th.row-head {
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  text-align: right; padding-right: 8px; white-space: nowrap;
+}
+td.corr-cell {
+  text-align: center; font-size: 11px; font-variant-numeric: tabular-nums;
+  padding: 8px 6px; min-width: 46px; border-radius: 3px; cursor: help;
+}
+td.corr-cell.empty { color: var(--text-muted); background: var(--stub-bg); }
+.corr-legend {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--text-muted); margin: 4px 0 10px;
+}
+.corr-legend .ramp {
+  flex: 0 1 220px; height: 10px; border-radius: 999px;
+  border: 1px solid var(--border);
+}

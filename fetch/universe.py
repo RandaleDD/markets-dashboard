@@ -320,6 +320,29 @@ FX_HEDGING = [
 FX_HEDGING_HOME_REGION = "CH"
 
 # ---------------------------------------------------------------------------
+# 7e. Cross-asset set for the rolling correlation heatmap.
+#
+# One representative series per bloc rather than all 12 equity indices — a
+# 12x12 grid of near-identical equity pairs is unreadable and says nothing.
+#
+# The bond proxies are the only genuinely new instrument in the V2 plan: the
+# pipeline fetches yields everywhere but no tradeable bond *return*, and a
+# yield cannot be correlated against equity returns. ETFs stand in, the same
+# convention already used for csi300 and bcom.
+# ---------------------------------------------------------------------------
+CROSS_ASSET_SET = [
+    {"id": "eq_us", "label": "US equities", "yahoo": "^GSPC"},
+    {"id": "eq_eu", "label": "Europe equities", "yahoo": "^STOXX"},
+    {"id": "eq_jp", "label": "Japan equities", "yahoo": "^N225"},
+    {"id": "eq_em", "label": "EM equities", "yahoo": "EEM"},
+    {"id": "bond_ust", "label": "UST 7-10y", "yahoo": "IEF"},
+    {"id": "bond_ustlong", "label": "UST 20y+", "yahoo": "TLT"},
+    {"id": "gold", "label": "Gold", "yahoo": "GC=F"},
+    {"id": "usd", "label": "USD (DXY)", "yahoo": "DX-Y.NYB"},
+]
+CORRELATION_WINDOWS = [60, 90]
+
+# ---------------------------------------------------------------------------
 # 8. Equity valuation + equity risk premium.
 # ---------------------------------------------------------------------------
 VALUATION_PROXIES = [
