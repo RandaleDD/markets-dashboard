@@ -324,11 +324,14 @@ def fetch_mof_jgb(tenor: str) -> pd.DataFrame | None:
 # and G_N_C (all government bonds). We use G_N_C — AAA tracks the Bund almost
 # exactly, which made the old Eurozone row a duplicate of Germany.
 # ---------------------------------------------------------------------------
-def fetch_ecb(series_key: str) -> pd.DataFrame | None:
+def fetch_ecb(series_key: str, years: int = 3) -> pd.DataFrame | None:
     if not series_key:
         return None
+    # Without startPeriod the full history comes back — ~3MB per curve tenor,
+    # which intermittently blows the read timeout. The dashboard only needs
+    # the recent window.
     resp = _get(f"https://data-api.ecb.europa.eu/service/data/{series_key}",
-                params={"format": "csvdata"})
+                params={"format": "csvdata", "startPeriod": _start_period(years=years)})
     if resp is None or not resp.text:
         return None
     try:
@@ -434,6 +437,48 @@ def fetch_boe_glc(which: str, tenor_years: str) -> pd.DataFrame | None:
 # Norges Bank SDMX API — Norwegian policy rate and the zero-coupon government
 # curve. Semicolon-delimited CSV. The published curve stops at 10 years.
 # ---------------------------------------------------------------------------
+_NORGES_CURVE_CACHE = {}
+
+
+def fetch_norges_curve(tenor: str) -> pd.DataFrame | None:
+    """
+    One tenor of the Norwegian zero-coupon government curve.
+
+    The whole curve comes back in a single request, so it is fetched once per
+    run and cached. Doing a request per tenor made the curve report "partial"
+    whenever any one of them failed transiently, which is exactly what
+    happened on a GitHub runner.
+    """
+    if not tenor:
+        return None
+    if "table" not in _NORGES_CURVE_CACHE:
+        _NORGES_CURVE_CACHE["table"] = None
+        resp = _get("https://data.norges-bank.no/api/data/GOVT_ZEROCOUPON/B.",
+                    params={"format": "csv", "startPeriod": _start_period(years=3)})
+        if resp is not None and resp.text:
+            try:
+                df = pd.read_csv(io.StringIO(resp.text), sep=";")
+                # The header repeats "TENOR" for both the code and its label,
+                # so columns are taken positionally rather than by name.
+                cols = [c.strip().upper() for c in df.columns]
+                df.columns = [f"{c}_{i}" for i, c in enumerate(cols)]
+                tenor_col = next(c for c in df.columns if c.startswith("TENOR_"))
+                time_col = next(c for c in df.columns if c.startswith("TIME_PERIOD"))
+                val_col = next(c for c in df.columns if c.startswith("OBS_VALUE"))
+                _NORGES_CURVE_CACHE["table"] = df[[tenor_col, time_col, val_col]].rename(
+                    columns={tenor_col: "tenor", time_col: "date", val_col: "value"})
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Norges curve parse failed: %s", exc)
+    table = _NORGES_CURVE_CACHE.get("table")
+    if table is None:
+        return None
+    sub = table[table["tenor"].astype(str).str.upper() == tenor.upper()]
+    if sub.empty:
+        logger.warning("Norges curve: tenor %s not present", tenor)
+        return None
+    return _frame(sub["date"], sub["value"])
+
+
 def fetch_norges(key: str) -> pd.DataFrame | None:
     """key is a dataflow path such as 'IR/B.KPRA.SD' or 'GOVT_ZEROCOUPON/B.10Y'."""
     if not key:
