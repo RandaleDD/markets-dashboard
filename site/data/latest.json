@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-28T20:14:50.589549+00:00",
+  "generated_at": "2026-08-28T20:28:35.972902+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -3838,30 +3838,30 @@
         "name": "Russell 2000",
         "currency": "USD",
         "as_of": "2026-08-28",
-        "level": 2972.7278,
-        "chg_1d_pct": -1.38,
-        "chg_1w_pct": -1.5,
-        "chg_mtd_pct": 0.64,
-        "chg_ytd_pct": 19.78,
-        "chg_1y_pct": 24.99,
-        "drawdown_from_ath_pct": -3.12,
-        "realized_vol_20d_pct": 14.86,
-        "realized_vol_60d_pct": 16.74,
+        "level": 2972.3718,
+        "chg_1d_pct": -1.39,
+        "chg_1w_pct": -1.51,
+        "chg_mtd_pct": 0.63,
+        "chg_ytd_pct": 19.76,
+        "chg_1y_pct": 24.97,
+        "drawdown_from_ath_pct": -3.13,
+        "realized_vol_20d_pct": 14.88,
+        "realized_vol_60d_pct": 16.75,
         "vol_context": {
           "5y": {
-            "pct": 8.3,
-            "z": -1.08,
+            "pct": 8.4,
+            "z": -1.07,
             "n": 1255,
             "since": "2021-08-30"
           },
           "10y": {
-            "pct": 26.7,
+            "pct": 26.8,
             "z": -0.52,
             "n": 2514,
             "since": "2016-08-29"
           },
           "full": {
-            "pct": 43.5,
+            "pct": 43.6,
             "z": -0.3,
             "n": 9796,
             "since": "1987-10-08"
@@ -3869,20 +3869,20 @@
         },
         "drawdown_context": {
           "5y": {
-            "pct": 81.3,
+            "pct": 81.1,
             "z": 1.19,
             "n": 1255,
             "since": "2021-08-30"
           },
           "10y": {
-            "pct": 71.0,
+            "pct": 70.9,
             "z": 0.82,
             "n": 2514,
             "since": "2016-08-29"
           },
           "full": {
-            "pct": 71.9,
-            "z": 0.76,
+            "pct": 71.8,
+            "z": 0.75,
             "n": 9816,
             "since": "1987-09-10"
           }
@@ -5730,7 +5730,7 @@
           ],
           [
             "2026-08-28",
-            2972.7278
+            2972.3718
           ]
         ]
       }
@@ -20863,24 +20863,24 @@
         "name": "MSCI EM (proxy: EEM ETF)",
         "currency": "USD",
         "as_of": "2026-08-28",
-        "level": 67.13,
-        "chg_1d_pct": -0.71,
-        "chg_1w_pct": 0.01,
-        "chg_mtd_pct": 7.65,
-        "chg_ytd_pct": 22.7,
-        "chg_1y_pct": 33.99,
-        "drawdown_from_ath_pct": -5.73,
-        "realized_vol_20d_pct": 19.89,
+        "level": 67.14,
+        "chg_1d_pct": -0.7,
+        "chg_1w_pct": 0.03,
+        "chg_mtd_pct": 7.67,
+        "chg_ytd_pct": 22.72,
+        "chg_1y_pct": 34.01,
+        "drawdown_from_ath_pct": -5.72,
+        "realized_vol_20d_pct": 19.88,
         "realized_vol_60d_pct": 32.42,
         "vol_context": {
           "5y": {
-            "pct": 70.8,
+            "pct": 70.7,
             "z": 0.15,
             "n": 1255,
             "since": "2021-08-30"
           },
           "10y": {
-            "pct": 70.2,
+            "pct": 70.0,
             "z": 0.1,
             "n": 2514,
             "since": "2016-08-29"
@@ -20901,7 +20901,7 @@
           },
           "10y": {
             "pct": 92.7,
-            "z": 1.64,
+            "z": 1.65,
             "n": 2514,
             "since": "2016-08-29"
           },
@@ -22755,7 +22755,7 @@
           ],
           [
             "2026-08-28",
-            67.13
+            67.14
           ]
         ]
       }
@@ -22766,18 +22766,18 @@
       "id": "dxy",
       "name": "US Dollar Index (DXY)",
       "as_of": "2026-08-28",
-      "level": 99.658,
-      "chg_1d_pct": 0.5,
+      "level": 99.663,
+      "chg_1d_pct": 0.51,
       "chg_1w_pct": 0.87,
-      "chg_mtd_pct": -1.7,
-      "chg_ytd_pct": 1.4,
+      "chg_mtd_pct": -1.69,
+      "chg_ytd_pct": 1.41,
       "chg_1y_pct": 1.89,
       "drawdown_from_ath_pct": -39.5,
       "realized_vol_20d_pct": 4.48,
       "realized_vol_60d_pct": 4.75,
       "context": {
         "5y": {
-          "pct": 33.1,
+          "pct": 33.2,
           "z": -0.57,
           "n": 1257,
           "since": "2021-08-30"
@@ -22789,7 +22789,7 @@
           "since": "2016-08-29"
         },
         "full": {
-          "pct": 64.1,
+          "pct": 64.2,
           "z": 0.16,
           "n": 14132,
           "since": "1971-01-04"
@@ -24638,7 +24638,7 @@
         ],
         [
           "2026-08-28",
-          99.658
+          99.663
         ]
       ]
     },
@@ -26558,18 +26558,18 @@
       "id": "gbpusd",
       "name": "GBP/USD",
       "as_of": "2026-08-28",
-      "level": 1.3537,
-      "chg_1d_pct": -0.44,
-      "chg_1w_pct": -0.78,
-      "chg_mtd_pct": 1.86,
-      "chg_ytd_pct": 0.52,
-      "chg_1y_pct": 0.25,
-      "drawdown_from_ath_pct": -35.79,
-      "realized_vol_20d_pct": 4.13,
-      "realized_vol_60d_pct": 5.82,
+      "level": 1.3536,
+      "chg_1d_pct": -0.45,
+      "chg_1w_pct": -0.79,
+      "chg_mtd_pct": 1.85,
+      "chg_ytd_pct": 0.51,
+      "chg_1y_pct": 0.24,
+      "drawdown_from_ath_pct": -35.8,
+      "realized_vol_20d_pct": 4.14,
+      "realized_vol_60d_pct": 5.83,
       "context": {
         "5y": {
-          "pct": 88.8,
+          "pct": 88.5,
           "z": 1.14,
           "n": 1300,
           "since": "2021-08-30"
@@ -26581,7 +26581,7 @@
           "since": "2016-08-29"
         },
         "full": {
-          "pct": 37.8,
+          "pct": 37.7,
           "z": -0.67,
           "n": 5913,
           "since": "2003-12-01"
@@ -28462,7 +28462,7 @@
         ],
         [
           "2026-08-28",
-          1.3537
+          1.3536
         ]
       ]
     },
@@ -28470,14 +28470,14 @@
       "id": "usdjpy",
       "name": "USD/JPY",
       "as_of": "2026-08-28",
-      "level": 160.08,
+      "level": 160.089,
       "chg_1d_pct": 0.52,
-      "chg_1w_pct": 0.75,
+      "chg_1w_pct": 0.76,
       "chg_mtd_pct": -2.25,
-      "chg_ytd_pct": 2.34,
-      "chg_1y_pct": 8.66,
-      "drawdown_from_ath_pct": -2.31,
-      "realized_vol_20d_pct": 7.97,
+      "chg_ytd_pct": 2.35,
+      "chg_1y_pct": 8.67,
+      "drawdown_from_ath_pct": -2.3,
+      "realized_vol_20d_pct": 7.98,
       "realized_vol_60d_pct": 6.71,
       "context": {
         "5y": {
@@ -30374,7 +30374,7 @@
         ],
         [
           "2026-08-28",
-          160.08
+          160.089
         ]
       ]
     },
@@ -30382,18 +30382,18 @@
       "id": "usdchf",
       "name": "USD/CHF",
       "as_of": "2026-08-28",
-      "level": 0.8092,
-      "chg_1d_pct": 0.52,
-      "chg_1w_pct": 1.21,
-      "chg_mtd_pct": -1.23,
-      "chg_ytd_pct": 2.21,
-      "chg_1y_pct": 0.96,
-      "drawdown_from_ath_pct": -41.61,
-      "realized_vol_20d_pct": 8.21,
-      "realized_vol_60d_pct": 7.16,
+      "level": 0.8096,
+      "chg_1d_pct": 0.57,
+      "chg_1w_pct": 1.25,
+      "chg_mtd_pct": -1.18,
+      "chg_ytd_pct": 2.26,
+      "chg_1y_pct": 1.01,
+      "drawdown_from_ath_pct": -41.58,
+      "realized_vol_20d_pct": 8.24,
+      "realized_vol_60d_pct": 7.17,
       "context": {
         "5y": {
-          "pct": 21.5,
+          "pct": 21.6,
           "z": -1.2,
           "n": 1300,
           "since": "2021-08-30"
@@ -32286,7 +32286,7 @@
         ],
         [
           "2026-08-28",
-          0.8092
+          0.8096
         ]
       ]
     },
@@ -32294,30 +32294,30 @@
       "id": "eurchf",
       "name": "EUR/CHF",
       "as_of": "2026-08-28",
-      "level": 0.9375,
-      "chg_1d_pct": -0.07,
-      "chg_1w_pct": 0.33,
-      "chg_mtd_pct": 0.66,
-      "chg_ytd_pct": 0.8,
-      "chg_1y_pct": 0.43,
-      "drawdown_from_ath_pct": -44.18,
-      "realized_vol_20d_pct": 4.58,
+      "level": 0.9378,
+      "chg_1d_pct": -0.05,
+      "chg_1w_pct": 0.36,
+      "chg_mtd_pct": 0.69,
+      "chg_ytd_pct": 0.83,
+      "chg_1y_pct": 0.45,
+      "drawdown_from_ath_pct": -44.16,
+      "realized_vol_20d_pct": 4.57,
       "realized_vol_60d_pct": 3.69,
       "context": {
         "5y": {
-          "pct": 30.3,
-          "z": -0.71,
+          "pct": 30.8,
+          "z": -0.7,
           "n": 1300,
           "since": "2021-08-30"
         },
         "10y": {
-          "pct": 15.1,
+          "pct": 15.4,
           "z": -1.24,
           "n": 2603,
           "since": "2016-08-29"
         },
         "full": {
-          "pct": 6.4,
+          "pct": 6.5,
           "z": -1.3,
           "n": 6124,
           "since": "2003-01-23"
@@ -34198,7 +34198,7 @@
         ],
         [
           "2026-08-28",
-          0.9375
+          0.9378
         ]
       ]
     },
@@ -36118,19 +36118,19 @@
       "id": "eurnok",
       "name": "EUR/NOK",
       "as_of": "2026-08-28",
-      "level": 10.8643,
-      "chg_1d_pct": -0.26,
+      "level": 10.8637,
+      "chg_1d_pct": -0.27,
       "chg_1w_pct": -0.52,
       "chg_mtd_pct": -1.08,
-      "chg_ytd_pct": -7.98,
-      "chg_1y_pct": -7.4,
-      "drawdown_from_ath_pct": -13.74,
+      "chg_ytd_pct": -7.99,
+      "chg_1y_pct": -7.41,
+      "drawdown_from_ath_pct": -13.75,
       "realized_vol_20d_pct": 3.49,
       "realized_vol_60d_pct": 5.73,
       "context": {
         "5y": {
           "pct": 30.7,
-          "z": -0.36,
+          "z": -0.37,
           "n": 1300,
           "since": "2021-08-30"
         },
@@ -38022,7 +38022,7 @@
         ],
         [
           "2026-08-28",
-          10.8643
+          10.8637
         ]
       ]
     }
@@ -38035,30 +38035,30 @@
       "contract": "Brent Crude, front month",
       "unit": "USD/bbl",
       "as_of": "2026-08-28",
-      "level": 88.2,
-      "chg_1d_pct": -1.67,
-      "chg_1w_pct": -6.56,
-      "chg_mtd_pct": 4.89,
-      "chg_ytd_pct": 44.95,
-      "chg_1y_pct": 28.53,
-      "drawdown_from_ath_pct": -39.62,
-      "realized_vol_20d_pct": 47.47,
-      "realized_vol_60d_pct": 55.67,
+      "level": 88.27,
+      "chg_1d_pct": -1.59,
+      "chg_1w_pct": -6.48,
+      "chg_mtd_pct": 4.97,
+      "chg_ytd_pct": 45.06,
+      "chg_1y_pct": 28.64,
+      "drawdown_from_ath_pct": -39.57,
+      "realized_vol_20d_pct": 47.43,
+      "realized_vol_60d_pct": 55.66,
       "context": {
         "5y": {
           "pct": 73.2,
-          "z": 0.41,
+          "z": 0.42,
           "n": 1258,
           "since": "2021-08-30"
         },
         "10y": {
           "pct": 86.6,
-          "z": 0.99,
+          "z": 1.0,
           "n": 2515,
           "since": "2016-08-29"
         },
         "full": {
-          "pct": 68.0,
+          "pct": 68.1,
           "z": 0.42,
           "n": 4750,
           "since": "2007-07-30"
@@ -39907,7 +39907,7 @@
         ],
         [
           "2026-08-28",
-          88.2
+          88.27
         ]
       ]
     },
@@ -39918,14 +39918,14 @@
       "contract": "Henry Hub Natural Gas, front month",
       "unit": "USD/MMBtu",
       "as_of": "2026-08-28",
-      "level": 2.873,
-      "chg_1d_pct": -1.17,
-      "chg_1w_pct": 3.61,
-      "chg_mtd_pct": 7.93,
-      "chg_ytd_pct": -22.06,
-      "chg_1y_pct": -2.41,
-      "drawdown_from_ath_pct": -81.32,
-      "realized_vol_20d_pct": 34.64,
+      "level": 2.874,
+      "chg_1d_pct": -1.14,
+      "chg_1w_pct": 3.64,
+      "chg_mtd_pct": 7.96,
+      "chg_ytd_pct": -22.03,
+      "chg_1y_pct": -2.38,
+      "drawdown_from_ath_pct": -81.31,
+      "realized_vol_20d_pct": 34.62,
       "realized_vol_60d_pct": 37.08,
       "context": {
         "5y": {
@@ -39935,13 +39935,13 @@
           "since": "2021-08-30"
         },
         "10y": {
-          "pct": 46.7,
+          "pct": 46.8,
           "z": -0.29,
           "n": 2515,
           "since": "2016-08-29"
         },
         "full": {
-          "pct": 28.2,
+          "pct": 28.3,
           "z": -0.68,
           "n": 6529,
           "since": "2000-08-30"
@@ -41790,7 +41790,7 @@
         ],
         [
           "2026-08-28",
-          2.873
+          2.874
         ]
       ]
     },
@@ -43679,15 +43679,15 @@
       "contract": "Gold, front month",
       "unit": "USD/troy oz",
       "as_of": "2026-08-28",
-      "level": 4509.7998,
-      "chg_1d_pct": -2.17,
-      "chg_1w_pct": -2.47,
-      "chg_mtd_pct": 11.73,
-      "chg_ytd_pct": 4.26,
-      "chg_1y_pct": 31.41,
-      "drawdown_from_ath_pct": -15.2,
-      "realized_vol_20d_pct": 22.79,
-      "realized_vol_60d_pct": 25.7,
+      "level": 4508.7998,
+      "chg_1d_pct": -2.19,
+      "chg_1w_pct": -2.49,
+      "chg_mtd_pct": 11.71,
+      "chg_ytd_pct": 4.24,
+      "chg_1y_pct": 31.38,
+      "drawdown_from_ath_pct": -15.22,
+      "realized_vol_20d_pct": 22.82,
+      "realized_vol_60d_pct": 25.71,
       "context": {
         "5y": {
           "pct": 92.4,
@@ -45551,7 +45551,7 @@
         ],
         [
           "2026-08-28",
-          4509.7998
+          4508.7998
         ]
       ]
     },
@@ -45562,14 +45562,14 @@
       "contract": "Silver, front month",
       "unit": "USD/troy oz",
       "as_of": "2026-08-28",
-      "level": 67.125,
-      "chg_1d_pct": -3.32,
-      "chg_1w_pct": -3.37,
-      "chg_mtd_pct": 17.15,
-      "chg_ytd_pct": -4.29,
-      "chg_1y_pct": 71.28,
-      "drawdown_from_ath_pct": -41.67,
-      "realized_vol_20d_pct": 35.33,
+      "level": 67.115,
+      "chg_1d_pct": -3.33,
+      "chg_1w_pct": -3.38,
+      "chg_mtd_pct": 17.14,
+      "chg_ytd_pct": -4.3,
+      "chg_1y_pct": 71.26,
+      "drawdown_from_ath_pct": -41.68,
+      "realized_vol_20d_pct": 35.35,
       "realized_vol_60d_pct": 44.71,
       "context": {
         "5y": {
@@ -47434,7 +47434,7 @@
         ],
         [
           "2026-08-28",
-          67.125
+          67.115
         ]
       ]
     },
@@ -47445,14 +47445,14 @@
       "contract": "Copper, front month",
       "unit": "USD/lb",
       "as_of": "2026-08-28",
-      "level": 6.638,
-      "chg_1d_pct": 0.77,
-      "chg_1w_pct": 0.89,
-      "chg_mtd_pct": 5.0,
-      "chg_ytd_pct": 17.9,
-      "chg_1y_pct": 48.72,
-      "drawdown_from_ath_pct": -1.07,
-      "realized_vol_20d_pct": 17.07,
+      "level": 6.636,
+      "chg_1d_pct": 0.74,
+      "chg_1w_pct": 0.86,
+      "chg_mtd_pct": 4.97,
+      "chg_ytd_pct": 17.87,
+      "chg_1y_pct": 48.67,
+      "drawdown_from_ath_pct": -1.1,
+      "realized_vol_20d_pct": 17.05,
       "realized_vol_60d_pct": 23.13,
       "context": {
         "5y": {
@@ -49317,7 +49317,7 @@
         ],
         [
           "2026-08-28",
-          6.638
+          6.636
         ]
       ]
     },
@@ -51665,96 +51665,96 @@
   "yield_curves": {
     "US": {
       "tenors": {
-        "2Y": 4.19,
-        "5Y": 4.37,
-        "10Y": 4.66,
-        "30Y": 5.18
+        "2Y": 4.2,
+        "5Y": 4.38,
+        "10Y": 4.67,
+        "30Y": 5.19
       },
       "context": {
         "2Y": {
           "5y": {
-            "pct": 61.7,
-            "z": 0.42,
+            "pct": 62.4,
+            "z": 0.43,
             "n": 1249,
-            "since": "2021-08-26"
+            "since": "2021-08-27"
           },
           "10y": {
-            "pct": 80.9,
+            "pct": 81.2,
             "z": 1.06,
             "n": 2499,
-            "since": "2016-08-26"
+            "since": "2016-08-29"
           },
           "full": {
-            "pct": 44.9,
+            "pct": 45.2,
             "z": -0.21,
-            "n": 12556,
+            "n": 12557,
             "since": "1976-06-01"
           }
         },
         "5Y": {
           "5y": {
-            "pct": 87.8,
-            "z": 0.8,
+            "pct": 88.6,
+            "z": 0.81,
             "n": 1249,
-            "since": "2021-08-26"
+            "since": "2021-08-27"
           },
           "10y": {
-            "pct": 93.9,
-            "z": 1.3,
+            "pct": 94.3,
+            "z": 1.31,
             "n": 2499,
-            "since": "2016-08-26"
+            "since": "2016-08-29"
           },
           "full": {
-            "pct": 40.5,
-            "z": -0.36,
-            "n": 16148,
+            "pct": 40.7,
+            "z": -0.35,
+            "n": 16149,
             "since": "1962-01-02"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 96.1,
-            "z": 1.0,
+            "pct": 96.8,
+            "z": 1.01,
             "n": 1249,
-            "since": "2021-08-26"
+            "since": "2021-08-27"
           },
           "10y": {
-            "pct": 98.0,
-            "z": 1.47,
+            "pct": 98.4,
+            "z": 1.48,
             "n": 2499,
-            "since": "2016-08-26"
+            "since": "2016-08-29"
           },
           "full": {
-            "pct": 42.3,
+            "pct": 42.5,
             "z": -0.39,
-            "n": 16148,
+            "n": 16149,
             "since": "1962-01-02"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 98.6,
-            "z": 1.21,
+            "pct": 98.8,
+            "z": 1.22,
             "n": 1249,
-            "since": "2021-08-26"
+            "since": "2021-08-27"
           },
           "10y": {
-            "pct": 99.3,
-            "z": 1.72,
+            "pct": 99.4,
+            "z": 1.73,
             "n": 2499,
-            "since": "2016-08-26"
+            "since": "2016-08-29"
           },
           "full": {
-            "pct": 46.8,
-            "z": -0.33,
-            "n": 12378,
+            "pct": 47.0,
+            "z": -0.32,
+            "n": 12379,
             "since": "1977-02-15"
           }
         }
       },
       "2s10s_bp": 47.0,
       "3m10y_bp": null,
-      "as_of": "2026-08-26",
+      "as_of": "2026-08-27",
       "source_note": null,
       "cadence": "daily",
       "lagged": false,
@@ -52202,28 +52202,28 @@
     "US": {
       "tenors": {
         "2Y": null,
-        "5Y": 2.06,
+        "5Y": 2.07,
         "10Y": 2.34,
         "30Y": 2.92
       },
       "context": {
         "5Y": {
           "5y": {
-            "pct": 86.7,
-            "z": 0.79,
+            "pct": 87.4,
+            "z": 0.8,
             "n": 1249,
-            "since": "2021-08-26"
+            "since": "2021-08-27"
           },
           "10y": {
-            "pct": 93.4,
-            "z": 1.29,
+            "pct": 93.7,
+            "z": 1.3,
             "n": 2499,
-            "since": "2016-08-26"
+            "since": "2016-08-29"
           },
           "full": {
-            "pct": 89.8,
+            "pct": 90.1,
             "z": 1.3,
-            "n": 5917,
+            "n": 5918,
             "since": "2003-01-02"
           }
         },
@@ -52232,45 +52232,45 @@
             "pct": 96.4,
             "z": 0.96,
             "n": 1249,
-            "since": "2021-08-26"
+            "since": "2021-08-27"
           },
           "10y": {
             "pct": 98.2,
             "z": 1.5,
             "n": 2499,
-            "since": "2016-08-26"
+            "since": "2016-08-29"
           },
           "full": {
             "pct": 94.3,
             "z": 1.33,
-            "n": 5917,
+            "n": 5918,
             "since": "2003-01-02"
           }
         },
         "30Y": {
           "5y": {
             "pct": 98.2,
-            "z": 1.22,
+            "z": 1.21,
             "n": 1249,
-            "since": "2021-08-26"
+            "since": "2021-08-27"
           },
           "10y": {
             "pct": 99.1,
             "z": 1.8,
             "n": 2499,
-            "since": "2016-08-26"
+            "since": "2016-08-29"
           },
           "full": {
             "pct": 99.4,
             "z": 2.17,
-            "n": 4132,
+            "n": 4133,
             "since": "2010-02-22"
           }
         }
       },
       "2s10s_bp": null,
       "3m10y_bp": null,
-      "as_of": "2026-08-26",
+      "as_of": "2026-08-27",
       "source_note": null,
       "cadence": "daily",
       "lagged": false,

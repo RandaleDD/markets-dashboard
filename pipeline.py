@@ -11,9 +11,11 @@ which mode produced it (sample runs are marked with "is_sample": true at
 the top level so this is never mistaken for real data).
 """
 import argparse
+import hashlib
 import json
 import logging
 import random
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -705,6 +707,35 @@ def run_sample_pipeline() -> dict:
     return out
 
 
+def stamp_asset_versions() -> None:
+    """
+    Pin index.html's asset URLs to a content hash.
+
+    GitHub Pages serves both index.html and assets with cache-control
+    max-age=600 and the assets were referenced with no version string, so a
+    browser could hold a cached app.js while picking up fresh HTML. That pairs
+    new markup — a new tab and its empty section — with old JS that has no
+    renderer for it, and the panel renders blank with nothing wrong in the
+    code. Hashing means the URL only changes when the file does, so this adds
+    no churn on runs where the assets are untouched.
+    """
+    site = Path(__file__).parent / "site"
+    index = site / "index.html"
+    if not index.exists():
+        return
+    html = original = index.read_text()
+    for asset in ("app.js", "style.css"):
+        path = site / "assets" / asset
+        if not path.exists():
+            continue
+        digest = hashlib.md5(path.read_bytes()).hexdigest()[:10]
+        html = re.sub(rf"assets/{re.escape(asset)}(\?v=[0-9a-f]+)?",
+                      f"assets/{asset}?v={digest}", html)
+    if html != original:
+        index.write_text(html)
+        logger.info("Stamped asset versions in %s", index.name)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["live", "sample"], default="sample")
@@ -716,6 +747,7 @@ def main():
     out_path = DATA_DIR / "latest.json"
     out_path.write_text(json.dumps(data, indent=2))
     logger.info("Wrote %s (%.0f KB, mode=%s)", out_path, out_path.stat().st_size / 1024, args.mode)
+    stamp_asset_versions()
 
 
 if __name__ == "__main__":

@@ -61,3 +61,13 @@ trusting them — this section is a snapshot and goes stale on its own.
 - `daily.yml` commits the refreshed `latest.json` on every run, so expect merge
   conflicts on that file when pushing local work. It is generated output: take
   your regenerated version, don't hand-merge it.
+- Never reference `assets/*` without the version query string. Pages caches
+  assets for 10 minutes, so unversioned URLs can pair fresh HTML with stale JS
+  and render a panel blank with nothing wrong in the code.
+  `stamp_asset_versions()` maintains these; don't strip them by hand.
+- Equity index *levels* deliberately carry no percentile annotation — a price
+  percentile on a trending series is always near 100th and says nothing.
+  Volatility and drawdown carry it instead. This is accepted, not a gap.
+- No Node on this machine (`brew install node` fails on a simdjson bottle).
+  To actually execute `site/assets/app.js`, use `osascript -l JavaScript` with
+  a DOM shim — see NETWORK.md.
