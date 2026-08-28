@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-28T19:36:36.809657+00:00",
+  "generated_at": "2026-08-28T19:39:20.099647+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -36,30 +36,30 @@
         "name": "S&P 500",
         "currency": "USD",
         "as_of": "2026-08-28",
-        "level": 7709.6001,
-        "chg_1d_pct": -0.28,
-        "chg_1w_pct": 0.46,
-        "chg_mtd_pct": 3.78,
-        "chg_ytd_pct": 12.62,
-        "chg_1y_pct": 18.58,
-        "drawdown_from_ath_pct": -1.15,
-        "realized_vol_20d_pct": 10.64,
-        "realized_vol_60d_pct": 13.69,
+        "level": 7711.23,
+        "chg_1d_pct": -0.26,
+        "chg_1w_pct": 0.48,
+        "chg_mtd_pct": 3.8,
+        "chg_ytd_pct": 12.65,
+        "chg_1y_pct": 18.6,
+        "drawdown_from_ath_pct": -1.13,
+        "realized_vol_20d_pct": 10.63,
+        "realized_vol_60d_pct": 13.68,
         "vol_context": {
           "5y": {
-            "pct": 24.5,
+            "pct": 24.4,
             "z": -0.68,
             "n": 1255,
             "since": "2021-08-30"
           },
           "10y": {
-            "pct": 37.7,
+            "pct": 37.6,
             "z": -0.42,
             "n": 2514,
             "since": "2016-08-29"
           },
           "full": {
-            "pct": 36.4,
+            "pct": 36.3,
             "z": -0.45,
             "n": 24762,
             "since": "1928-01-30"
@@ -67,19 +67,19 @@
         },
         "drawdown_context": {
           "5y": {
-            "pct": 65.7,
+            "pct": 65.9,
             "z": 0.75,
             "n": 1255,
             "since": "2021-08-30"
           },
           "10y": {
-            "pct": 58.5,
-            "z": 0.59,
+            "pct": 58.8,
+            "z": 0.6,
             "n": 2514,
             "since": "2016-08-29"
           },
           "full": {
-            "pct": 83.0,
+            "pct": 83.1,
             "z": 0.86,
             "n": 24782,
             "since": "1927-12-30"
@@ -1928,7 +1928,7 @@
           ],
           [
             "2026-08-28",
-            7709.6001
+            7711.23
           ]
         ]
       },
@@ -1937,30 +1937,30 @@
         "name": "Nasdaq 100",
         "currency": "USD",
         "as_of": "2026-08-28",
-        "level": 29427.8184,
-        "chg_1d_pct": -0.72,
-        "chg_1w_pct": 0.41,
-        "chg_mtd_pct": 6.0,
-        "chg_ytd_pct": 16.55,
-        "chg_1y_pct": 24.15,
-        "drawdown_from_ath_pct": -4.02,
-        "realized_vol_20d_pct": 18.26,
+        "level": 29436.1621,
+        "chg_1d_pct": -0.69,
+        "chg_1w_pct": 0.43,
+        "chg_mtd_pct": 6.03,
+        "chg_ytd_pct": 16.58,
+        "chg_1y_pct": 24.19,
+        "drawdown_from_ath_pct": -3.99,
+        "realized_vol_20d_pct": 18.25,
         "realized_vol_60d_pct": 25.86,
         "vol_context": {
           "5y": {
-            "pct": 45.4,
+            "pct": 45.3,
             "z": -0.36,
             "n": 1255,
             "since": "2021-08-30"
           },
           "10y": {
-            "pct": 54.8,
+            "pct": 54.6,
             "z": -0.16,
             "n": 2514,
             "since": "2016-08-29"
           },
           "full": {
-            "pct": 50.1,
+            "pct": 49.9,
             "z": -0.3,
             "n": 10287,
             "since": "1985-10-29"
@@ -1968,13 +1968,13 @@
         },
         "drawdown_context": {
           "5y": {
-            "pct": 56.4,
-            "z": 0.53,
+            "pct": 56.6,
+            "z": 0.54,
             "n": 1255,
             "since": "2021-08-30"
           },
           "10y": {
-            "pct": 42.3,
+            "pct": 42.5,
             "z": 0.28,
             "n": 2514,
             "since": "2016-08-29"
@@ -3829,7 +3829,7 @@
           ],
           [
             "2026-08-28",
-            29427.8184
+            29436.1621
           ]
         ]
       },
@@ -3838,14 +3838,14 @@
         "name": "Russell 2000",
         "currency": "USD",
         "as_of": "2026-08-28",
-        "level": 2978.895,
+        "level": 2978.8672,
         "chg_1d_pct": -1.18,
         "chg_1w_pct": -1.29,
         "chg_mtd_pct": 0.85,
         "chg_ytd_pct": 20.02,
         "chg_1y_pct": 25.25,
         "drawdown_from_ath_pct": -2.92,
-        "realized_vol_20d_pct": 14.61,
+        "realized_vol_20d_pct": 14.62,
         "realized_vol_60d_pct": 16.68,
         "vol_context": {
           "5y": {
@@ -5730,7 +5730,7 @@
           ],
           [
             "2026-08-28",
-            2978.895
+            2978.8672
           ]
         ]
       }
@@ -22766,14 +22766,14 @@
       "id": "dxy",
       "name": "US Dollar Index (DXY)",
       "as_of": "2026-08-28",
-      "level": 99.659,
+      "level": 99.653,
       "chg_1d_pct": 0.5,
-      "chg_1w_pct": 0.87,
+      "chg_1w_pct": 0.86,
       "chg_mtd_pct": -1.7,
       "chg_ytd_pct": 1.4,
-      "chg_1y_pct": 1.89,
+      "chg_1y_pct": 1.88,
       "drawdown_from_ath_pct": -39.5,
-      "realized_vol_20d_pct": 4.48,
+      "realized_vol_20d_pct": 4.47,
       "realized_vol_60d_pct": 4.75,
       "context": {
         "5y": {
@@ -24638,7 +24638,7 @@
         ],
         [
           "2026-08-28",
-          99.659
+          99.653
         ]
       ]
     },
@@ -26569,13 +26569,13 @@
       "realized_vol_60d_pct": 5.82,
       "context": {
         "5y": {
-          "pct": 88.7,
+          "pct": 88.8,
           "z": 1.14,
           "n": 1300,
           "since": "2021-08-30"
         },
         "10y": {
-          "pct": 84.1,
+          "pct": 84.2,
           "z": 1.0,
           "n": 2602,
           "since": "2016-08-29"
@@ -28470,12 +28470,12 @@
       "id": "usdjpy",
       "name": "USD/JPY",
       "as_of": "2026-08-28",
-      "level": 160.091,
-      "chg_1d_pct": 0.52,
+      "level": 160.098,
+      "chg_1d_pct": 0.53,
       "chg_1w_pct": 0.76,
-      "chg_mtd_pct": -2.25,
-      "chg_ytd_pct": 2.35,
-      "chg_1y_pct": 8.67,
+      "chg_mtd_pct": -2.24,
+      "chg_ytd_pct": 2.36,
+      "chg_1y_pct": 8.68,
       "drawdown_from_ath_pct": -2.3,
       "realized_vol_20d_pct": 7.98,
       "realized_vol_60d_pct": 6.71,
@@ -30374,7 +30374,7 @@
         ],
         [
           "2026-08-28",
-          160.091
+          160.098
         ]
       ]
     },
@@ -30382,18 +30382,18 @@
       "id": "usdchf",
       "name": "USD/CHF",
       "as_of": "2026-08-28",
-      "level": 0.8094,
-      "chg_1d_pct": 0.54,
-      "chg_1w_pct": 1.23,
-      "chg_mtd_pct": -1.21,
-      "chg_ytd_pct": 2.24,
-      "chg_1y_pct": 0.99,
-      "drawdown_from_ath_pct": -41.59,
-      "realized_vol_20d_pct": 8.22,
+      "level": 0.8093,
+      "chg_1d_pct": 0.53,
+      "chg_1w_pct": 1.21,
+      "chg_mtd_pct": -1.22,
+      "chg_ytd_pct": 2.22,
+      "chg_1y_pct": 0.97,
+      "drawdown_from_ath_pct": -41.6,
+      "realized_vol_20d_pct": 8.21,
       "realized_vol_60d_pct": 7.16,
       "context": {
         "5y": {
-          "pct": 21.6,
+          "pct": 21.5,
           "z": -1.2,
           "n": 1300,
           "since": "2021-08-30"
@@ -32286,48 +32286,44 @@
         ],
         [
           "2026-08-28",
-          0.8094
+          0.8093
         ]
       ]
     },
     {
       "id": "eurchf",
       "name": "EUR/CHF",
-      "as_of": "2026-08-27",
-      "level": 0.9382,
-      "chg_1d_pct": 0.24,
-      "chg_1w_pct": 0.76,
-      "chg_mtd_pct": 0.88,
-      "chg_ytd_pct": 0.88,
-      "chg_1y_pct": 0.3,
-      "drawdown_from_ath_pct": -44.14,
-      "realized_vol_20d_pct": 4.87,
-      "realized_vol_60d_pct": 3.72,
+      "as_of": "2026-08-28",
+      "level": 0.9377,
+      "chg_1d_pct": -0.06,
+      "chg_1w_pct": 0.34,
+      "chg_mtd_pct": 0.67,
+      "chg_ytd_pct": 0.82,
+      "chg_1y_pct": 0.44,
+      "drawdown_from_ath_pct": -44.17,
+      "realized_vol_20d_pct": 4.58,
+      "realized_vol_60d_pct": 3.69,
       "context": {
         "5y": {
-          "pct": 31.2,
-          "z": -0.69,
+          "pct": 30.5,
+          "z": -0.7,
           "n": 1300,
-          "since": "2021-08-27"
+          "since": "2021-08-30"
         },
         "10y": {
-          "pct": 15.6,
+          "pct": 15.3,
           "z": -1.24,
-          "n": 2602,
+          "n": 2603,
           "since": "2016-08-29"
         },
         "full": {
-          "pct": 6.6,
-          "z": -1.29,
-          "n": 6123,
+          "pct": 6.5,
+          "z": -1.3,
+          "n": 6124,
           "since": "2003-01-23"
         }
       },
       "history": [
-        [
-          "2021-08-27",
-          1.0789
-        ],
         [
           "2021-09-03",
           1.0858
@@ -33162,10 +33158,6 @@
         ],
         [
           "2025-08-29",
-          0.9364
-        ],
-        [
-          "2025-08-27",
           0.9355
         ],
         [
@@ -34203,6 +34195,10 @@
         [
           "2026-08-27",
           0.9382
+        ],
+        [
+          "2026-08-28",
+          0.9377
         ]
       ]
     },
@@ -36122,12 +36118,12 @@
       "id": "eurnok",
       "name": "EUR/NOK",
       "as_of": "2026-08-28",
-      "level": 10.8597,
+      "level": 10.8593,
       "chg_1d_pct": -0.31,
       "chg_1w_pct": -0.56,
       "chg_mtd_pct": -1.12,
-      "chg_ytd_pct": -8.02,
-      "chg_1y_pct": -7.44,
+      "chg_ytd_pct": -8.03,
+      "chg_1y_pct": -7.45,
       "drawdown_from_ath_pct": -13.78,
       "realized_vol_20d_pct": 3.53,
       "realized_vol_60d_pct": 5.74,
@@ -38026,7 +38022,7 @@
         ],
         [
           "2026-08-28",
-          10.8597
+          10.8593
         ]
       ]
     }
@@ -38039,14 +38035,14 @@
       "contract": "Brent Crude, front month",
       "unit": "USD/bbl",
       "as_of": "2026-08-28",
-      "level": 88.05,
-      "chg_1d_pct": -1.84,
-      "chg_1w_pct": -6.72,
-      "chg_mtd_pct": 4.71,
-      "chg_ytd_pct": 44.7,
-      "chg_1y_pct": 28.32,
+      "level": 88.06,
+      "chg_1d_pct": -1.83,
+      "chg_1w_pct": -6.71,
+      "chg_mtd_pct": 4.72,
+      "chg_ytd_pct": 44.72,
+      "chg_1y_pct": 28.33,
       "drawdown_from_ath_pct": -39.72,
-      "realized_vol_20d_pct": 47.55,
+      "realized_vol_20d_pct": 47.54,
       "realized_vol_60d_pct": 55.69,
       "context": {
         "5y": {
@@ -39911,7 +39907,7 @@
         ],
         [
           "2026-08-28",
-          88.05
+          88.06
         ]
       ]
     },
@@ -39922,14 +39918,14 @@
       "contract": "Henry Hub Natural Gas, front month",
       "unit": "USD/MMBtu",
       "as_of": "2026-08-28",
-      "level": 2.876,
-      "chg_1d_pct": -1.07,
-      "chg_1w_pct": 3.71,
-      "chg_mtd_pct": 8.04,
-      "chg_ytd_pct": -21.98,
-      "chg_1y_pct": -2.31,
+      "level": 2.875,
+      "chg_1d_pct": -1.1,
+      "chg_1w_pct": 3.68,
+      "chg_mtd_pct": 8.0,
+      "chg_ytd_pct": -22.0,
+      "chg_1y_pct": -2.34,
       "drawdown_from_ath_pct": -81.3,
-      "realized_vol_20d_pct": 34.58,
+      "realized_vol_20d_pct": 34.6,
       "realized_vol_60d_pct": 37.07,
       "context": {
         "5y": {
@@ -39939,7 +39935,7 @@
           "since": "2021-08-30"
         },
         "10y": {
-          "pct": 46.9,
+          "pct": 46.8,
           "z": -0.29,
           "n": 2515,
           "since": "2016-08-29"
@@ -41794,7 +41790,7 @@
         ],
         [
           "2026-08-28",
-          2.876
+          2.875
         ]
       ]
     },
@@ -43683,14 +43679,14 @@
       "contract": "Gold, front month",
       "unit": "USD/troy oz",
       "as_of": "2026-08-28",
-      "level": 4512.1001,
-      "chg_1d_pct": -2.12,
-      "chg_1w_pct": -2.42,
-      "chg_mtd_pct": 11.79,
-      "chg_ytd_pct": 4.31,
-      "chg_1y_pct": 31.48,
-      "drawdown_from_ath_pct": -15.16,
-      "realized_vol_20d_pct": 22.71,
+      "level": 4511.2998,
+      "chg_1d_pct": -2.13,
+      "chg_1w_pct": -2.44,
+      "chg_mtd_pct": 11.77,
+      "chg_ytd_pct": 4.29,
+      "chg_1y_pct": 31.46,
+      "drawdown_from_ath_pct": -15.18,
+      "realized_vol_20d_pct": 22.74,
       "realized_vol_60d_pct": 25.69,
       "context": {
         "5y": {
@@ -45555,7 +45551,7 @@
         ],
         [
           "2026-08-28",
-          4512.1001
+          4511.2998
         ]
       ]
     },
@@ -45566,15 +45562,15 @@
       "contract": "Silver, front month",
       "unit": "USD/troy oz",
       "as_of": "2026-08-28",
-      "level": 67.205,
-      "chg_1d_pct": -3.2,
-      "chg_1w_pct": -3.25,
-      "chg_mtd_pct": 17.29,
-      "chg_ytd_pct": -4.18,
-      "chg_1y_pct": 71.49,
-      "drawdown_from_ath_pct": -41.6,
-      "realized_vol_20d_pct": 35.15,
-      "realized_vol_60d_pct": 44.67,
+      "level": 67.225,
+      "chg_1d_pct": -3.17,
+      "chg_1w_pct": -3.23,
+      "chg_mtd_pct": 17.33,
+      "chg_ytd_pct": -4.15,
+      "chg_1y_pct": 71.54,
+      "drawdown_from_ath_pct": -41.58,
+      "realized_vol_20d_pct": 35.11,
+      "realized_vol_60d_pct": 44.66,
       "context": {
         "5y": {
           "pct": 90.1,
@@ -47438,7 +47434,7 @@
         ],
         [
           "2026-08-28",
-          67.205
+          67.225
         ]
       ]
     },
@@ -47449,13 +47445,13 @@
       "contract": "Copper, front month",
       "unit": "USD/lb",
       "as_of": "2026-08-28",
-      "level": 6.6375,
-      "chg_1d_pct": 0.77,
-      "chg_1w_pct": 0.88,
-      "chg_mtd_pct": 4.99,
-      "chg_ytd_pct": 17.9,
-      "chg_1y_pct": 48.71,
-      "drawdown_from_ath_pct": -1.07,
+      "level": 6.6365,
+      "chg_1d_pct": 0.75,
+      "chg_1w_pct": 0.87,
+      "chg_mtd_pct": 4.97,
+      "chg_ytd_pct": 17.88,
+      "chg_1y_pct": 48.68,
+      "drawdown_from_ath_pct": -1.09,
       "realized_vol_20d_pct": 17.06,
       "realized_vol_60d_pct": 23.13,
       "context": {
@@ -49321,7 +49317,7 @@
         ],
         [
           "2026-08-28",
-          6.6375
+          6.6365
         ]
       ]
     },
@@ -49332,24 +49328,24 @@
       "contract": "Invesco DB Commodity Index Tracking Fund",
       "unit": "USD",
       "as_of": "2026-08-28",
-      "level": 30.803,
-      "chg_1d_pct": -0.18,
-      "chg_1w_pct": -1.46,
-      "chg_mtd_pct": 7.7,
-      "chg_ytd_pct": 37.76,
-      "chg_1y_pct": 38.88,
-      "drawdown_from_ath_pct": -33.67,
-      "realized_vol_20d_pct": 21.34,
+      "level": 30.825,
+      "chg_1d_pct": -0.11,
+      "chg_1w_pct": -1.39,
+      "chg_mtd_pct": 7.78,
+      "chg_ytd_pct": 37.86,
+      "chg_1y_pct": 38.98,
+      "drawdown_from_ath_pct": -33.62,
+      "realized_vol_20d_pct": 21.32,
       "realized_vol_60d_pct": 22.27,
       "context": {
         "5y": {
-          "pct": 98.6,
-          "z": 2.72,
+          "pct": 98.7,
+          "z": 2.73,
           "n": 1255,
           "since": "2021-08-30"
         },
         "10y": {
-          "pct": 99.3,
+          "pct": 99.4,
           "z": 2.35,
           "n": 2514,
           "since": "2016-08-29"
@@ -51204,7 +51200,7 @@
         ],
         [
           "2026-08-28",
-          30.803
+          30.825
         ]
       ]
     }
