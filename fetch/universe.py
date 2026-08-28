@@ -261,6 +261,38 @@ GDP_DEFINITION = ("Real (chain-linked volume), national currency, not PPP, "
                   "seasonally adjusted. YoY and annualised QoQ derived from the level series.")
 
 # ---------------------------------------------------------------------------
+# 7b. Credit spreads — ICE BofA option-adjusted spreads via FRED.
+#
+# NOTE: FRED serves only a rolling ~3-year window for these, even when an
+# explicit start date back to 1997 is requested — an ICE licensing limit, not
+# a bug. So percentile context on these can only ever resolve the "full"
+# window, and 5y/10y correctly stay hidden.
+#
+# `stack_leg` marks the one series used as the credit leg of the
+# cost-of-capital stack. Only investment grade qualifies: mixing an IG spread
+# for one region with a high-yield spread for another would make the stacks
+# silently non-comparable.
+# ---------------------------------------------------------------------------
+CREDIT_SPREADS = [
+    {"id": "us_ig", "region": "US", "name": "US investment grade OAS",
+     "series": "BAMLC0A0CM", "grade": "IG", "stack_leg": True},
+    {"id": "us_hy", "region": "US", "name": "US high yield OAS",
+     "series": "BAMLH0A0HYM2", "grade": "HY", "stack_leg": False},
+    {"id": "eu_hy", "region": "EZ", "name": "Euro high yield OAS",
+     "series": "BAMLHE00EHYIOAS", "grade": "HY", "stack_leg": False},
+    {"id": "em_corp", "region": "EM", "name": "EM corporate OAS",
+     "series": "BAMLEMCBPIOAS", "grade": "IG/HY blend", "stack_leg": False},
+]
+
+COST_OF_CAPITAL_NOTE = (
+    "Real risk-free (10y inflation-linked) + investment-grade credit spread + "
+    "equity risk premium. A real discount rate, because the risk-free leg is "
+    "real — do not compare it with a nominal yield. Legs are summed only where "
+    "each is sourced for that region; a partial stack shows what it has and "
+    "says which legs are missing."
+)
+
+# ---------------------------------------------------------------------------
 # 8. Equity valuation + equity risk premium.
 # ---------------------------------------------------------------------------
 VALUATION_PROXIES = [

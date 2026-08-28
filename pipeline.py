@@ -23,6 +23,7 @@ from fetch import sources, universe
 from transform.returns import compute_return_metrics, compact_history
 from transform.curves import latest_tenor_values, curve_shape
 from transform.erp import compute_erp
+from transform.cost_of_capital import stack_cost_of_capital
 from transform.percentile import percentile_context, has_any
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -337,6 +338,32 @@ def run_live_pipeline() -> dict:
         }
 
     out["source_status"] = status
+    # --- Credit spreads (ICE BofA OAS via FRED) ---
+    stack_credit = {}
+    for cs in universe.CREDIT_SPREADS:
+        df = sources.fetch_fred(cs["series"])
+        st, as_of = _series_status(df)
+        status[f"credit:{cs['id']}"] = st
+        level = _latest(df)
+        out["credit_spreads"].append({
+            "id": cs["id"], "region": cs["region"], "name": cs["name"],
+            "grade": cs["grade"], "spread_pct": round(level, 2) if level is not None else None,
+            "as_of": as_of, "context": _ctx(df) if df is not None else None,
+        })
+        if cs.get("stack_leg") and level is not None:
+            stack_credit[cs["region"]] = round(level, 2)
+
+    # --- Cost-of-capital stack (real risk-free + IG spread + ERP) ---
+    out["cost_of_capital_note"] = universe.COST_OF_CAPITAL_NOTE
+    for region in universe.REGIONS:
+        real = (out["real_yield_curves"].get(region, {}).get("tenors", {}) or {}).get("10Y")
+        erp = (out["equity_risk_premia"].get(region, {}) or {}).get("erp_pct")
+        stack = stack_cost_of_capital(real, stack_credit.get(region), erp)
+        status[f"costcap:{region}"] = ("ok" if stack["complete"]
+                                       else "partial" if stack["total_pct"] is not None
+                                       else "stubbed")
+        out["cost_of_capital"][region] = stack
+
     tally = {}
     for v in status.values():
         tally[v] = tally.get(v, 0) + 1
@@ -402,6 +429,9 @@ def _empty_payload(is_sample: bool) -> dict:
         "inflation_expectations": {},
         "eurozone_spreads": {"benchmark": None, "benchmark_yield_pct": None,
                              "as_of": None, "cadence": "monthly", "rows": []},
+        "credit_spreads": [],
+        "cost_of_capital": {},
+        "cost_of_capital_note": "",
         "valuation": {},
         "equity_risk_premia": {},
         "source_status": {},
@@ -549,6 +579,19 @@ def run_sample_pipeline() -> dict:
             "cape_context": fake_ctx() if is_us else None,
             "forward_pe": None, "dividend_yield_pct": None,
             "note": None if is_us else "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."}
+    cs_base = {"us_ig": 0.79, "us_hy": 2.63, "eu_hy": 2.56, "em_corp": 1.39}
+    for cs in universe.CREDIT_SPREADS:
+        out["credit_spreads"].append({
+            "id": cs["id"], "region": cs["region"], "name": cs["name"], "grade": cs["grade"],
+            "spread_pct": cs_base.get(cs["id"]), "as_of": today.strftime("%Y-%m-%d"),
+            "context": fake_ctx()})
+    out["cost_of_capital_note"] = universe.COST_OF_CAPITAL_NOTE
+    for region in universe.REGIONS:
+        real = (out["real_yield_curves"].get(region, {}).get("tenors", {}) or {}).get("10Y")
+        erp = 4.23 if region == "US" else None
+        credit = 0.79 if region == "US" else None
+        out["cost_of_capital"][region] = stack_cost_of_capital(real, credit, erp)
+
     for region in universe.REGIONS:
         out["equity_risk_premia"][region] = (
             {"erp_pct": 4.23, "method": "Damodaran implied ERP (FCFE), S&P 500",
