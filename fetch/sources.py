@@ -36,7 +36,7 @@ BROWSER_HEADERS = {
         "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
     )
 }
-TIMEOUT = 30
+TIMEOUT = 60
 
 
 def _get(url, params=None, headers=None):
@@ -137,7 +137,7 @@ def fetch_bis_policy_rate(ref_area: str) -> pd.DataFrame | None:
     # Without startPeriod the full daily history comes back — 57MB for JP,
     # which blows the request timeout. Three years is ample for a policy rate.
     url = f"https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/D.{ref_area}"
-    resp = _get(url, params={"format": "csv", "startPeriod": _start_period(years=3)})
+    resp = _get(url, params={"format": "csv", "startPeriod": _start_period(years=25)})
     if resp is None or not resp.text:
         return None
     try:
@@ -182,7 +182,7 @@ def fetch_bis_cpi(ref_area: str, unit: str = CPI_UNIT_YOY) -> pd.DataFrame | Non
     if not ref_area:
         return None
     url = f"https://stats.bis.org/api/v2/data/dataflow/BIS/WS_LONG_CPI/1.0/M.{ref_area}"
-    resp = _get(url, params={"format": "csv", "startPeriod": _start_period(years=5)})
+    resp = _get(url, params={"format": "csv", "startPeriod": _start_period(years=25)})
     if resp is None or not resp.text:
         return None
     try:
@@ -278,13 +278,13 @@ def fetch_boe(series_code: str) -> pd.DataFrame | None:
 # ---------------------------------------------------------------------------
 _MOF_CACHE = {}
 _MOF_URL = "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv"
+_MOF_HISTORY_URL = ("https://www.mof.go.jp/english/policy/jgbs/reference/"
+                    "interest_rate/historical/jgbcme_all.csv")
 
 
-def _mof_table() -> pd.DataFrame | None:
-    if "table" in _MOF_CACHE:
-        return _MOF_CACHE["table"]
-    _MOF_CACHE["table"] = None
-    resp = _get(_MOF_URL, headers=BROWSER_HEADERS)
+def _mof_read(url: str) -> pd.DataFrame | None:
+    """One MOF JGB csv. Shift-JIS (cp932), with a title row above the header."""
+    resp = _get(url, headers=BROWSER_HEADERS)
     if resp is None or not resp.content:
         return None
     try:
@@ -299,11 +299,29 @@ def _mof_table() -> pd.DataFrame | None:
             return None
         df = pd.read_csv(io.StringIO(text), skiprows=1)
         df.columns = [str(c).strip() for c in df.columns]
-        _MOF_CACHE["table"] = df
         return df
     except Exception as exc:  # noqa: BLE001
-        logger.warning("MOF JGB parse failed: %s", exc)
+        logger.warning("MOF JGB parse failed for %s: %s", url, exc)
         return None
+
+
+def _mof_table() -> pd.DataFrame | None:
+    if "table" in _MOF_CACHE:
+        return _MOF_CACHE["table"]
+    _MOF_CACHE["table"] = None
+    current = _mof_read(_MOF_URL)
+    history = _mof_read(_MOF_HISTORY_URL)
+    frames = [f for f in (history, current) if f is not None and not f.empty]
+    if not frames:
+        return None
+    # Current month wins on any overlapping date.
+    df = pd.concat(frames, ignore_index=True)
+    date_col = df.columns[0]
+    df["_d"] = pd.to_datetime(df[date_col], errors="coerce")
+    df = df.dropna(subset=["_d"]).drop_duplicates(subset=["_d"], keep="last")
+    df = df.sort_values("_d").drop(columns=["_d"]).reset_index(drop=True)
+    _MOF_CACHE["table"] = df
+    return df
 
 
 def fetch_mof_jgb(tenor: str) -> pd.DataFrame | None:
@@ -324,7 +342,7 @@ def fetch_mof_jgb(tenor: str) -> pd.DataFrame | None:
 # and G_N_C (all government bonds). We use G_N_C — AAA tracks the Bund almost
 # exactly, which made the old Eurozone row a duplicate of Germany.
 # ---------------------------------------------------------------------------
-def fetch_ecb(series_key: str, years: int = 3) -> pd.DataFrame | None:
+def fetch_ecb(series_key: str, years: int = 15) -> pd.DataFrame | None:
     if not series_key:
         return None
     # Without startPeriod the full history comes back — ~3MB per curve tenor,
@@ -454,7 +472,7 @@ def fetch_norges_curve(tenor: str) -> pd.DataFrame | None:
     if "table" not in _NORGES_CURVE_CACHE:
         _NORGES_CURVE_CACHE["table"] = None
         resp = _get("https://data.norges-bank.no/api/data/GOVT_ZEROCOUPON/B.",
-                    params={"format": "csv", "startPeriod": _start_period(years=3)})
+                    params={"format": "csv", "startPeriod": _start_period(years=25)})
         if resp is not None and resp.text:
             try:
                 df = pd.read_csv(io.StringIO(resp.text), sep=";")
@@ -484,7 +502,7 @@ def fetch_norges(key: str) -> pd.DataFrame | None:
     if not key:
         return None
     resp = _get(f"https://data.norges-bank.no/api/data/{key}",
-                params={"format": "csv", "startPeriod": _start_period(years=3)})
+                params={"format": "csv", "startPeriod": _start_period(years=25)})
     if resp is None or not resp.text:
         return None
     try:

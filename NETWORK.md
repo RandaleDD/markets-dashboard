@@ -94,3 +94,38 @@ the JSON fetch needs it.
   runs roughly 0.8-1.0pp above the equivalent CPI rate, so it must never be
   compared directly with US CPI breakevens. The basis is displayed next to
   every figure.
+
+## History depth (added for percentile context, 2026-08-28)
+
+Percentile/z-score context must be computed from each source's **full fetched
+history**, never from `compact_history`'s stored archive — that archive only
+began accumulating at project launch, so a 10y window cannot resolve from it
+and its "full" would silently mean "since we started collecting". Measured on
+US 10y: 98th percentile over a real 10 years, but 42nd over the actual series
+back to 1962. The archive-derived version could not answer the 10y question
+at all.
+
+Several fetchers had `startPeriod` bounds added earlier purely to avoid
+timeouts, which capped them below 10 years and made the window unresolvable.
+Widened, with measured cost:
+
+| Source | Was | Now | Cost |
+|---|---|---|---|
+| BIS CBPOL | 3y | 25y | JP 12.7MB / 0.7s (full history was 57MB) |
+| BIS CPI | 5y | 25y | 0.02MB |
+| ECB curve | 3y | 15y | 2.4MB / 2.1s |
+| Norges Bank | 3y | 25y | 1.5MB / 0.8s. Their API only reaches 2015 regardless |
+| MOF Japan | current month (~19 rows) | 1974→now | `historical/jgbcme_all.csv`, 1.2MB. **Must be stitched with the current-month file**, which is fresher — the archive ends at the prior month end |
+
+`TIMEOUT` raised 30s → 60s to match the larger payloads.
+
+**Not fixed: the UK curve has no deep history.** The BoE GLC archive exists
+(`glcnominalddata.zip`) but is **39MB for nominal alone**, and real and
+inflation would need their own, so roughly 120MB per daily run purely to
+annotate a percentile. Deliberately skipped — UK curve, real yield and implied
+inflation figures carry no context annotation, and the UI hides it rather than
+showing "N/A". Revisit only if the archive gets a lighter endpoint.
+
+Also no context: the China curve (unsourced entirely) and non-US ERP
+(Damodaran is annual, so a 5y window is 5 observations — below the 24-point
+minimum, and it correctly falls back to the full-history window).
