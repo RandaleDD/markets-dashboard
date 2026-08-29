@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T05:57:21.373191+00:00",
+  "generated_at": "2026-08-29T06:04:03.051437+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -32383,17 +32383,14 @@
     "costcap:NO": "stubbed"
   },
   "data_quality": {
-    "generated_at": "2026-08-29T05:57:20.848631+00:00",
+    "generated_at": "2026-08-29T06:04:02.538095+00:00",
     "series": 112,
     "fresh": 109,
     "stale": 3,
     "missing": 0,
     "gapped": 4,
     "observations": 128227,
-    "flags_raised_this_run": {
-      "stale": 3,
-      "gap": 4
-    },
+    "flags_raised_this_run": {},
     "open_flags": {
       "gap": 4,
       "stale": 3
