@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T07:44:46.474608+00:00",
+  "generated_at": "2026-08-29T07:46:25.086427+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -30392,7 +30392,7 @@
       "2s10s_bp": null,
       "3m10y_bp": null,
       "as_of": "2026-06-01",
-      "source_note": "SNB retired its Confederation bond yield cubes in 2025 (see NETWORK.md). Only a monthly 10y OECD series remains, which lags roughly two months \u2014 flagged in the UI so it is never read as a daily quote.",
+      "source_note": "SNB retired its Confederation bond yield cubes in 2025 (see SPEC.md's endpoint appendix). Only a monthly 10y OECD series remains, which lags roughly two months \u2014 flagged in the UI so it is never read as a daily quote.",
       "cadence": "monthly",
       "lagged": true,
       "basis": null
@@ -32387,7 +32387,7 @@
     "costcap:NO": "stubbed"
   },
   "data_quality": {
-    "generated_at": "2026-08-29T07:44:46.039840+00:00",
+    "generated_at": "2026-08-29T07:46:24.591196+00:00",
     "series": 112,
     "fresh": 109,
     "stale": 3,
