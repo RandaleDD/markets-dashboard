@@ -7,16 +7,18 @@ persistent SQLite store**, static site on GitHub Pages, no server to maintain.
 
 Live: https://randaledd.github.io/markets-dashboard/
 
-- `SPEC.md` — scope decisions, the sourcing table (what every category uses
-  and where the permanent gaps are), the architecture including why the store
-  is append-only and how a revision is handled, and the roadmap. **The
-  sourcing table is authoritative; don't restate it here.**
-- `NETWORK.md` — what each endpoint actually returns, its quirks, and the dead
-  ends already ruled out. Read it before touching `fetch/sources.py`.
-- `DATA-CATALOG.csv` — the reviewed sourcing decision per series; it seeds
-  `series_catalog`. `DATA-CATALOG-ruled-out.csv` records the permanent
-  structural gaps (Swiss and Norwegian inflation expectations: neither
-  government issues inflation-linked debt, so there is nothing to source).
+- `SPEC.md` — scope decisions, the sourcing table, the architecture (why the
+  store is append-only, how a revision is handled), the roadmap, and an
+  **endpoint reference appendix**: the User-Agent trap, per-source parsing
+  traps, the BoE archive traps, and the dead ends. Read that appendix before
+  touching `fetch/sources.py`. **The sourcing table is authoritative; don't
+  restate it here.**
+- `DATA-CATALOG.csv` — the reviewed sourcing decision per series, and the
+  live mirror of what the database holds: `db/catalog_sync.py` rewrites its
+  coverage columns after every run. It seeds `series_catalog`.
+  `DATA-CATALOG-ruled-out.csv` records the permanent structural gaps (Swiss
+  and Norwegian inflation expectations: neither government issues
+  inflation-linked debt, so there is nothing to source).
 
 ## Architecture
 
@@ -26,7 +28,8 @@ Live: https://randaledd.github.io/markets-dashboard/
     db/ingest.py        watermark -> fetch only what's newer -> INSERT OR IGNORE
     db/quality.py       staleness / gaps / outliers / curve consistency -> flags
     db/export.py        latest_observations -> site/data/latest.json
-    pipeline.py         ingest -> quality -> export, in that order
+    db/catalog_sync.py  writes what IS stored back into DATA-CATALOG.csv
+    pipeline.py         ingest -> quality -> export -> sync, in that order
 
 `data/markets.db` **is committed** — it is the accumulated history, and the
 checkout is how the Actions runner gets yesterday's data instead of
@@ -43,7 +46,7 @@ publication lag (Norway GDP, the Swiss monthly 10y, Shiller's CAPE file ending
 27 stubbed are the gaps SPEC.md records as having no free source — the China
 curve, six regions' inflation expectations, and non-US valuation and risk
 premia. Chasing them again is wasted effort unless a new source appears;
-NETWORK.md lists what has already been tried and failed.
+SPEC.md's endpoint appendix lists what has already been tried and failed.
 
 The 7 open `data_quality_flags` are all genuine: US CPI is missing 2025-10 (the
 release the US shutdown delayed), the BoE's real and inflation 2y points have a
@@ -109,6 +112,14 @@ trusting them — this section is a snapshot and goes stale on its own.
   every run, so expect merge conflicts on both when pushing local work. Both
   are generated output: take your regenerated version, don't hand-merge them.
   For the database that means re-running the pipeline, never resolving hunks.
+- `DATA-CATALOG.csv` is half hand-written, half generated. `db/catalog_sync.py`
+  owns the coverage columns to the right and may flip `Status` between `ok`
+  and `stale`; it must never touch the prose columns or a scope decision
+  (`planned (v2)`, `no source found`, `exists, not free`, `descoped`).
+  `tests/test_catalog_sync.py` holds that line.
+- `Update Dashboard.command` is Marco's double-click entry point: sync, fetch,
+  publish, preview. Keep it working and keep its output in plain English — it
+  is the one file here meant to be used without reading any code.
 - Never reference `assets/*` without the version query string. Pages caches
   assets for 10 minutes, so unversioned URLs can pair fresh HTML with stale JS
   and render a panel blank with nothing wrong in the code.

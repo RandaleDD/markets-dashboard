@@ -6,7 +6,7 @@ Low-level fetchers, one function per data source. Each function:
     doesn't take down the whole pipeline run
 
 All endpoints below were confirmed against live responses on 2026-08-28 — see
-NETWORK.md for what each one actually returns and which are still unsourced.
+SPEC.md's endpoint appendix for the traps that are not per-series.
 
 A note on User-Agent, because it is genuinely counter-intuitive: there is no
 single header set that works everywhere.
@@ -666,7 +666,7 @@ def fetch_ons_timeseries(series_code: str, dataset: str,
 # NOT the catalog's named dataset. teina011 was checked first (2026-08-29) and
 # carries only percentage CHANGES over a rolling 12 quarters — no level series
 # at all. The pipeline derives every region's growth from levels on purpose
-# (FRED's OECD growth series are discontinued; see NETWORK.md), and 12 points
+# (FRED's OECD growth series are discontinued; see SPEC.md's endpoint appendix), and 12 points
 # cannot answer a percentile window either. namq_10_gdp is the quarterly
 # national accounts behind it and gives the level, so it is used instead.
 #
@@ -729,7 +729,7 @@ def _eurostat_period(label: str):
 
 # ---------------------------------------------------------------------------
 # Still unsourced. Each returns None so the pipeline degrades to a "not yet
-# wired" cell rather than shipping wrong or stale numbers. See NETWORK.md.
+# wired" cell rather than shipping wrong or stale numbers. See SPEC.md's endpoint appendix.
 # ---------------------------------------------------------------------------
 def fetch_snb(cube: str, params: dict | None = None) -> pd.DataFrame | None:
     # data.snb.ch exposes a documented per-cube CSV API, but the Confederation

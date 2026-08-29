@@ -6,7 +6,7 @@ identifier fetches it.
 Adding a new series or region = add an entry here. Nothing else should
 hardcode ticker/series lists.
 
-Every identifier below was confirmed against a live response — see NETWORK.md
+Every identifier below was confirmed against a live response — see SPEC.md's endpoint appendix
 for each endpoint's quirks.
 
 Every fetchable entry here also carries the `series_id` that keys it in
@@ -170,7 +170,7 @@ YIELD_CURVES = {
     "CH": {
         "source": "fred", "cadence": "monthly",
         "note": "SNB retired its Confederation bond yield cubes in 2025 "
-                "(see NETWORK.md). Only a monthly 10y OECD series remains, "
+                "(see SPEC.md's endpoint appendix). Only a monthly 10y OECD series remains, "
                 "which lags roughly two months — flagged in the UI so it is "
                 "never read as a daily quote.",
         "lagged": True,

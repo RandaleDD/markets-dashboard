@@ -4,7 +4,7 @@ The JSON contract the frontend reads.
 `site/assets/app.js` consumes `latest.json` by key. Nothing type-checks that
 boundary at runtime, so a renamed key or a dropped block shows up as a blank
 panel on the live page with nothing wrong in the code -- which has already
-happened once on this project (see NETWORK.md, "Deploy integrity").
+happened once on this project (see SPEC.md, "Deploy integrity").
 
 These run against sample mode, so they need no network and no live database.
 """

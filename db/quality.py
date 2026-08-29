@@ -56,7 +56,7 @@ OUTLIER_MIN_OBS = 60
 OUTLIER_CALIBRATION_OBS = 260   # ~5 years of weekly observations
 # Modified z-score threshold. Deliberately high: these series are fat-tailed by
 # nature and the check is hunting DATA errors (a misplaced decimal, the
-# Damodaran fraction-vs-percent mix-up NETWORK.md already hit once), not
+# Damodaran fraction-vs-percent mix-up SPEC.md's endpoint appendix records), not
 # genuine volatility. A 2008-scale weekly equity move lands near 8; a
 # factor-of-ten unit error lands in the hundreds.
 OUTLIER_Z = 12.0
