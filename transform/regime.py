@@ -49,6 +49,12 @@ def _to_quarterly(df: pd.DataFrame) -> pd.DataFrame | None:
     return out if not out.empty else None
 
 
+# Observations per year, per GDP publication frequency. The UK moved to ONS's
+# monthly index, so "year on year" is 12 observations back there -- reading it
+# as 4 would report a one-third-of-a-year change as an annual one.
+PERIODS_PER_YEAR = {"M": 12, "Q": 4, "A": 1}
+
+
 def regime_coordinates(gdp_level_df, cpi_yoy_df, gdp_freq: str = "Q",
                        quarters: int = 8) -> list:
     """
@@ -57,7 +63,7 @@ def regime_coordinates(gdp_level_df, cpi_yoy_df, gdp_freq: str = "Q",
 
     Returns the most recent `quarters` aligned points, oldest first.
     """
-    gdp_yoy = _yoy_from_levels(gdp_level_df, 4 if gdp_freq == "Q" else 1)
+    gdp_yoy = _yoy_from_levels(gdp_level_df, PERIODS_PER_YEAR.get(gdp_freq, 4))
     g = _to_quarterly(gdp_yoy)
     c = _to_quarterly(cpi_yoy_df)
     if g is None or c is None:
@@ -77,7 +83,9 @@ def regime_coordinates(gdp_level_df, cpi_yoy_df, gdp_freq: str = "Q",
     # year, so its "change since the previous point" spans a year, not a
     # quarter. The axis label says quarter, so the point must declare that it
     # is measured differently rather than sit on the same axis unmarked.
-    delta_basis = "quarter" if gdp_freq == "Q" else "year"
+    # A monthly source (UK) resamples to genuine quarter-ends, so it is on the
+    # same footing as the quarterly regions.
+    delta_basis = "year" if gdp_freq == "A" else "quarter"
 
     return [
         {

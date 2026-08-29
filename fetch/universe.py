@@ -8,6 +8,14 @@ hardcode ticker/series lists.
 
 Every identifier below was confirmed against a live response — see NETWORK.md
 for each endpoint's quirks.
+
+Every fetchable entry here also carries the `series_id` that keys it in
+`data/markets.db` and in DATA-CATALOG.csv. Where the id is mechanical
+(`equity.<region>.<id>`, `curve.<region>.<tenor>`) `db/registry.py` derives it;
+where the catalog's identifier does not follow from the entry's own fields
+(credit spreads, liquidity, the bond proxies) it is spelled out below, because
+the catalog identifier is the database key and guessing it in two places is
+how the two drift apart.
 """
 
 REGIONS = ["US", "UK", "EZ", "DE", "CH", "CN", "JP", "NO"]
@@ -47,7 +55,8 @@ EQUITY_INDICES = [
 ]
 
 VOLATILITY_INDICES = [
-    {"id": "vix", "region": "US", "name": "VIX", "yahoo": "^VIX"},
+    {"id": "vix", "region": "US", "name": "VIX", "yahoo": "^VIX",
+     "series_id": "vol.US.vix"},
     {"id": "vstoxx", "region": "EZ", "name": "VSTOXX", "yahoo": None, "note": "No confirmed free daily source found — leave blank until sourced."},
 ]
 
@@ -90,18 +99,30 @@ COMMODITIES = [
 ]
 
 # ---------------------------------------------------------------------------
-# 4. Central bank policy rates — BIS CBPOL for most, Norges Bank for Norway.
+# 4. Central bank policy rates — BIS CBPOL, every region on one endpoint.
+#
+# Norway consolidated onto BIS `D.NO` on 2026-08-29 per DATA-CATALOG.csv,
+# replacing a separate Norges Bank fetch. Both were checked side by side and
+# agree at 4.25; BIS reaches back to 2001. Norges Bank is 1-3 days fresher,
+# which does not matter for a rate that sits unchanged for months and is
+# checked against a 150-day threshold. Norway's YIELD CURVE still comes from
+# Norges Bank directly — only the policy rate moved.
+#
+# Germany has no policy rate of its own: it IS the ECB's. `mirror_of` says so
+# explicitly, so the export reads the EZ series rather than storing a second
+# copy of the same numbers under a German id.
 # ---------------------------------------------------------------------------
 CENTRAL_BANKS = [
     {"region": "US", "name": "Federal Reserve (Fed Funds)", "source": "bis", "bis_ref_area": "US"},
     {"region": "UK", "name": "Bank of England (Bank Rate)", "source": "bis", "bis_ref_area": "GB"},
     {"region": "EZ", "name": "European Central Bank (Deposit Rate)", "source": "bis", "bis_ref_area": "XM"},
     # Germany's policy rate IS the ECB's — mirrored rather than shown blank.
-    {"region": "DE", "name": "European Central Bank (Deposit Rate)", "source": "bis", "bis_ref_area": "XM"},
+    {"region": "DE", "name": "European Central Bank (Deposit Rate)", "source": "bis",
+     "bis_ref_area": "XM", "mirror_of": "EZ"},
     {"region": "CH", "name": "Swiss National Bank (Policy Rate)", "source": "bis", "bis_ref_area": "CH"},
     {"region": "CN", "name": "People's Bank of China", "source": "bis", "bis_ref_area": "CN"},
     {"region": "JP", "name": "Bank of Japan", "source": "bis", "bis_ref_area": "JP"},
-    {"region": "NO", "name": "Norges Bank (Key Policy Rate)", "source": "norges", "norges_key": "IR/B.KPRA.SD"},
+    {"region": "NO", "name": "Norges Bank (Key Policy Rate)", "source": "bis", "bis_ref_area": "NO"},
 ]
 
 # ---------------------------------------------------------------------------
@@ -248,8 +269,22 @@ INFLATION_EXPECTATIONS = {
 # ---------------------------------------------------------------------------
 GDP_GROWTH = {
     "US": {"source": "fred", "series": "GDPC1", "freq": "Q"},
-    "UK": {"source": "fred", "series": "NGDPRSAXDCGBQ", "freq": "Q"},
-    "EZ": {"source": "fred", "series": "CLVMNACSCAB1GQEA19", "freq": "Q"},
+    # ONS's own monthly index, not FRED's quarterly mirror. Measured 2026-08-29:
+    # monthly rather than quarterly, and two quarters fresher (2026-06 against
+    # FRED's 2026-Q1). ONS publishes UK monthly GDP as a GVA index because it
+    # is estimated on the output approach, so the definition below says GVA.
+    "UK": {"source": "ons", "ons_series": "ecy2", "ons_dataset": "mgdp", "freq": "M",
+           "cadence": "monthly_lagged",
+           "definition": "ONS monthly GVA index (the output-approach measure "
+                         "published as UK monthly GDP), chain-linked volume, "
+                         "seasonally adjusted. Index, 2022 = 100."},
+    # Eurostat's own quarterly national accounts. NOT the catalog's teina011,
+    # which carries only percentage changes over a rolling 12 quarters — the
+    # pipeline needs LEVELS to derive growth on one common definition. Also
+    # EA20 (the current membership) where FRED's series is the superseded EA19.
+    "EZ": {"source": "eurostat", "eurostat_dataset": "namq_10_gdp", "freq": "Q",
+           "eurostat_filters": {"geo": "EA20", "unit": "CLV15_MEUR",
+                                "s_adj": "SCA", "na_item": "B1GQ", "freq": "Q"}},
     "DE": {"source": "fred", "series": "CLVMNACSCAB1GQDE", "freq": "Q"},
     "CH": {"source": "fred", "series": "CLVMNACSCAB1GQCH", "freq": "Q"},
     "JP": {"source": "fred", "series": "JPNRGDPEXP", "freq": "Q"},
@@ -275,13 +310,17 @@ GDP_DEFINITION = ("Real (chain-linked volume), national currency, not PPP, "
 # ---------------------------------------------------------------------------
 CREDIT_SPREADS = [
     {"id": "us_ig", "region": "US", "name": "US investment grade OAS",
-     "series": "BAMLC0A0CM", "grade": "IG", "stack_leg": True},
+     "series": "BAMLC0A0CM", "grade": "IG", "stack_leg": True,
+     "series_id": "credit.US.ig_oas"},
     {"id": "us_hy", "region": "US", "name": "US high yield OAS",
-     "series": "BAMLH0A0HYM2", "grade": "HY", "stack_leg": False},
+     "series": "BAMLH0A0HYM2", "grade": "HY", "stack_leg": False,
+     "series_id": "credit.US.hy_oas"},
     {"id": "eu_hy", "region": "EZ", "name": "Euro high yield OAS",
-     "series": "BAMLHE00EHYIOAS", "grade": "HY", "stack_leg": False},
+     "series": "BAMLHE00EHYIOAS", "grade": "HY", "stack_leg": False,
+     "series_id": "credit.EZ.hy_oas"},
     {"id": "em_corp", "region": "EM", "name": "EM corporate OAS",
-     "series": "BAMLEMCBPIOAS", "grade": "IG/HY blend", "stack_leg": False},
+     "series": "BAMLEMCBPIOAS", "grade": "IG/HY blend", "stack_leg": False,
+     "series_id": "credit.EM.corp_oas"},
 ]
 
 COST_OF_CAPITAL_NOTE = (
@@ -303,6 +342,7 @@ LIQUIDITY_INDICATORS = [
     {"id": "sloos_ci", "region": "US", "cadence": "quarterly",
      "name": "SLOOS — banks tightening C&I standards (large/medium firms)",
      "series": "DRTSCILM", "unit": "net % of banks tightening",
+     "series_id": "sloos.US.ci_large",
      "note": "US only. The ECB runs an equivalent Bank Lending Survey, but not "
              "on any keyless feed found — so this panel is deliberately "
              "single-country rather than showing seven empty rows."},
@@ -330,17 +370,22 @@ FX_HEDGING_HOME_REGION = "CH"
 # yield cannot be correlated against equity returns. ETFs stand in, the same
 # convention already used for csi300 and bcom.
 # ---------------------------------------------------------------------------
+# Six of the eight legs are series the database already stores for other
+# panels, so they name that `series_id` and are NOT fetched or stored a second
+# time. Only the two bond proxies are new instruments, and they carry their own
+# catalog ids.
 CROSS_ASSET_SET = [
-    {"id": "eq_us", "label": "US equities", "yahoo": "^GSPC"},
-    {"id": "eq_eu", "label": "Europe equities", "yahoo": "^STOXX"},
-    {"id": "eq_jp", "label": "Japan equities", "yahoo": "^N225"},
-    {"id": "eq_em", "label": "EM equities", "yahoo": "EEM"},
-    {"id": "bond_ust", "label": "UST 7-10y", "yahoo": "IEF"},
-    {"id": "bond_ustlong", "label": "UST 20y+", "yahoo": "TLT"},
-    {"id": "gold", "label": "Gold", "yahoo": "GC=F"},
-    {"id": "usd", "label": "USD (DXY)", "yahoo": "DX-Y.NYB"},
+    {"id": "eq_us", "label": "US equities", "yahoo": "^GSPC", "series_id": "equity.US.sp500"},
+    {"id": "eq_eu", "label": "Europe equities", "yahoo": "^STOXX", "series_id": "equity.EZ.stoxx600"},
+    {"id": "eq_jp", "label": "Japan equities", "yahoo": "^N225", "series_id": "equity.JP.nikkei225"},
+    {"id": "eq_em", "label": "EM equities", "yahoo": "EEM", "series_id": "equity.EM.msci_em"},
+    {"id": "bond_ust", "label": "UST 7-10y", "yahoo": "IEF", "series_id": "bond_proxy.IEF"},
+    {"id": "bond_ustlong", "label": "UST 20y+", "yahoo": "TLT", "series_id": "bond_proxy.TLT"},
+    {"id": "gold", "label": "Gold", "yahoo": "GC=F", "series_id": "commodity.gold"},
+    {"id": "usd", "label": "USD (DXY)", "yahoo": "DX-Y.NYB", "series_id": "fx.dxy"},
 ]
-CORRELATION_WINDOWS = [60, 90]
+# In WEEKS, since storage is weekly: one year and two years.
+CORRELATION_WINDOWS = [52, 104]
 
 # ---------------------------------------------------------------------------
 # 8. Equity valuation + equity risk premium.
