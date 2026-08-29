@@ -242,6 +242,29 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "history": compact_history(df) if df is not None else [],
         })
 
+    # --- Gold / copper, derived from the two commodities above rather than
+    # sourced again. A classic risk gauge: copper is an industrial input and
+    # gold is not, so the ratio rises when growth expectations fall. Both legs
+    # are the same source and vintage, which is what makes the ratio honest.
+    gold_df, copper_df = hist.get("commodity.gold"), hist.get("commodity.copper")
+    ratio_df = None
+    if gold_df is not None and copper_df is not None:
+        merged = gold_df.merge(copper_df, on="date", suffixes=("_g", "_c"))
+        merged = merged[merged["value_c"] > 0]
+        if not merged.empty:
+            ratio_df = pd.DataFrame({"date": merged["date"],
+                                     "value": merged["value_g"] / merged["value_c"]})
+    status["commodity:gold_copper"] = "ok" if ratio_df is not None else "stubbed"
+    out["commodities"].append({
+        "id": "gold_copper", "name": "Gold / Copper ratio", "exchange": "COMEX",
+        "contract": "Gold front month \u00f7 Copper front month",
+        "unit": "ratio (troy oz gold per lb copper)",
+        "derived_from": ["commodity.gold", "commodity.copper"],
+        **(compute_return_metrics(ratio_df) if ratio_df is not None else {}),
+        "context": _ctx(ratio_df) if ratio_df is not None else None,
+        "history": compact_history(ratio_df) if ratio_df is not None else [],
+    })
+
     # --- Macro: policy rates. Germany reads the ECB series it mirrors rather
     # than a second stored copy of the same numbers. ---
     for cb in universe.CENTRAL_BANKS:
@@ -443,7 +466,13 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         level = _latest(df)
         out["credit_spreads"].append({
             "id": cs["id"], "region": cs["region"], "name": cs["name"],
-            "grade": cs["grade"], "spread_pct": round(level, 2) if level is not None else None,
+            "grade": cs["grade"],
+            # Stored in percent; credit is quoted and discussed in basis
+            # points, so the display figure is bp and the key says so.
+            "spread_bp": round(level * 100) if level is not None else None,
+            "basis": "Option-adjusted spread over government bonds — the extra "
+                     "yield the index pays, adjusted for issuers' rights to "
+                     "call bonds early.",
             "as_of": as_of, "context": _ctx(df) if df is not None else None,
         })
         if cs.get("stack_leg") and level is not None:
@@ -499,9 +528,16 @@ def build_payload(conn, is_sample: bool = False) -> dict:
     # --- Cost-of-capital stack (real risk-free + IG spread + ERP) ---
     out["cost_of_capital_note"] = universe.COST_OF_CAPITAL_NOTE
     for region in universe.REGIONS:
-        real = (out["real_yield_curves"].get(region, {}).get("tenors", {}) or {}).get("10Y")
+        # NOMINAL 10y, not real. Damodaran's implied ERP -- which now feeds
+        # every region -- is computed against the nominal 10y Treasury, so
+        # pairing it with a real risk-free removed inflation twice. Nominal
+        # also matches standard practice: the risk-free is the government
+        # yield in the currency and duration of the cash flows. It fills the
+        # table too, since 7 of 8 regions have a nominal 10y where only 2 have
+        # a real one.
+        nominal = (out["yield_curves"].get(region, {}).get("tenors", {}) or {}).get("10Y")
         erp = (out["equity_risk_premia"].get(region, {}) or {}).get("erp_pct")
-        stack = stack_cost_of_capital(real, stack_credit.get(region), erp)
+        stack = stack_cost_of_capital(nominal, stack_credit.get(region), erp)
         status[f"costcap:{region}"] = ("ok" if stack["complete"]
                                        else "partial" if stack["total_pct"] is not None
                                        else "stubbed")

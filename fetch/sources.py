@@ -672,6 +672,68 @@ def _eurostat_period(label: str):
 
 
 # ---------------------------------------------------------------------------
+# TradingEconomics — government bond yields, scraped from the country page.
+#
+# THIS IS THE PROJECT'S ONLY UNOFFICIAL SOURCE, and it exists because there is
+# no official free alternative for Switzerland: the SNB's own daily curve
+# (rendoblid, 1y-30y) froze at 2025-07-31 and has no successor cube -- seven
+# candidate ids were tried on 2026-08-29 and all 404. Every other route was
+# checked the same day and rejected: FRED carries only the OECD monthly 10y
+# (~2 months behind), Yahoo has no Swiss sovereign ticker, worldgovernmentbonds
+# and FT render their tables in JavaScript, and MarketWatch sits behind a
+# DataDome captcha. See SPEC.md's dead ends.
+#
+# Consequences of it being a scrape, all of which the caller must live with:
+#   - It returns ONE observation, today's. There is no history endpoint, so a
+#     series sourced here grows one point per weekly run and starts empty.
+#   - Only the tenors TradingEconomics chooses to publish exist. For
+#     Switzerland that is 2Y and 10Y; there is no 5Y or 30Y.
+#   - It is a secondary source quoting "over-the-counter interbank yield
+#     quotes", not an institution publishing its own curve. Label it as such.
+#   - The page is HTML, so this breaks silently when they restyle. It returns
+#     None on any surprise, and the staleness check is what surfaces that.
+# ---------------------------------------------------------------------------
+_TE_URL = "https://tradingeconomics.com/{country}/government-bond-yield"
+
+
+def fetch_tradingeconomics_bond(country: str, tenor: str) -> pd.DataFrame | None:
+    """
+    One tenor of one country's government curve, as of today.
+
+    country is the TradingEconomics slug ('switzerland'); tenor is their own
+    label ('10Y', '2Y'). Matching is on the exact "<Country> <tenor>" cell in
+    the bonds table, so a 10Y lookup can never fall through to the 2Y row.
+    """
+    resp = _get(_TE_URL.format(country=country), headers=BROWSER_HEADERS)
+    if resp is None or not resp.text:
+        return None
+    try:
+        text = re.sub(r"<script[\s\S]*?</script>", " ", resp.text)
+        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text))
+        label = f"{country.replace('-', ' ').title()} {tenor.upper()}"
+        # "<Country> <tenor>" then the yield, then the dd/Mmm date at the end
+        # of that row. Both are captured so the observation carries the
+        # source's own date rather than today's clock.
+        m = re.search(rf"{re.escape(label)}\s+(-?\d+\.\d+).{{0,120}}?([A-Z][a-z]{{2}}/\d{{1,2}})", text)
+        if m is None:
+            logger.warning("TradingEconomics: no %s row found", label)
+            return None
+        value = float(m.group(1))
+        # Their date is "Aug/28" with no year. Assume the most recent such date
+        # that is not in the future, so a January run reads December correctly.
+        today = pd.Timestamp.now().normalize()
+        stamp = pd.to_datetime(f"{m.group(2)}/{today.year}", format="%b/%d/%Y", errors="coerce")
+        if stamp is None or pd.isna(stamp):
+            return None
+        if stamp > today:
+            stamp = stamp - pd.DateOffset(years=1)
+        return _frame([stamp], [value])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("TradingEconomics parse failed for %s %s: %s", country, tenor, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Robert Shiller's CAPE dataset (shillerdata.com, served from a wsimg blob).
 # Genuine legacy .xls, so this needs xlrd rather than openpyxl. The "Data"
 # sheet carries a fractional date (1871.01 = Jan 1871) and CAPE in a column
