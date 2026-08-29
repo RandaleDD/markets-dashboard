@@ -30,6 +30,7 @@ async function main() {
   renderSnapshot(REGION_ORDER[0]);
   setupTabs();
   setupChartToggles();
+  setupTooltips();
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +199,161 @@ function lineChart(history, period) {
     </svg>`;
 }
 
+// ---------------------------------------------------------------------------
+// Multi-series charts.
+//
+// The Equity and Rates tabs each open with one large chart above their table,
+// driven by chips rather than by expanding a table row. Two shapes are needed:
+// a time series (x = date) and a curve (x = tenor, a category axis), so they
+// are two small functions rather than one configurable one.
+// ---------------------------------------------------------------------------
+const SERIES_VARS = ["--series-1", "--series-2", "--series-3", "--series-4",
+                     "--series-5", "--series-6", "--series-7", "--series-8"];
+const seriesColor = (i) => `var(${SERIES_VARS[i % SERIES_VARS.length]})`;
+
+const CHART_W = 900, CHART_H = 300, CH_L = 60, CH_R = 16, CH_T = 16, CH_B = 34;
+
+function niceTicks(min, max, count) {
+  if (min === max) { min -= 1; max += 1; }
+  const raw = (max - min) / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || mag * 10;
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+  const out = [];
+  for (let v = lo; v <= hi + step * 1e-9; v += step) out.push(v);
+  return out;
+}
+
+function chartFrame(inner, yTicks, y, xLabels, yLabelFmt) {
+  const grid = yTicks.map((v) =>
+    `<line class="grid" x1="${CH_L}" x2="${CHART_W - CH_R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>` +
+    `<text class="axis" x="${CH_L - 8}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${yLabelFmt(v)}</text>`
+  ).join("");
+  return `<svg viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="xMidYMid meet" role="img">
+      ${grid}${xLabels}${inner}
+    </svg>`;
+}
+
+function chartLegend(lines) {
+  return `<div class="chart-legend">` + lines.map((l) =>
+    `<span class="legend-item"><span class="legend-swatch" style="background:${l.color}"></span>${l.label}</span>`
+  ).join("") + `</div>`;
+}
+
+/**
+ * Time-series chart. `lines` is [{label, points: [[isoDate, value], ...]}].
+ *
+ * rebase=true indexes every line to 100 at its first point in the window,
+ * which is the only way several indices in different currencies and at wildly
+ * different levels can be read against each other. It is forced on whenever
+ * more than one line is shown, and the y-axis label says so.
+ */
+function dateChart(lines, period, rebase) {
+  const cut = lines.map((l) => ({ ...l, pts: slicePeriod(l.points, period) }))
+                   .filter((l) => l.pts.length > 1);
+  if (!cut.length) return `<div class="chart-empty">Not enough history for ${period}.</div>`;
+
+  const shaped = cut.map((l) => {
+    const base = l.pts[0][1];
+    const vals = rebase && base ? l.pts.map((p) => (p[1] / base) * 100) : l.pts.map((p) => p[1]);
+    return { ...l, vals };
+  });
+
+  const allVals = shaped.flatMap((l) => l.vals);
+  const ticks = niceTicks(Math.min(...allVals), Math.max(...allVals), 5);
+  const lo = ticks[0], hi = ticks[ticks.length - 1];
+  const y = (v) => CH_T + (1 - (v - lo) / (hi - lo)) * (CHART_H - CH_T - CH_B);
+
+  // All lines share the longest x-domain so they stay on a common time axis.
+  const spine = shaped.reduce((a, b) => (b.pts.length > a.pts.length ? b : a)).pts;
+  const t0 = new Date(spine[0][0]).getTime();
+  const t1 = new Date(spine[spine.length - 1][0]).getTime();
+  const x = (iso) => CH_L + ((new Date(iso).getTime() - t0) / (t1 - t0 || 1)) * (CHART_W - CH_L - CH_R);
+
+  const n = Math.min(6, spine.length);
+  let xLabels = "";
+  for (let i = 0; i < n; i++) {
+    const p = spine[Math.round((i / (n - 1)) * (spine.length - 1))];
+    xLabels += `<text class="axis" x="${x(p[0]).toFixed(1)}" y="${CHART_H - 10}" text-anchor="${i === 0 ? "start" : i === n - 1 ? "end" : "middle"}">${p[0]}</text>`;
+  }
+
+  const paths = shaped.map((l) =>
+    `<polyline points="${l.vals.map((v, i) => `${x(l.pts[i][0]).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}" fill="none" stroke="${l.color}" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>`
+  ).join("");
+
+  const base100 = rebase
+    ? `<line class="grid" x1="${CH_L}" x2="${CHART_W - CH_R}" y1="${y(100).toFixed(1)}" y2="${y(100).toFixed(1)}" stroke-dasharray="3 3"/>`
+    : "";
+
+  const fmt = rebase ? (v) => v.toFixed(0) : (v) => v.toFixed(Math.abs(hi) < 20 ? 2 : 0);
+  return chartFrame(base100 + paths, ticks, y, xLabels, fmt) + chartLegend(shaped) +
+    `<div class="chart-note">${rebase
+      ? `Indexed to 100 at ${cut[0].pts[0][0]}, so lines in different currencies and at different levels can be compared. Values are relative, not price levels.`
+      : `Level in local currency. Weekly closes.`}</div>`;
+}
+
+/** Yield-curve chart: x is the tenor, a category axis, not a date. */
+function curveShapeChart(lines, tenors) {
+  const present = tenors.filter((t) => lines.some((l) => l.values[t] != null));
+  if (present.length < 2 || !lines.length) {
+    return `<div class="chart-empty">Not enough of the curve is sourced to plot it.</div>`;
+  }
+  const allVals = lines.flatMap((l) => present.map((t) => l.values[t]).filter((v) => v != null));
+  const ticks = niceTicks(Math.min(...allVals), Math.max(...allVals), 5);
+  const lo = ticks[0], hi = ticks[ticks.length - 1];
+  const y = (v) => CH_T + (1 - (v - lo) / (hi - lo)) * (CHART_H - CH_T - CH_B);
+  const x = (i) => CH_L + (i / (present.length - 1)) * (CHART_W - CH_L - CH_R);
+
+  const xLabels = present.map((t, i) =>
+    `<text class="axis" x="${x(i).toFixed(1)}" y="${CHART_H - 10}" text-anchor="middle">${t}</text>`).join("");
+
+  const paths = lines.map((l) => {
+    // A curve with a hole (Switzerland has no 5y or 30y) is drawn as the
+    // segments that exist, never bridged across the gap.
+    const pts = present.map((t, i) => (l.values[t] != null ? `${x(i).toFixed(1)},${y(l.values[t]).toFixed(1)}` : null));
+    const segs = [];
+    let run = [];
+    pts.forEach((p) => { if (p) { run.push(p); } else { if (run.length > 1) segs.push(run); run = []; } });
+    if (run.length > 1) segs.push(run);
+    const dots = pts.filter(Boolean).map((p) => {
+      const [px, py] = p.split(",");
+      return `<circle cx="${px}" cy="${py}" r="3" fill="${l.color}"/>`;
+    }).join("");
+    return segs.map((sg) => `<polyline points="${sg.join(" ")}" fill="none" stroke="${l.color}" stroke-width="1.9" stroke-linejoin="round"/>`).join("") + dots;
+  }).join("");
+
+  return chartFrame(paths, ticks, y, xLabels, (v) => `${v.toFixed(2)}%`) + chartLegend(lines);
+}
+
+// ---------------------------------------------------------------------------
+// Hover tooltips. One floating node, positioned at the cursor, so a long
+// definition never widens a table column.
+// ---------------------------------------------------------------------------
+function setupTooltips() {
+  let pop = null;
+  const hide = () => { if (pop) { pop.remove(); pop = null; } };
+  document.addEventListener("mouseover", (e) => {
+    const t = e.target.closest("[data-tip]");
+    if (!t) return;
+    hide();
+    pop = document.createElement("div");
+    pop.className = "tip-pop";
+    pop.innerHTML = t.getAttribute("data-tip");
+    document.body.appendChild(pop);
+    const r = t.getBoundingClientRect();
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    let left = r.left, top = r.bottom + 8;
+    if (left + w > window.innerWidth - 12) left = window.innerWidth - w - 12;
+    if (top + h > window.innerHeight - 12) top = r.top - h - 8;
+    pop.style.left = `${Math.max(12, left)}px`;
+    pop.style.top = `${Math.max(12, top)}px`;
+  });
+  document.addEventListener("mouseout", (e) => {
+    if (e.target.closest("[data-tip]")) hide();
+  });
+  window.addEventListener("scroll", hide, true);
+}
+
 function chartRow(key, colspan, activePeriod) {
   const periods = (DATA.chart_periods || ["3M", "YTD", "1Y", "2Y", "3Y", "5Y"]);
   const buttons = periods.map((p) =>
@@ -264,30 +420,93 @@ function chartableRows(key, name, history, cells, colspan) {
 // ---------------------------------------------------------------------------
 // Panels
 // ---------------------------------------------------------------------------
+
+/** Every tracked index as one flat list, in tab order, EM last. */
+function equityList() {
+  const out = [];
+  REGION_ORDER.concat(["EM"]).forEach((region) => {
+    ((DATA.equity_indices || {})[region] || []).forEach((idx) =>
+      out.push({ ...idx, region }));
+  });
+  return out;
+}
+
+/** The hover card on an index name: what it is, how weighted, what basis. */
+function indexTip(idx) {
+  const rows = [
+    idx.weighting ? `<span class="tip-row">${idx.weighting}</span>` : "",
+    idx.basis ? `<span class="tip-row">${idx.basis}</span>` : "",
+    `<span class="tip-row">Quoted in ${idx.currency}.</span>`,
+  ].join("");
+  return `<span class="tip-title">${idx.name}</span>${rows}`.replace(/"/g, "&quot;");
+}
+
+let eqSel = { ids: ["sp500"], period: "1Y" };
+
 function renderEquities() {
-  const headers = ["Index", "Level", "1W", "1M", "YTD", "1Y", "DD from ATH", "Vol (13w)", "1Y trend"];
+  const all = equityList();
+  if (!all.length) { document.getElementById("panel-equities").innerHTML = `<h2>Equity Indices</h2>` + note("No index data."); return; }
+
+  let chosen = eqSel.ids.filter((id) => all.some((i) => i.id === id));
+  if (!chosen.length) chosen = [all[0].id];
+  // More than one line means different currencies and levels on one axis, so
+  // indexing is not optional -- it is the only way the comparison means
+  // anything. A single line keeps its real level.
+  const rebase = chosen.length > 1;
+  const lines = chosen.map((id, i) => {
+    const idx = all.find((x) => x.id === id);
+    return { label: idx.name, points: idx.history || [], color: seriesColor(i) };
+  });
+
+  const periods = DATA.chart_periods || ["3M", "YTD", "1Y", "2Y", "3Y", "5Y"];
+  const indexChips = all.map((idx) => {
+    const on = chosen.includes(idx.id);
+    const c = on ? seriesColor(chosen.indexOf(idx.id)) : "";
+    return `<button class="chip${on ? " active" : ""}" data-eq-id="${idx.id}"${on ? ` data-swatch style="--chip-color:${c}"` : ""}>${idx.name}</button>`;
+  }).join("");
+  const periodChips = periods.map((p) =>
+    `<button class="chip${p === eqSel.period ? " active" : ""}" data-eq-period="${p}">${p}</button>`).join("");
+
+  const headers = ["Index", "Level", "1W", "1M", "YTD", "1Y", "DD from ATH", "Vol (13w)"];
   const rows = [];
   REGION_ORDER.concat(["EM"]).forEach((region) => {
     const indices = (DATA.equity_indices || {})[region] || [];
     if (!indices.length) return;
     rows.push({ band: region === "EM" ? "Emerging Markets" : regionName(region) });
     indices.forEach((idx) => {
-      const key = `equity:${idx.id}`;
-      const cells = [
-        `${idx.name} <span class="ccy">${idx.currency}</span>`,
+      rows.push([
+        `<span class="has-tip" data-tip="${indexTip(idx)}">${idx.name}</span> <span class="ccy">${idx.currency}</span>`,
         fmtNum(idx.level, (idx.level || 0) > 100 ? 1 : 4),
         fmtPct(idx.chg_1w_pct), fmtPct(idx.chg_mtd_pct),
         fmtPct(idx.chg_ytd_pct), fmtPct(idx.chg_1y_pct),
         fmtPct(idx.drawdown_from_ath_pct) + ctxTag(idx.drawdown_context),
         (idx.realized_vol_13w_pct != null ? `${idx.realized_vol_13w_pct.toFixed(1)}%` : dash()) + ctxTag(idx.vol_context),
-      ];
-      chartableRows(key, idx.name, idx.history, cells, headers.length).forEach((r) => rows.push(r));
+      ]);
     });
   });
+
   document.getElementById("panel-equities").innerHTML =
     `<h2>Equity Indices</h2>` +
-    note("Weekly closes (Friday, or the last session before it). Levels in local currency; volatility is annualised from 13 weeks of weekly returns, and drawdown is measured on weekly closes, so an intra-week trough that recovered by Friday does not appear. Click any trend sparkline to open a chart and change the period.") +
+    `<div class="chart-panel">
+       <div class="chart-controls">
+         <div class="control-group"><span class="control-label">Index</span>${indexChips}</div>
+         <div class="control-group"><span class="control-label">Period</span>${periodChips}</div>
+       </div>
+       <div class="chart-figure">${dateChart(lines, eqSel.period, rebase)}</div>
+     </div>` +
+    note("Weekly closes (Friday, or the last session before it). Levels in local currency; volatility is annualised from 13 weeks of weekly returns, and drawdown is measured on weekly closes, so an intra-week trough that recovered by Friday does not appear. Hover an index name for how it is weighted and whether its level includes dividends.") +
     tableWithRaw(headers, rows);
+
+  document.querySelectorAll("[data-eq-id]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const id = b.getAttribute("data-eq-id");
+      const at = eqSel.ids.indexOf(id);
+      if (at >= 0) { if (eqSel.ids.length > 1) eqSel.ids.splice(at, 1); }
+      else eqSel.ids.push(id);
+      renderEquities();
+    }));
+  document.querySelectorAll("[data-eq-period]").forEach((b) =>
+    b.addEventListener("click", () => { eqSel.period = b.getAttribute("data-eq-period"); renderEquities(); }));
 }
 
 /** table() variant that lets pre-rendered <tr> strings through. */
@@ -321,37 +540,131 @@ function curveRows(source, showBasis) {
   }).filter(Boolean);
 }
 
-function renderYields() {
-  const nominalHeaders = ["Region", "2Y", "5Y", "10Y", "30Y", "2s10s", "As of"];
-  const realHeaders = ["Region", "Basis", "2Y", "5Y", "10Y", "30Y", "2s10s", "As of"];
+// --- Rates tab -------------------------------------------------------------
+const CURVE_TENORS = ["2Y", "5Y", "10Y", "30Y"];
+// Inflation tenors, kept as their own column set so the table lines up
+// column-for-column with the curve tables above it.
+const INFL_TENORS = [["1y", "1Y"], ["2y", "2Y"], ["5y", "5Y"], ["10y", "10Y"], ["5y5y_fwd", "5y5y fwd"]];
+let curveSel = { regions: ["US"], date: null };
 
-  // Inflation expectations, with tenor and index basis always stated.
-  const expRows = [];
+/** Tenor values for one region as they stood on (or before) `dateISO`. */
+function curveValuesOn(region, dateISO) {
+  const c = (DATA.yield_curves || {})[region] || {};
+  if (!dateISO) return c.tenors || {};
+  const hist = c.tenor_history || {};
+  const out = {};
+  CURVE_TENORS.forEach((t) => {
+    const pts = hist[t] || [];
+    let v = null;
+    for (const p of pts) { if (p[0] <= dateISO) v = p[1]; else break; }
+    out[t] = v;
+  });
+  return out;
+}
+
+function curveDateBounds() {
+  let min = null, max = null;
+  Object.values(DATA.yield_curves || {}).forEach((c) => {
+    Object.values(c.tenor_history || {}).forEach((pts) => {
+      if (!pts.length) return;
+      if (min === null || pts[0][0] < min) min = pts[0][0];
+      if (max === null || pts[pts.length - 1][0] > max) max = pts[pts.length - 1][0];
+    });
+  });
+  return { min, max };
+}
+
+function curvePanel() {
+  const regions = curveSel.regions.length ? curveSel.regions : ["US"];
+  const lines = regions.map((r, i) => ({
+    label: regionName(r) + (((DATA.yield_curves || {})[r] || {}).unofficial ? " (unofficial source)" : ""),
+    values: curveValuesOn(r, curveSel.date),
+    color: seriesColor(i),
+  }));
+  const chips = REGION_ORDER.map((r) => {
+    const has = (DATA.yield_curves || {})[r];
+    if (!has) return "";
+    const on = regions.includes(r);
+    const c = on ? seriesColor(regions.indexOf(r)) : "";
+    return `<button class="chip${on ? " active" : ""}" data-curve-region="${r}"${on ? ` data-swatch style="--chip-color:${c}"` : ""}>${regionName(r)}</button>`;
+  }).join("");
+  const b = curveDateBounds();
+  const shown = curveSel.date || b.max || "";
+
+  return `<div class="chart-panel">
+      <div class="chart-controls">
+        <div class="control-group"><span class="control-label">Region</span>${chips}</div>
+        <div class="control-group">
+          <span class="control-label">As of</span>
+          <input type="date" id="curve-date" value="${shown}" min="${b.min || ""}" max="${b.max || ""}"/>
+          <button class="chip${curveSel.date ? "" : " active"}" id="curve-now">Current</button>
+        </div>
+      </div>
+      <div class="chart-figure">${curveShapeChart(lines, CURVE_TENORS)}</div>
+      <div class="chart-note">${curveSel.date
+        ? `Curve as it stood on the last weekly close on or before ${curveSel.date}. History runs three years.`
+        : `Latest stored curve. Pick a date to see the curve as it stood then.`}</div>
+    </div>`;
+}
+
+function wireCurveControls() {
+  document.querySelectorAll("[data-curve-region]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const r = btn.getAttribute("data-curve-region");
+      const at = curveSel.regions.indexOf(r);
+      if (at >= 0) { if (curveSel.regions.length > 1) curveSel.regions.splice(at, 1); }
+      else curveSel.regions.push(r);
+      renderYields();
+    }));
+  const d = document.getElementById("curve-date");
+  if (d) d.addEventListener("change", (e) => { curveSel.date = e.target.value || null; renderYields(); });
+  const now = document.getElementById("curve-now");
+  if (now) now.addEventListener("click", () => { curveSel.date = null; renderYields(); });
+}
+
+/**
+ * Inflation-expectation rows on the same tenor columns as the curve tables.
+ * Commentary is not squeezed into a cell -- it gets its own full-width row
+ * underneath, left-aligned, so it never wraps a column out of shape.
+ */
+function inflationRows(colCount) {
+  const rows = [];
+  const push = (label, badge, basis, tenors, ctx, commentary) => {
+    const cells = [label, `${badge} <span class="ccy">${basis || ""}</span>`];
+    INFL_TENORS.forEach(([key]) => {
+      const v = tenors[key];
+      cells.push(v != null ? `<strong>${v.toFixed(2)}%</strong>${ctxTag((ctx || {})[key])}` : dash());
+    });
+    rows.push(cells);
+    if (commentary) rows.push(`<tr><td class="commentary" colspan="${colCount}">${commentary}</td></tr>`);
+  };
   REGION_ORDER.forEach((region) => {
     const e = (DATA.inflation_expectations || {})[region];
     if (!e) return;
     if (e.kind === "unavailable") {
-      expRows.push([regionName(region), dash(), `<span class="stub">${e.note || "No free market-implied source."}</span>`]);
+      rows.push([regionName(region), `<span class="stub">not sourced</span>`].concat(INFL_TENORS.map(() => dash())));
+      rows.push(`<tr><td class="commentary" colspan="${colCount}">${e.note || "No free market-implied source."}</td></tr>`);
       return;
     }
-    const t = e.tenors || {};
-    const ec = e.context || {};
-    const parts = Object.keys(t).map((k) => `${k.replace("_", " ")}: <strong>${t[k] != null ? t[k].toFixed(2) + "%" : "—"}</strong>${ctxTag(ec[k])}`).join(" &nbsp;·&nbsp; ");
-    expRows.push([
-      regionName(region),
-      `<span class="badge badge-${e.kind}">${e.kind}-implied</span> <span class="ccy">${e.basis || ""}</span>`,
-      parts + (e.note ? `<div class="stub small">${e.note}</div>` : ""),
-    ]);
-    if (e.model) {
-      const mt = e.model.tenors || {};
-      const mparts = Object.keys(mt).map((k) => `${k}: <strong>${mt[k] != null ? mt[k].toFixed(2) + "%" : "—"}</strong>`).join(" &nbsp;·&nbsp; ");
-      expRows.push([
-        `${regionName(region)} <span class="ccy">(model)</span>`,
-        `<span class="badge badge-model">model-implied</span> <span class="ccy">${e.model.basis || ""}</span>`,
-        mparts + `<div class="stub small">${e.model.note || ""}</div>`,
-      ]);
+    push(regionName(region), `<span class="badge badge-${e.kind}">${e.kind}-implied</span>`,
+         e.basis, e.tenors || {}, e.context || {}, e.note);
+    // Only the 1y model point is kept: there is no 1-year TIPS breakeven, so a
+    // model is the only way to show it. The model's 5y and 10y are dropped as
+    // redundant -- the market breakevens for those sit on the row above.
+    if (e.model && (e.model.tenors || {})["1y"] != null) {
+      push(`${regionName(region)} <span class="ccy">(1y only)</span>`,
+           `<span class="badge badge-model">model-implied</span>`, e.model.basis,
+           { "1y": e.model.tenors["1y"] }, {},
+           "Cleveland Fed model (TIPS, inflation swaps and surveys blended). Shown only at 1 year, because no 1-year TIPS breakeven is published; at 5 and 10 years the market breakeven on the row above is the direct measure.");
     }
   });
+  return rows;
+}
+
+function renderYields() {
+  const nominalHeaders = ["Region", "2Y", "5Y", "10Y", "30Y", "2s10s", "As of"];
+  const realHeaders = ["Region", "Basis", "2Y", "5Y", "10Y", "30Y", "2s10s", "As of"];
+  const inflHeaders = ["Region", "Basis"].concat(INFL_TENORS.map(([, label]) => label));
 
   const sp = DATA.eurozone_spreads || { rows: [] };
   const spreadRows = (sp.rows || []).map((r) => [
@@ -361,20 +674,35 @@ function renderYields() {
 
   document.getElementById("panel-yields").innerHTML =
     `<h2>Government Yield Curves</h2>` +
-    note("Nominal sovereign curves. The Eurozone row is the ECB's all-bonds euro area curve — a blend across euro area sovereigns — while Germany is the single-issuer Bund curve. They are deliberately different measures.") +
+    curvePanel() +
+    note("Nominal sovereign curves. The Eurozone row is the ECB's all-bonds euro area curve — a blend across euro area sovereigns — while Germany is the single-issuer Bund curve. They are deliberately different measures. Switzerland is the one unofficial source on this dashboard and carries 2y and 10y only; the SNB retired its own curve in July 2025.") +
     table(nominalHeaders, curveRows(DATA.yield_curves, false)) +
+
+    `<h2 class="mt">Euro-Area Sovereign Spreads vs. ${sp.benchmark || "Bund"}</h2>` +
+    note(`Both legs come from the same ECB long-term rate series, so the spread is not distorted by mixing sources. Benchmark: ${sp.benchmark || "—"} at ${sp.benchmark_yield_pct != null ? sp.benchmark_yield_pct.toFixed(3) + "%" : "—"} (${sp.cadence || "monthly"}).`) +
+    table(["Country", "10y yield", "Spread", "As of"], spreadRows) +
 
     `<h2 class="mt">Real Yields</h2>` +
     note("Inflation-linked yields. Note the basis differs: US TIPS reference CPI, UK index-linked gilts reference RPI.") +
     table(realHeaders, curveRows(DATA.real_yield_curves, true)) +
 
     `<h2 class="mt">Market-Implied Inflation</h2>` +
-    note("Breakeven / implied inflation with the tenor and index basis stated for each. These are not directly comparable across regions: UK figures are RPI-based and historically run roughly 0.8–1.0pp above the equivalent CPI rate. Where no inflation-linked market exists, the practitioner standard is the zero-coupon inflation swap, which has no free feed.") +
-    table(["Region", "Type", "Tenors"], expRows) +
+    note("Breakeven / implied inflation, on the same tenor columns as the curves above. These are not comparable across regions: UK figures are RPI-based and historically run roughly 0.8–1.0pp above the equivalent CPI rate.") +
+    tableWithRaw(inflHeaders, inflationRows(inflHeaders.length)) +
+
+    `<h2 class="mt">Credit Spreads</h2>` +
+    note("What the market charges for corporate credit risk, in basis points over government bonds. These are option-adjusted spreads — adjusted for issuers' rights to call bonds early. FRED serves them on a rolling three-year window under an ICE licensing limit, so percentile context can only be measured against that window.") +
+    table(["Region", "Index", "Grade", "Spread", "As of"],
+      (DATA.credit_spreads || []).map((c) => [
+        c.region === "EM" ? "Emerging Markets" : regionName(c.region),
+        c.name, `<span class="ccy">${c.grade}</span>`,
+        c.spread_bp != null ? `${c.spread_bp} bp${ctxTag(c.context)}` : dash(),
+        c.as_of || dash(),
+      ])) +
 
     `<h2 class="mt">Cost of Capital</h2>` +
-    note(DATA.cost_of_capital_note || "") +
-    table(["Region", "Real risk-free (10y)", "IG credit spread", "Equity risk premium", "Total", "Coverage"],
+    note("The nominal building blocks of a discount rate, laid out leg by leg. The risk-free leg is the nominal 10y government yield, not a real yield: the equity risk premium beside it is itself measured against a nominal government yield, so pairing it with a real rate would remove inflation twice.") +
+    table(["Region", "Risk-free (nominal 10y)", "Credit spread", "Equity risk premium", "Total", "Coverage"],
       REGION_ORDER.map((region) => {
         const s2 = (DATA.cost_of_capital || {})[region];
         if (!s2) return null;
@@ -385,7 +713,7 @@ function renderYields() {
               ? `<span class="flag">partial — no ${s2.missing_labels.join(", ").toLowerCase()}</span>`
               : `<span class="stub">no legs sourced</span>`);
         return [
-          regionName(region), pctPlain(L.real_risk_free), pctPlain(L.credit_spread),
+          regionName(region), pctPlain(L.risk_free), pctPlain(L.credit_spread),
           pctPlain(L.erp),
           s2.total_pct != null
             ? `<strong>${s2.total_pct.toFixed(2)}%</strong>${s2.complete ? "" : "*"}`
@@ -393,11 +721,9 @@ function renderYields() {
           cov,
         ];
       }).filter(Boolean)) +
-    `<p class="section-note">* A partial total sums only the legs that are sourced, so it is not comparable with a complete stack.</p>` +
+    `<p class="section-note">* A partial total sums only the legs that are sourced, so it is not comparable with a complete stack.</p>`;
 
-    `<h2 class="mt">Euro-Area Sovereign Spreads vs. ${sp.benchmark || "Bund"}</h2>` +
-    note(`Both legs come from the same ECB long-term rate series, so the spread is not distorted by mixing sources. Benchmark: ${sp.benchmark || "—"} at ${sp.benchmark_yield_pct != null ? sp.benchmark_yield_pct.toFixed(3) + "%" : "—"} (${sp.cadence || "monthly"}).`) +
-    table(["Country", "10y yield", "Spread", "As of"], spreadRows);
+  wireCurveControls();
 }
 
 function renderMacro() {
@@ -417,39 +743,58 @@ function renderMacro() {
       g.as_of || dash(),
     ];
   });
-  document.getElementById("panel-macro").innerHTML =
-    `<h2>Central Bank Policy Rates</h2>` +
-    note("Source: BIS Data Portal (CBPOL); Norges Bank for Norway. A policy rate legitimately sits unchanged for months, so an older date is not a stale figure.") +
-    table(["Region", "Policy Rate", "As of"], rateRows) +
 
-    `<h2 class="mt">Credit &amp; Liquidity</h2>` +
-    note("Credit spreads are option-adjusted spreads over governments — what the market charges for corporate credit risk. FRED serves these on a rolling three-year window under an ICE licensing limit, so their percentile context can only be measured against that window and 5y/10y are hidden rather than faked.") +
-    table(["Region", "Index", "Grade", "OAS", "As of"],
-      (DATA.credit_spreads || []).map((c) => [
-        c.region === "EM" ? "Emerging Markets" : regionName(c.region),
-        c.name, `<span class="ccy">${c.grade}</span>`,
-        c.spread_pct != null ? `${c.spread_pct.toFixed(2)} pp${ctxTag(c.context)}` : dash(),
-        c.as_of || dash(),
-      ])) +
-    ((DATA.liquidity || []).length
-      ? table(["Lending conditions", "Latest", "Change vs prior", "As of"],
-          (DATA.liquidity || []).map((l) => [
-            `${l.name}<div class="stub small">${l.note || ""}</div>`,
-            l.level != null ? `${l.level.toFixed(1)} <span class="ccy">${l.unit}</span>${ctxTag(l.context)}` : dash(),
-            l.change != null
-              ? `<span class="${l.change > 0 ? "down" : "up"}">${l.change > 0 ? "+" : ""}${l.change.toFixed(1)} pp</span> <span class="ccy">${l.change > 0 ? "tightening" : "easing"}</span>`
-              : dash(),
-            `${l.as_of || "—"} <span class="ccy">(${l.cadence})</span>`,
-          ]))
-      : "") +
+  const quarters = regimeQuarters();
+  let regimeBlock = "";
+  if (quarters.length) {
+    const idx = regimeIndex == null ? quarters.length - 1 : regimeIndex;
+    const selected = quarters[idx];
+    regimeBlock =
+      `<h2>Growth / Inflation Regime Map</h2>` +
+      `<p class="regime-explain">
+         <strong>How to read this.</strong> Each region sits at its latest growth rate
+         (left to right) and inflation rate (bottom to top), so the chart is a
+         picture of where economies actually are, not a forecast. The two
+         dividing lines are the long-run averages, which split the space into
+         four quadrants: <em>top-right</em> is growth with inflation
+         (overheating), <em>top-left</em> is weak growth with high inflation
+         (stagflationary), <em>bottom-left</em> is weak growth with cooling
+         prices (disinflationary slowdown), and <em>bottom-right</em> is growth
+         without inflation (the benign quadrant). What matters more than the
+         quadrant is the <em>direction of travel</em> — step the quarter slider
+         back and watch which way a region has been moving. Positions shift
+         with data revisions, and the quadrant names describe the data, not
+         what to do about it.
+       </p>` +
+      note((DATA.regime && DATA.regime.axis_definition) || "") +
+      `<div class="regime-controls">
+         <label for="regime-slider">Quarter: <strong id="regime-label">${selected}</strong></label>
+         <input id="regime-slider" type="range" min="0" max="${quarters.length - 1}" value="${idx}" step="1"/>
+       </div>` +
+      regimeChart(selected);
+  }
+
+  document.getElementById("panel-macro").innerHTML =
+    regimeBlock +
+    `<h2 class="mt">GDP Growth</h2>` +
+    note(DATA.macro.gdp_definition || "") +
+    table(["Region", "Real GDP YoY", "QoQ annualised", "As of"], gdpRows) +
 
     `<h2 class="mt">Inflation</h2>` +
     note("Headline consumer prices. Year-on-year, plus the latest quarter annualised — the second is noisier but turns sooner.") +
     table(["Region", "CPI YoY", "QoQ annualised", "As of"], infRows) +
 
-    `<h2 class="mt">GDP Growth</h2>` +
-    note(DATA.macro.gdp_definition || "") +
-    table(["Region", "Real GDP YoY", "QoQ annualised", "As of"], gdpRows);
+    `<h2 class="mt">Central Bank Policy Rates</h2>` +
+    note("Source: BIS Data Portal (CBPOL), all regions on one endpoint; Germany mirrors the ECB. A policy rate legitimately sits unchanged for months, so an older date is not a stale figure.") +
+    table(["Region", "Policy Rate", "As of"], rateRows);
+
+  const slider = document.getElementById("regime-slider");
+  if (slider) {
+    slider.addEventListener("input", (e) => {
+      regimeIndex = parseInt(e.target.value, 10);
+      renderMacro();
+    });
+  }
 }
 
 function renderCurrencies() {
@@ -544,6 +889,8 @@ function renderValuation() {
     `<h2>Valuation Scorecard</h2>` +
     note(`CAPE and equity risk premium across regions, with each reading's percentile against its own history. CAPE is US-only by design — it needs a long cyclically-adjusted earnings history that exists for the S&amp;P 500 and not for the other indices. <strong>${erpCovered} of ${REGION_ORDER.length} regions have an ERP.</strong> The Eurozone is blank on both because Damodaran publishes member states with no bloc aggregate, and Germany's figure is not a stand-in for it.`) +
     table(["Region", "CAPE", "ERP", ""], scoreRows) +
+
+    `<p class="section-note"><strong>Known gaps on this tab.</strong> CAPE is US-only and will stay that way — it needs a long cyclically-adjusted earnings history that exists for the S&amp;P 500 and not elsewhere. The country multiples below start in 2020, because Damodaran's earlier files publish means rather than medians. Still unsourced: dividend yields, forward (rather than trailing) multiples, and any Eurozone-level figure at all. Filling these is the main outstanding job on this tab — see <code>data/DATA-CATALOG.csv</code>.</p>` +
 
     `<h2 class="mt">Country Multiples</h2>` +
     note("Damodaran's country aggregates: the <strong>median</strong> across listed companies in each country, on <strong>trailing</strong> earnings, book, sales and EBITDA. These are not cyclically adjusted, so they are not comparable to the CAPE above — and the median basis only starts in 2020, because the earlier vintages of the source publish means instead.") +
@@ -716,32 +1063,8 @@ function correlationBlock() {
 }
 
 function renderCrossAsset() {
-  const quarters = regimeQuarters();
-  if (!quarters.length) {
-    document.getElementById("panel-crossasset").innerHTML =
-      `<h2>Cross-Asset &amp; Regime</h2>` + note("No regime data available.");
-    return;
-  }
-  const idx = regimeIndex == null ? quarters.length - 1 : regimeIndex;
-  const selected = quarters[idx];
-
   document.getElementById("panel-crossasset").innerHTML =
-    `<h2>Growth / Inflation Regime Map</h2>` +
-    note((DATA.regime && DATA.regime.axis_definition) || "") +
-    `<div class="regime-controls">
-       <label for="regime-slider">Quarter: <strong id="regime-label">${selected}</strong></label>
-       <input id="regime-slider" type="range" min="0" max="${quarters.length - 1}" value="${idx}" step="1"/>
-     </div>` +
-    regimeChart(selected) +
-    correlationBlock();
-
-  const slider = document.getElementById("regime-slider");
-  if (slider) {
-    slider.addEventListener("input", (e) => {
-      regimeIndex = parseInt(e.target.value, 10);
-      renderCrossAsset();
-    });
-  }
+    `<h2>Cross-Asset Correlations</h2>` + correlationBlock();
 }
 
 function populateRegionSelector() {
@@ -750,8 +1073,42 @@ function populateRegionSelector() {
   sel.addEventListener("change", (e) => renderSnapshot(e.target.value));
 }
 
-function card(label, value, sub) {
-  return `<div class="card"><div class="label">${label}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
+// ---------------------------------------------------------------------------
+// Regional snapshot — a one-page cheat sheet, not a wall of one-value boxes.
+//
+// A banner carries the four numbers you would quote from memory, with a
+// thumbnail of the region's own yield curve beside them; everything else sits
+// in dense label/value/change lines grouped by theme.
+// ---------------------------------------------------------------------------
+function snapLine(label, value, delta, sub) {
+  const d = delta == null ? "" :
+    `<span class="d ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%</span>`;
+  return `<div class="snap-line"><span class="k">${label}</span><span class="v">${value}</span>${d || "<span class='d'></span>"}` +
+         (sub ? `<span class="sub">${sub}</span>` : "") + `</div>`;
+}
+
+function snapBlock(title, lines) {
+  const body = lines.filter(Boolean).join("");
+  if (!body) return "";
+  return `<div class="snap-block"><h3>${title}</h3><div class="snap-lines">${body}</div></div>`;
+}
+
+/** A small inline sketch of the region's nominal curve for the banner. */
+function miniCurve(region) {
+  const t = ((DATA.yield_curves || {})[region] || {}).tenors || {};
+  const pts = CURVE_TENORS.map((k, i) => [i, t[k]]).filter((p) => p[1] != null);
+  if (pts.length < 2) return "";
+  const vals = pts.map((p) => p[1]);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (lo === hi) { lo -= 0.5; hi += 0.5; }
+  const W = 132, H = 42;
+  const x = (i) => 4 + (i / (CURVE_TENORS.length - 1)) * (W - 8);
+  const y = (v) => 6 + (1 - (v - lo) / (hi - lo)) * (H - 12);
+  const poly = pts.map((p) => `${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join(" ");
+  const dots = pts.map((p) => `<circle cx="${x(p[0]).toFixed(1)}" cy="${y(p[1]).toFixed(1)}" r="1.9" fill="var(--accent)"/>`).join("");
+  return `<div class="snap-curve"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Nominal yield curve">
+      <polyline points="${poly}" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/>${dots}
+    </svg><div class="chart-note" style="text-align:center;margin:0">2Y → 30Y</div></div>`;
 }
 
 function renderSnapshot(region) {
@@ -764,56 +1121,73 @@ function renderSnapshot(region) {
   const gdp = (DATA.macro.gdp || {})[region] || {};
   const val = (DATA.valuation || {})[region] || {};
   const erp = (DATA.equity_risk_premia || {})[region] || {};
+  const cc = (DATA.cost_of_capital || {})[region] || {};
   const t = curve.tenors || {};
+  const lead = indices[0];
 
-  const equityCards = indices.map((idx) =>
-    card(idx.name, fmtNum(idx.level, 1), `${fmtPct(idx.chg_1w_pct)} 1W · ${fmtPct(idx.chg_ytd_pct)} YTD`)
-  ).join("") || `<div class="card empty">No index tracked for this region.</div>`;
+  const hero = (k, v) => `<div class="hero-stat"><span class="hk">${k}</span><span class="hv">${v}</span></div>`;
+  const banner = `<div class="snap-hero">
+      <span class="hero-region">${regionName(region)}</span>
+      ${hero("Policy rate", pctPlain(cb.rate_pct))}
+      ${hero("10y", pctPlain(t["10Y"]))}
+      ${hero("CPI YoY", pctPlain(inf.yoy_pct, 1))}
+      ${hero("Real GDP YoY", pctPlain(gdp.yoy_pct, 1))}
+      ${hero(lead ? lead.name + " YTD" : "Equities YTD", lead ? fmtPct(lead.chg_ytd_pct) : dash())}
+      ${miniCurve(region)}
+    </div>`;
 
-  const rateCards = [
-    card("2Y", pctPlain(t["2Y"]), ""),
-    card("10Y", pctPlain(t["10Y"]), `2s10s: ${curve["2s10s_bp"] != null ? curve["2s10s_bp"].toFixed(0) + " bp" : "—"}`),
-    card("30Y", pctPlain(t["30Y"]), ""),
-    real ? card("10Y real", pctPlain((real.tenors || {})["10Y"]), real.basis || "") : "",
-  ].join("");
+  const equityLines = indices.map((idx) =>
+    snapLine(`<span class="has-tip" data-tip="${indexTip(idx)}">${idx.name}</span>`,
+             fmtNum(idx.level, (idx.level || 0) > 100 ? 1 : 4), idx.chg_ytd_pct,
+             `1W ${fmtPct(idx.chg_1w_pct)} · 1Y ${fmtPct(idx.chg_1y_pct)} · vol ${idx.realized_vol_13w_pct != null ? idx.realized_vol_13w_pct.toFixed(1) + "%" : "—"}`));
+
+  const rateLines = CURVE_TENORS.map((k) =>
+    t[k] != null ? snapLine(k, pctPlain(t[k]), null) : "").concat([
+    curve["2s10s_bp"] != null ? snapLine("2s10s", fmtBp(curve["2s10s_bp"]), null) : "",
+    real && (real.tenors || {})["10Y"] != null
+      ? snapLine("10y real", pctPlain(real.tenors["10Y"]), null, real.basis || "") : "",
+  ]);
 
   const expTenors = exp.tenors || {};
-  const expKey = Object.keys(expTenors)[0];
-  const macroCards = [
-    card("Policy rate", pctPlain(cb.rate_pct), cb.name || ""),
-    card("CPI YoY", pctPlain(inf.yoy_pct, 1), `QoQ ann: ${inf.qoq_ann_pct != null ? inf.qoq_ann_pct.toFixed(1) + "%" : "—"}`),
-    card("Real GDP YoY", pctPlain(gdp.yoy_pct, 1), gdp.qoq_ann_pct != null ? `QoQ ann: ${gdp.qoq_ann_pct.toFixed(1)}%` : "annual series"),
+  const expKey = Object.keys(expTenors).find((k) => expTenors[k] != null);
+  const macroLines = [
+    snapLine("Policy rate", pctPlain(cb.rate_pct), null, cb.name || ""),
+    snapLine("CPI YoY", pctPlain(inf.yoy_pct, 1), null,
+             inf.qoq_ann_pct != null ? `Latest quarter annualised ${inf.qoq_ann_pct.toFixed(1)}%` : ""),
+    snapLine("Real GDP YoY", pctPlain(gdp.yoy_pct, 1), null,
+             gdp.qoq_ann_pct != null ? `Latest quarter annualised ${gdp.qoq_ann_pct.toFixed(1)}%` : "Annual series"),
     expKey
-      ? card("Implied inflation", pctPlain(expTenors[expKey]), `${expKey.replace("_", " ")} · ${exp.basis || ""}`)
-      : card("Implied inflation", dash(), "no free market-implied source"),
-  ].join("");
+      ? snapLine("Implied inflation", pctPlain(expTenors[expKey]), null,
+                 `${expKey.replace(/_/g, " ")} · ${exp.basis || ""}`)
+      : snapLine("Implied inflation", `<span class="stub">not sourced</span>`, null, ""),
+  ];
+
+  const mult = val.multiples || {};
+  const valLines = [
+    val.cape != null ? snapLine("CAPE", val.cape.toFixed(1), null, val.name || "") : "",
+    mult.pe ? snapLine("P/E (trailing)", mult.pe.value.toFixed(1), null, "Median across listed companies") : "",
+    mult.pb ? snapLine("P/B", mult.pb.value.toFixed(2), null) : "",
+    mult.ev_ebitda ? snapLine("EV/EBITDA", mult.ev_ebitda.value.toFixed(1), null) : "",
+    erp.erp_pct != null ? snapLine("Equity risk premium", `${erp.erp_pct.toFixed(2)}%`, null, erp.method || "") : "",
+    cc.total_pct != null
+      ? snapLine("Cost of capital", `${cc.total_pct.toFixed(2)}%${cc.complete ? "" : "*"}`, null,
+                 cc.complete ? "All three legs sourced" : `Partial — no ${(cc.missing_labels || []).join(", ").toLowerCase()}`)
+      : "",
+  ];
 
   const fxForRegion = { UK: "gbpusd", EZ: "eurusd", DE: "eurusd", CH: "eurchf", JP: "usdjpy", CN: "usdcny", NO: "eurnok", US: "dxy" }[region];
   const fx = (DATA.currencies || []).find((f) => f.id === fxForRegion);
-  const fxCards = fx ? card(fx.name, fmtNum(fx.level, 4), `${fmtPct(fx.chg_1w_pct)} 1W · ${fmtPct(fx.chg_ytd_pct)} YTD`) : `<div class="card empty">—</div>`;
+  const fxLines = [fx ? snapLine(fx.name, fmtNum(fx.level, 4), fx.chg_ytd_pct,
+                                 `1W ${fmtPct(fx.chg_1w_pct)}`) : ""];
 
-  const vm = val.multiples || {};
-  const mCard = (label, key, unit) =>
-    vm[key] && vm[key].value != null
-      ? card(label, vm[key].value.toFixed(2), unit)
-      : "";
-  const valCards = [
-    // CAPE is US-only by construction; the country multiples fill the row for
-    // the six Damodaran regions. Both are labelled so they are never read as
-    // the same measure.
-    val.cape != null ? card("CAPE", val.cape.toFixed(1), val.name || "") : "",
-    mCard("P/E (trailing, median)", "pe", val.name || ""),
-    mCard("P/B", "pb", "median, trailing"),
-    mCard("EV/EBITDA", "ev_ebitda", "median, trailing"),
-    card("ERP", erp.erp_pct != null ? erp.erp_pct.toFixed(2) + "%" : dash(), erp.method || ""),
-  ].filter(Boolean).join("");
-
-  document.getElementById("snapshot-body").innerHTML =
-    `<h3 class="snap-head">Equities</h3><div class="cards">${equityCards}</div>` +
-    `<h3 class="snap-head">Rates &amp; Curve</h3><div class="cards">${rateCards}</div>` +
-    `<h3 class="snap-head">Macro</h3><div class="cards">${macroCards}</div>` +
-    `<h3 class="snap-head">Valuation</h3><div class="cards">${valCards}</div>` +
-    `<h3 class="snap-head">FX</h3><div class="cards">${fxCards}</div>`;
+  document.getElementById("snapshot-body").innerHTML = banner + `<div class="snap-grid">` +
+    snapBlock("Equities", equityLines) +
+    snapBlock("Rates", rateLines) +
+    snapBlock("Macro", macroLines) +
+    snapBlock("Valuation &amp; cost of capital", valLines) +
+    snapBlock("Currency", fxLines) +
+    `</div>` +
+    `<p class="section-note">Commodities are global and live on their own tab. Percentages beside a level are year-to-date.</p>`;
 }
 
 function setupTabs() {

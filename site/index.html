@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Markets Dashboard</title>
-  <link rel="stylesheet" href="assets/style.css?v=744eb4dc35" />
+  <link rel="stylesheet" href="assets/style.css?v=9226d179a0" />
 </head>
 <body>
   <header>
@@ -14,39 +14,39 @@
   </header>
 
   <nav class="tabs">
-    <button class="active" data-target="panel-equities">Equity Indices</button>
-    <button data-target="panel-yields">Yield Curves</button>
-    <button data-target="panel-macro">Macroeconomics</button>
+    <button class="active" data-target="panel-macro">Macroeconomics</button>
+    <button data-target="panel-equities">Equity Indices</button>
+    <button data-target="panel-yields">Rates</button>
     <button data-target="panel-currencies">Currencies</button>
     <button data-target="panel-commodities">Commodities</button>
     <button data-target="panel-valuation">Valuation</button>
-    <button data-target="panel-crossasset">Cross-Asset &amp; Regime</button>
+    <button data-target="panel-crossasset">Cross-Asset</button>
     <button data-target="panel-snapshot">Regional Snapshot</button>
   </nav>
 
   <main>
-    <section id="panel-equities" class="panel active"></section>
+    <section id="panel-macro" class="panel active"></section>
+    <section id="panel-equities" class="panel"></section>
     <section id="panel-yields" class="panel"></section>
-    <section id="panel-macro" class="panel"></section>
     <section id="panel-currencies" class="panel"></section>
     <section id="panel-commodities" class="panel"></section>
     <section id="panel-valuation" class="panel"></section>
     <section id="panel-crossasset" class="panel"></section>
     <section id="panel-snapshot" class="panel">
-      <h2>Regional Snapshot</h2>
-      <p class="section-note">Everything tracked for one region, grouped the same way as the tabs. Commodities are global — see the Commodities tab.</p>
-      <div class="region-select">
-        <label for="region-selector">Region: </label>
-        <select id="region-selector"></select>
+      <div class="chart-controls">
+        <div class="control-group">
+          <span class="control-label">Region</span>
+          <select id="region-selector"></select>
+        </div>
       </div>
       <div id="snapshot-body"></div>
     </section>
 
     <div class="status-footer">
-      Sources and their quirks are documented in <code>NETWORK.md</code>. Anything without a confirmed free source shows as <span class="stub">not yet wired</span> rather than a guess.
+      Every series and its quirks are recorded in <code>data/DATA-CATALOG.csv</code>; cross-cutting endpoint notes are in <code>SPEC.md</code>. Anything without a confirmed free source shows as <span class="stub">not yet wired</span> rather than a guess.
     </div>
   </main>
 
-  <script src="assets/app.js?v=613b75840e"></script>
+  <script src="assets/app.js?v=42524acd55"></script>
 </body>
 </html>

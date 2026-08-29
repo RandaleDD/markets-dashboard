@@ -1,63 +1,97 @@
-/* Design tokens — from the dataviz skill's validated default palette.
-   Swap these values to rebrand; nothing else in this file should need to change. */
+/* Design tokens — Marco's house palette (site/Colour scheme.png).
+   Swap these values to rebrand; nothing else in this file should need to change.
+
+   Ink #1E242B · Graphite #434C56 · Stone #7A838E · Mist #C7CFD7 · Cloud #F4F7FA
+   Deep Blue #1E4E79 · Deep Teal #2F666C · Slate Blue #5D7084 · Alert #8A4B43
+
+   Direction is teal-up / brick-down rather than green/red: at institutional
+   weight the palette's own teal and brick carry the signal without the
+   traffic-light look, and both stay legible for red-green colour blindness. */
 :root {
   color-scheme: light;
-  --surface-1:      #fcfcfb;
-  --page-plane:     #f9f9f7;
-  --text-primary:   #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted:     #898781;
-  --gridline:       #e1e0d9;
-  --baseline:       #c3c2b7;
-  --border:         rgba(11,11,11,0.10);
-  --delta-up:       #006300;
-  --delta-down:     #d03b3b;
-  --series-1:       #2a78d6; /* blue — default chart line color */
-  --stub-bg:        #f0efec;
-  --stub-text:      #898781;
-  --div-neg:        #2a78d6;
-  --div-mid:        #f0efec;
-  --div-pos:        #e34948;
+  --surface-1:      #ffffff;
+  --page-plane:     #f4f7fa;   /* Cloud */
+  --text-primary:   #1e242b;   /* Ink */
+  --text-secondary: #434c56;   /* Graphite */
+  --text-muted:     #7a838e;   /* Stone */
+  --gridline:       #dde4eb;
+  --baseline:       #c7cfd7;   /* Mist */
+  --border:         rgba(30,36,43,0.12);
+  --delta-up:       #2f666c;   /* Deep Teal */
+  --delta-down:     #8a4b43;   /* Alert Red */
+  --accent:         #1e4e79;   /* Primary Deep Blue */
+  --accent-soft:    #eaf0f6;
+  --series-1:       #1e4e79;
+  --series-2:       #2f666c;
+  --series-3:       #8a4b43;
+  --series-4:       #5d7084;
+  --series-5:       #7d858d;
+  --series-6:       #1f5a89;
+  --series-7:       #2d6c73;
+  --series-8:       #b8d6de;
+  --stub-bg:        #eef2f6;
+  --stub-text:      #7a838e;
+  --div-neg:        #1e4e79;
+  --div-mid:        #f4f7fa;
+  --div-pos:        #8a4b43;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --surface-1:      #1a1a19;
-    --page-plane:     #0d0d0d;
-    --text-primary:   #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted:     #898781;
-    --gridline:       #2c2c2a;
-    --baseline:       #383835;
-    --border:         rgba(255,255,255,0.10);
-    --div-neg:        #3987e5;
-    --div-mid:        #383835;
-    --div-pos:        #e66767;
-    --delta-up:       #0ca30c;
-    --delta-down:     #e66767;
-    --series-1:       #3987e5;
-    --stub-bg:        #232322;
-    --stub-text:      #898781;
+    --surface-1:      #262e36;
+    --page-plane:     #1e242b;
+    --text-primary:   #f4f7fa;
+    --text-secondary: #c7cfd7;
+    --text-muted:     #8f98a3;
+    --gridline:       #38424c;
+    --baseline:       #434c56;
+    --border:         rgba(244,247,250,0.14);
+    --delta-up:       #6aa8ae;
+    --delta-down:     #c0837a;
+    --accent:         #7fa8ce;
+    --accent-soft:    #2c3742;
+    --series-1:       #7fa8ce;
+    --series-2:       #6aa8ae;
+    --series-3:       #c0837a;
+    --series-4:       #93a3b5;
+    --series-5:       #a8b0b8;
+    --series-6:       #5f97c6;
+    --series-7:       #5a9aa1;
+    --series-8:       #b8d6de;
+    --stub-bg:        #2c3239;
+    --stub-text:      #8f98a3;
+    --div-neg:        #7fa8ce;
+    --div-mid:        #38424c;
+    --div-pos:        #c0837a;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface-1:      #1a1a19;
-  --page-plane:     #0d0d0d;
-  --text-primary:   #ffffff;
-  --text-secondary: #c3c2b7;
-  --text-muted:     #898781;
-  --gridline:       #2c2c2a;
-  --baseline:       #383835;
-  --border:         rgba(255,255,255,0.10);
-  --div-neg:        #3987e5;
-  --div-mid:        #383835;
-  --div-pos:        #e66767;
-  --delta-up:       #0ca30c;
-  --delta-down:     #e66767;
-  --series-1:       #3987e5;
-  --stub-bg:        #232322;
-  --stub-text:      #898781;
+  --surface-1:      #262e36;
+  --page-plane:     #1e242b;
+  --text-primary:   #f4f7fa;
+  --text-secondary: #c7cfd7;
+  --text-muted:     #8f98a3;
+  --gridline:       #38424c;
+  --baseline:       #434c56;
+  --border:         rgba(244,247,250,0.14);
+  --delta-up:       #6aa8ae;
+  --delta-down:     #c0837a;
+  --accent:         #7fa8ce;
+  --accent-soft:    #2c3742;
+  --series-1:       #7fa8ce;
+  --series-2:       #6aa8ae;
+  --series-3:       #c0837a;
+  --series-4:       #93a3b5;
+  --series-5:       #a8b0b8;
+  --series-6:       #5f97c6;
+  --series-7:       #5a9aa1;
+  --series-8:       #b8d6de;
+  --stub-bg:        #2c3239;
+  --stub-text:      #8f98a3;
+  --div-neg:        #7fa8ce;
+  --div-mid:        #38424c;
+  --div-pos:        #c0837a;
 }
 
 * { box-sizing: border-box; }
@@ -307,3 +341,210 @@ td.corr-cell.empty { color: var(--text-muted); background: var(--stub-bg); }
   flex: 0 1 220px; height: 10px; border-radius: 999px;
   border: 1px solid var(--border);
 }
+
+/* ===========================================================================
+   Institutional layer — 2026-08-29 rework.
+   Tighter type, quieter rules, and the components the new charts need.
+   =========================================================================== */
+
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.006em;
+}
+header {
+  padding: 22px 28px 14px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+}
+header h1 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+header .meta { font-size: 0.78rem; color: var(--text-muted); }
+
+/* Section headings read as rules, not shouts. */
+h2 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+h3.snap-head {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* --- Chart panel: one large chart above a table -------------------------- */
+.chart-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 16px 18px 10px;
+  margin-bottom: 22px;
+}
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.control-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.control-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.chip {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+/* A chip standing for one plotted line wears that line's colour. */
+.chip.active[data-swatch] { background: var(--chip-color); border-color: var(--chip-color); }
+.chart-controls select,
+.chart-controls input[type="date"] {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+.chart-figure { width: 100%; overflow-x: auto; }
+.chart-figure svg { display: block; width: 100%; height: auto; }
+.chart-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: var(--text-secondary); }
+.legend-swatch { width: 18px; height: 2.5px; border-radius: 2px; }
+
+/* --- Hover tooltip on index names ---------------------------------------- */
+.has-tip { border-bottom: 1px dotted var(--text-muted); cursor: help; position: relative; }
+.tip-pop {
+  position: fixed;
+  z-index: 60;
+  max-width: 330px;
+  padding: 10px 12px;
+  background: var(--text-primary);
+  color: var(--surface-1);
+  border-radius: 3px;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  box-shadow: 0 4px 18px rgba(30,36,43,0.28);
+  pointer-events: none;
+}
+.tip-pop .tip-title { font-weight: 600; display: block; margin-bottom: 4px; }
+.tip-pop .tip-row { display: block; opacity: 0.88; margin-top: 3px; }
+
+/* --- Merged commentary row under a table --------------------------------- */
+td.commentary {
+  text-align: left;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  background: var(--page-plane);
+  font-style: normal;
+  white-space: normal;
+  padding: 7px 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- Regime map explainer ------------------------------------------------ */
+.regime-explain {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  max-width: 78ch;
+  margin: 10px 0 4px;
+}
+
+/* --- Regional snapshot: a cheat sheet, not a wall of boxes ---------------- */
+.snap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.snap-block {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 14px 16px 12px;
+}
+.snap-block > h3 {
+  margin: 0 0 10px;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.snap-lines { display: flex; flex-direction: column; gap: 0; }
+.snap-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--gridline);
+}
+.snap-line:last-child { border-bottom: 0; }
+.snap-line .k { font-size: 0.78rem; color: var(--text-secondary); }
+.snap-line .v {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.snap-line .d { font-size: 0.74rem; font-variant-numeric: tabular-nums; min-width: 62px; text-align: right; }
+.snap-line .sub { grid-column: 1 / -1; font-size: 0.68rem; color: var(--text-muted); margin-top: -2px; }
+.snap-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 26px;
+  padding: 14px 18px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-bottom: 18px;
+}
+.snap-hero .hero-region {
+  font-size: 1.05rem; font-weight: 600; letter-spacing: 0.02em; color: var(--text-primary);
+}
+.snap-hero .hero-stat { display: flex; flex-direction: column; gap: 1px; }
+.snap-hero .hero-stat .hk {
+  font-size: 0.64rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); font-weight: 600;
+}
+.snap-hero .hero-stat .hv { font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.snap-curve { margin-left: auto; }
+.snap-curve svg { display: block; }

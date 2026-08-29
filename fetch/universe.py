@@ -35,23 +35,58 @@ REGION_NAMES = {
 # 1. Equity indices — source: Yahoo Finance via yfinance.
 # Stooq was the original source and is now unusable (JS anti-bot challenge).
 # ---------------------------------------------------------------------------
+# `weighting` and `basis` drive the tooltip on each index name. They are worth
+# stating because two of these are routinely misread: the DAX is a PERFORMANCE
+# index (dividends reinvested), so it is not comparable with the price-return
+# indices beside it, and the Nikkei 225 is PRICE-weighted, so a high-priced
+# constituent moves it regardless of company size. Where the tracked instrument
+# is an ETF rather than the index, `basis` says so — a fund price is not an
+# index level.
 EQUITY_INDICES = [
-    {"id": "sp500", "region": "US", "name": "S&P 500", "currency": "USD", "yahoo": "^GSPC"},
-    {"id": "nasdaq100", "region": "US", "name": "Nasdaq 100", "currency": "USD", "yahoo": "^NDX"},
-    {"id": "russell2000", "region": "US", "name": "Russell 2000", "currency": "USD", "yahoo": "^RUT"},
-    {"id": "ftse100", "region": "UK", "name": "FTSE 100", "currency": "GBP", "yahoo": "^FTSE"},
-    {"id": "stoxx600", "region": "EZ", "name": "STOXX Europe 600", "currency": "EUR", "yahoo": "^STOXX"},
-    {"id": "dax", "region": "DE", "name": "DAX", "currency": "EUR", "yahoo": "^GDAXI"},
-    {"id": "smi", "region": "CH", "name": "SMI", "currency": "CHF", "yahoo": "^SSMI"},
+    {"id": "sp500", "region": "US", "name": "S&P 500", "currency": "USD", "yahoo": "^GSPC",
+     "weighting": "Float-adjusted market-cap weighted",
+     "basis": "Price return — dividends are not included"},
+    {"id": "nasdaq100", "region": "US", "name": "Nasdaq 100", "currency": "USD", "yahoo": "^NDX",
+     "weighting": "Modified market-cap weighted (largest holdings capped)",
+     "basis": "Price return — dividends are not included"},
+    {"id": "russell2000", "region": "US", "name": "Russell 2000", "currency": "USD", "yahoo": "^RUT",
+     "weighting": "Float-adjusted market-cap weighted",
+     "basis": "Price return — dividends are not included"},
+    {"id": "ftse100", "region": "UK", "name": "FTSE 100", "currency": "GBP", "yahoo": "^FTSE",
+     "weighting": "Float-adjusted market-cap weighted",
+     "basis": "Price return — dividends are not included"},
+    {"id": "stoxx600", "region": "EZ", "name": "STOXX Europe 600", "currency": "EUR", "yahoo": "^STOXX",
+     "weighting": "Free-float market-cap weighted",
+     "basis": "Price return — dividends are not included"},
+    {"id": "dax", "region": "DE", "name": "DAX", "currency": "EUR", "yahoo": "^GDAXI",
+     "weighting": "Free-float market-cap weighted",
+     "basis": "TOTAL RETURN — the DAX reinvests dividends, so its level is not "
+              "comparable with the price-return indices beside it"},
+    {"id": "smi", "region": "CH", "name": "SMI", "currency": "CHF", "yahoo": "^SSMI",
+     "weighting": "Free-float market-cap weighted (constituents capped at 18%)",
+     "basis": "Price return — dividends are not included"},
     # Yahoo serves the CSI 300 index itself (000300.SS / 399300.SZ) with only
     # 1d/5d of history — no daily series — so the mainland-listed, CNY-priced
     # tracker ETF stands in. Same convention as msci_em/bcom.
-    {"id": "csi300", "region": "CN", "name": "CSI 300 (proxy: 510300.SS ETF)", "currency": "CNY", "yahoo": "510300.SS"},
-    {"id": "hangseng", "region": "CN", "name": "Hang Seng", "currency": "HKD", "yahoo": "^HSI"},
-    {"id": "nikkei225", "region": "JP", "name": "Nikkei 225", "currency": "JPY", "yahoo": "^N225"},
-    {"id": "osebx", "region": "NO", "name": "OSEBX (Oslo Børs)", "currency": "NOK", "yahoo": "OSEBX.OL"},
+    {"id": "csi300", "region": "CN", "name": "CSI 300 (proxy: 510300.SS ETF)", "currency": "CNY", "yahoo": "510300.SS",
+     "weighting": "Free-float market-cap weighted",
+     "basis": "Fund price, not the index — a dividend-distributing tracker ETF "
+              "stands in because Yahoo serves the CSI 300 itself with only days "
+              "of history"},
+    {"id": "hangseng", "region": "CN", "name": "Hang Seng", "currency": "HKD", "yahoo": "^HSI",
+     "weighting": "Free-float market-cap weighted (constituents capped at 8%)",
+     "basis": "Price return — dividends are not included"},
+    {"id": "nikkei225", "region": "JP", "name": "Nikkei 225", "currency": "JPY", "yahoo": "^N225",
+     "weighting": "PRICE-weighted, not market-cap weighted — a high share price "
+                  "moves it more than a large company does",
+     "basis": "Price return — dividends are not included"},
+    {"id": "osebx", "region": "NO", "name": "OSEBX (Oslo Børs)", "currency": "NOK", "yahoo": "OSEBX.OL",
+     "weighting": "Free-float market-cap weighted",
+     "basis": "Price return, adjusted for corporate actions"},
     # Secondary tier
-    {"id": "msci_em", "region": "EM", "name": "MSCI EM (proxy: EEM ETF)", "currency": "USD", "yahoo": "EEM"},
+    {"id": "msci_em", "region": "EM", "name": "MSCI EM (proxy: EEM ETF)", "currency": "USD", "yahoo": "EEM",
+     "weighting": "Free-float market-cap weighted",
+     "basis": "Fund price, not the index — a dividend-distributing ETF stands in"},
 ]
 
 VOLATILITY_INDICES = [
