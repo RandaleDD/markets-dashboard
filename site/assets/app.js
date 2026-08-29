@@ -516,7 +516,11 @@ function renderValuation() {
       regionName(region),
       v.cape != null ? `<strong>${v.cape.toFixed(1)}</strong>${ctxTag(v.cape_context)}` : dash(),
       e.erp_pct != null ? `<strong>${e.erp_pct.toFixed(2)}%</strong>${ctxTag(e.context)}` : dash(),
-      hasAny ? "" : `<span class="stub">awaiting non-US valuation sourcing</span>`,
+      // The only region that reaches this branch is the Eurozone, and it is
+      // descoped rather than pending: Damodaran publishes member states with
+      // no bloc aggregate. Saying "awaiting sourcing" would promise work that
+      // is deliberately not going to happen.
+      hasAny ? "" : `<span class="stub">no bloc-level source — see DATA-CATALOG.csv</span>`,
     ];
   });
   const erpCovered = REGION_ORDER.filter((r) => ((DATA.equity_risk_premia || {})[r] || {}).erp_pct != null).length;
