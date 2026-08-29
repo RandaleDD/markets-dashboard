@@ -265,7 +265,7 @@ function chartableRows(key, name, history, cells, colspan) {
 // Panels
 // ---------------------------------------------------------------------------
 function renderEquities() {
-  const headers = ["Index", "Level", "1D", "1W", "MTD", "YTD", "1Y", "DD from ATH", "Vol (20d)", "1Y trend"];
+  const headers = ["Index", "Level", "1W", "1M", "YTD", "1Y", "DD from ATH", "Vol (13w)", "1Y trend"];
   const rows = [];
   REGION_ORDER.concat(["EM"]).forEach((region) => {
     const indices = (DATA.equity_indices || {})[region] || [];
@@ -276,17 +276,17 @@ function renderEquities() {
       const cells = [
         `${idx.name} <span class="ccy">${idx.currency}</span>`,
         fmtNum(idx.level, (idx.level || 0) > 100 ? 1 : 4),
-        fmtPct(idx.chg_1d_pct), fmtPct(idx.chg_1w_pct), fmtPct(idx.chg_mtd_pct),
+        fmtPct(idx.chg_1w_pct), fmtPct(idx.chg_mtd_pct),
         fmtPct(idx.chg_ytd_pct), fmtPct(idx.chg_1y_pct),
         fmtPct(idx.drawdown_from_ath_pct) + ctxTag(idx.drawdown_context),
-        (idx.realized_vol_20d_pct != null ? `${idx.realized_vol_20d_pct.toFixed(1)}%` : dash()) + ctxTag(idx.vol_context),
+        (idx.realized_vol_13w_pct != null ? `${idx.realized_vol_13w_pct.toFixed(1)}%` : dash()) + ctxTag(idx.vol_context),
       ];
       chartableRows(key, idx.name, idx.history, cells, headers.length).forEach((r) => rows.push(r));
     });
   });
   document.getElementById("panel-equities").innerHTML =
     `<h2>Equity Indices</h2>` +
-    note("Levels in local currency. Click any trend sparkline to open a chart and change the period.") +
+    note("Weekly closes (Friday, or the last session before it). Levels in local currency; volatility is annualised from 13 weeks of weekly returns, and drawdown is measured on weekly closes, so an intra-week trough that recovered by Friday does not appear. Click any trend sparkline to open a chart and change the period.") +
     tableWithRaw(headers, rows);
 }
 
@@ -453,10 +453,10 @@ function renderMacro() {
 }
 
 function renderCurrencies() {
-  const headers = ["Pair", "Level", "1D", "1W", "YTD", "1Y trend"];
+  const headers = ["Pair", "Level", "1W", "YTD", "1Y trend"];
   const rows = [];
   (DATA.currencies || []).forEach((fx) => {
-    const cells = [fx.name, fmtNum(fx.level, 4) + ctxTag(fx.context), fmtPct(fx.chg_1d_pct), fmtPct(fx.chg_1w_pct), fmtPct(fx.chg_ytd_pct)];
+    const cells = [fx.name, fmtNum(fx.level, 4) + ctxTag(fx.context), fmtPct(fx.chg_1w_pct), fmtPct(fx.chg_ytd_pct)];
     chartableRows(`fx:${fx.id}`, fx.name, fx.history, cells, headers.length).forEach((r) => rows.push(r));
   });
 
@@ -490,14 +490,14 @@ function renderCurrencies() {
 }
 
 function renderCommodities() {
-  const headers = ["Commodity", "Contract", "Unit", "Level", "1D", "1W", "YTD", "1Y trend"];
+  const headers = ["Commodity", "Contract", "Unit", "Level", "1W", "YTD", "1Y trend"];
   const rows = [];
   (DATA.commodities || []).forEach((cm) => {
     const cells = [
       cm.name,
       `<span class="ccy">${cm.exchange || ""} ${cm.contract || ""}</span>`,
       `<span class="ccy">${cm.unit || ""}</span>`,
-      fmtNum(cm.level, 2) + ctxTag(cm.context), fmtPct(cm.chg_1d_pct), fmtPct(cm.chg_1w_pct), fmtPct(cm.chg_ytd_pct),
+      fmtNum(cm.level, 2) + ctxTag(cm.context), fmtPct(cm.chg_1w_pct), fmtPct(cm.chg_ytd_pct),
     ];
     chartableRows(`commodity:${cm.id}`, `${cm.name} (${cm.unit || ""})`, cm.history, cells, headers.length).forEach((r) => rows.push(r));
   });
@@ -677,7 +677,7 @@ function correlationBlock() {
     const body = m.labels.map((rowLabel, i) => {
       const cells = m.matrix[i].map((v, j) => {
         if (v === null) return `<td class="corr-cell empty" title="insufficient overlap">—</td>`;
-        const title = `${rowLabel} vs ${m.labels[j]}: ${v >= 0 ? "+" : ""}${v.toFixed(3)} over ${m.window_days} trading days (${m.start} to ${m.as_of})`;
+        const title = `${rowLabel} vs ${m.labels[j]}: ${v >= 0 ? "+" : ""}${v.toFixed(3)} over ${m.window_weeks} weeks (${m.start} to ${m.as_of})`;
         return `<td class="corr-cell" style="background:${corrColor(v, pal)};color:${inkFor(v, pal)}" title="${title}">${v >= 0 ? "+" : ""}${v.toFixed(2)}</td>`;
       }).join("");
       return `<tr><th class="row-head">${rowLabel}</th>${cells}</tr>`;
@@ -702,7 +702,7 @@ function correlationBlock() {
     </div>`;
 
   return `<h2 class="mt">Cross-Asset Correlation</h2>` +
-    note(`${corr.note || ""} Window: ${m.window_days} trading days, ${m.start} to ${m.as_of} (n=${m.n_obs}).`) +
+    note(`${corr.note || ""} Window: ${m.window_weeks} weeks, ${m.start} to ${m.as_of} (n=${m.n_obs}).`) +
     `<div class="period-bar">${buttons}
        <button class="period-btn${corrTableView ? " active" : ""}" data-corr-table="1">${corrTableView ? "Heatmap view" : "Table view"}</button>
      </div>` + legend + grid;
@@ -760,7 +760,7 @@ function renderSnapshot(region) {
   const t = curve.tenors || {};
 
   const equityCards = indices.map((idx) =>
-    card(idx.name, fmtNum(idx.level, 1), `${fmtPct(idx.chg_1d_pct)} 1D · ${fmtPct(idx.chg_ytd_pct)} YTD`)
+    card(idx.name, fmtNum(idx.level, 1), `${fmtPct(idx.chg_1w_pct)} 1W · ${fmtPct(idx.chg_ytd_pct)} YTD`)
   ).join("") || `<div class="card empty">No index tracked for this region.</div>`;
 
   const rateCards = [
@@ -783,7 +783,7 @@ function renderSnapshot(region) {
 
   const fxForRegion = { UK: "gbpusd", EZ: "eurusd", DE: "eurusd", CH: "eurchf", JP: "usdjpy", CN: "usdcny", NO: "eurnok", US: "dxy" }[region];
   const fx = (DATA.currencies || []).find((f) => f.id === fxForRegion);
-  const fxCards = fx ? card(fx.name, fmtNum(fx.level, 4), `${fmtPct(fx.chg_1d_pct)} 1D · ${fmtPct(fx.chg_ytd_pct)} YTD`) : `<div class="card empty">—</div>`;
+  const fxCards = fx ? card(fx.name, fmtNum(fx.level, 4), `${fmtPct(fx.chg_1w_pct)} 1W · ${fmtPct(fx.chg_ytd_pct)} YTD`) : `<div class="card empty">—</div>`;
 
   const valCards = [
     card("CAPE", val.cape != null ? val.cape.toFixed(1) : dash(), val.name || ""),

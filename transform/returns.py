@@ -1,9 +1,31 @@
 """
 Derived return/risk metrics from a raw [date, value] price series.
 Works on a pandas DataFrame with columns ["date", "value"], sorted ascending.
+
+**These are weekly observations.** The dashboard stores one close per completed
+week (Friday's, or the last session before it), so every metric here is
+computed on weekly steps and the constants say so:
+
+  - Volatility annualises with sqrt(52), not sqrt(252). Using the daily factor
+    on weekly returns would overstate volatility by a factor of ~2.2.
+  - The windows are named in weeks, because that is what they are. 4w and 13w
+    span the same calendar month and quarter that the old 20d and 60d windows
+    did, so the figures stay comparable with what the dashboard showed before.
+  - There is no 1-day change. On weekly data the shortest real step IS one
+    week, and reporting it under a "1D" label would be a number that does not
+    mean what it says.
+
+Drawdown is likewise measured on weekly closes, so an intra-week trough that
+recovered by Friday does not appear. That is a real limitation of weekly
+storage, not an error, and the UI labels the column accordingly.
 """
 import numpy as np
 import pandas as pd
+
+# Weekly steps, so 52 of them a year.
+ANNUALISE = np.sqrt(52)
+WEEKS_PER_MONTH = 4
+WEEKS_PER_QUARTER = 13
 
 
 def _value_on_or_before(df: pd.DataFrame, target_date: pd.Timestamp):
@@ -47,22 +69,25 @@ def compute_return_metrics(df: pd.DataFrame) -> dict:
     drawdown_series = (df["value"] / running_max - 1.0) * 100.0
     drawdown_ath = float(drawdown_series.iloc[-1])
 
-    # Realized volatility (annualized, close-to-close), 20d and 60d windows
-    daily_returns = df["value"].pct_change().dropna()
-    vol_20d = float(daily_returns.tail(20).std() * np.sqrt(252) * 100.0) if len(daily_returns) >= 20 else None
-    vol_60d = float(daily_returns.tail(60).std() * np.sqrt(252) * 100.0) if len(daily_returns) >= 60 else None
+    # Realized volatility (annualized, close-to-close) over 4 and 13 weeks --
+    # one month and one quarter, the same horizons the daily 20d/60d windows
+    # covered. sqrt(52) because the steps are weekly.
+    weekly_returns = df["value"].pct_change().dropna()
+    vol_4w = (float(weekly_returns.tail(WEEKS_PER_MONTH).std() * ANNUALISE * 100.0)
+              if len(weekly_returns) >= WEEKS_PER_MONTH else None)
+    vol_13w = (float(weekly_returns.tail(WEEKS_PER_QUARTER).std() * ANNUALISE * 100.0)
+               if len(weekly_returns) >= WEEKS_PER_QUARTER else None)
 
     return {
         "as_of": latest_date.strftime("%Y-%m-%d"),
         "level": round(latest_value, 4),
-        "chg_1d_pct": _round_or_none(pct_change_since(days_back=1)),
         "chg_1w_pct": _round_or_none(pct_change_since(days_back=7)),
         "chg_mtd_pct": _round_or_none(pct_change_since(months_back=1)),
         "chg_ytd_pct": _round_or_none(pct_change_since(ytd=True)),
         "chg_1y_pct": _round_or_none(pct_change_since(years_back=1)),
         "drawdown_from_ath_pct": round(drawdown_ath, 2),
-        "realized_vol_20d_pct": _round_or_none(vol_20d),
-        "realized_vol_60d_pct": _round_or_none(vol_60d),
+        "realized_vol_4w_pct": _round_or_none(vol_4w),
+        "realized_vol_13w_pct": _round_or_none(vol_13w),
     }
 
 
@@ -79,29 +104,22 @@ def _round_or_none(x, ndigits=2):
     return round(x, ndigits) if x is not None and not (isinstance(x, float) and np.isnan(x)) else None
 
 
-def compact_history(df: pd.DataFrame, years: float = 5.0, daily_years: float = 1.0) -> list:
+def compact_history(df: pd.DataFrame, years: float = 5.0) -> list:
     """
-    History for the interactive chart: full daily resolution for the most
-    recent `daily_years`, weekly (Friday) sampling before that, out to `years`.
+    History for the interactive chart: every stored week, out to `years`.
 
-    Storing 5 years at daily resolution for every series would roughly triple
-    latest.json for detail nobody can see on a 5-year chart. This keeps
-    3M/YTD/1Y exact while making 2Y/3Y/5Y cheap.
+    This used to downsample the tail of the window to Fridays, because the
+    stored series were daily and 5 years of daily points for ~30 series roughly
+    tripled latest.json. Storage is weekly now, so the series IS already at
+    Friday resolution and a second pass would only throw away points the chart
+    can actually use.
     """
     if df is None or df.empty:
         return []
     df = df.dropna(subset=["value"]).sort_values("date")
     if df.empty:
         return []
-    end = df["date"].max()
-    start = end - pd.DateOffset(days=int(365.25 * years))
-    daily_start = end - pd.DateOffset(days=int(365.25 * daily_years))
-
-    recent = df[df["date"] >= daily_start]
-    older = df[(df["date"] >= start) & (df["date"] < daily_start)]
-    if not older.empty:
-        older = older.set_index("date").resample("W-FRI").last().dropna(subset=["value"]).reset_index()
-
-    out = pd.concat([older, recent], ignore_index=True) if not older.empty else recent
+    start = df["date"].max() - pd.DateOffset(days=int(365.25 * years))
+    out = df[df["date"] >= start]
     return [[d.strftime("%Y-%m-%d"), round(float(v), 4)]
             for d, v in zip(out["date"], out["value"])]
