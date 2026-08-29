@@ -28,7 +28,6 @@ from fetch import universe
 from transform.correlation import rolling_correlation_matrix
 from transform.cost_of_capital import stack_cost_of_capital
 from transform.curves import curve_shape, latest_tenor_values
-from transform.erp import compute_erp
 from transform.fx_hedging import approx_hedging_cost
 from transform.percentile import has_any, percentile_context
 from transform.regime import AXIS_DEFINITION, regime_coordinates
@@ -423,13 +422,14 @@ def build_payload(conn, is_sample: bool = False) -> dict:
                 "context": _ctx_if_varies(crp_df),
             }
             continue
-        y10 = out["yield_curves"].get(region, {}).get("tenors", {}).get("10Y")
-        val = compute_erp(None, y10)
-        status[f"erp:{region}"] = "ok" if val is not None else "stubbed"
+        # Only the Eurozone reaches here: Damodaran publishes member states with
+        # no bloc aggregate, and no other free source exists. Left empty rather
+        # than filled with a number built a different way.
+        status[f"erp:{region}"] = "stubbed"
         out["equity_risk_premia"][region] = {
-            "erp_pct": val,
+            "erp_pct": None,
             "country_risk_premium_pct": None,
-            "method": "Earnings yield minus 10y govt yield" if val is not None else None,
+            "method": None,
             "as_of": None,
             "context": None,
         }

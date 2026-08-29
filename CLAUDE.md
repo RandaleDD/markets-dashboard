@@ -13,12 +13,13 @@ Live: https://randaledd.github.io/markets-dashboard/
   traps, the BoE archive traps, and the dead ends. Read that appendix before
   touching `fetch/sources.py`. **The sourcing table is authoritative; don't
   restate it here.**
-- `DATA-CATALOG.csv` — the reviewed sourcing decision per series, and the
-  live mirror of what the database holds: `db/catalog_sync.py` rewrites its
-  coverage columns after every run. It seeds `series_catalog`.
-  `DATA-CATALOG-ruled-out.csv` records the permanent structural gaps (Swiss
-  and Norwegian inflation expectations: neither government issues
-  inflation-linked debt, so there is nothing to source).
+- `data/DATA-CATALOG.csv` — the reviewed sourcing decision per series, and
+  the live mirror of what the database holds: `db/catalog_sync.py` rewrites
+  its coverage columns after every run. It seeds `series_catalog`. Permanent
+  structural gaps are rows in it like any other, marked `no source found`
+  with the reason and the date last checked in their notes — Swiss and
+  Norwegian inflation expectations, where neither government issues
+  inflation-linked debt, so there is nothing to source.
 
 ## Architecture
 
@@ -133,7 +134,7 @@ trusting them — this section is a snapshot and goes stale on its own.
   every run, so expect merge conflicts on both when pushing local work. Both
   are generated output: take your regenerated version, don't hand-merge them.
   For the database that means re-running the pipeline, never resolving hunks.
-- `DATA-CATALOG.csv` is half hand-written, half generated. `db/catalog_sync.py`
+- `data/DATA-CATALOG.csv` is half hand-written, half generated. `db/catalog_sync.py`
   owns the coverage columns to the right and may flip `Status` between `ok`
   and `stale`; it must never touch the prose columns or a scope decision
   (`planned (v2)`, `no source found`, `exists, not free`, `descoped`).

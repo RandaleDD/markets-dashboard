@@ -61,9 +61,9 @@ ok "done"
 
 # ---------------------------------------------------------------------------
 say "4/5  Publishing"
-if git rev-parse --git-dir >/dev/null 2>&1 && ! git diff --quiet HEAD -- data/markets.db site/data/latest.json DATA-CATALOG.csv 2>/dev/null; then
+if git rev-parse --git-dir >/dev/null 2>&1 && ! git diff --quiet HEAD -- data/markets.db site/data/latest.json data/DATA-CATALOG.csv 2>/dev/null; then
   if ask "Publish this to the live site?"; then
-    git add data/markets.db site/data/latest.json DATA-CATALOG.csv
+    git add data/markets.db site/data/latest.json data/DATA-CATALOG.csv
     git commit -q -m "Weekly data refresh $(date -u +%Y-%m-%d) (run from Mac)" \
       && git push -q origin main && ok "pushed to GitHub"
     # Pushing alone does not rebuild the page — the workflow does that.
