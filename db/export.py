@@ -161,7 +161,15 @@ def _build_curve(region, cfg, hist, status, prefix, id_prefix):
         "source_note": cfg.get("note"),
         "cadence": cadence,
         "lagged": cfg.get("lagged", False),
+        "unofficial": cfg.get("unofficial", False),
         "basis": cfg.get("basis"),
+        # Per-tenor history, so the Rates chart can draw the curve as it stood
+        # on any past date rather than only today. Nominal curves only, and
+        # three years rather than five: this is the single heaviest thing in
+        # the payload, and the real-yield table has no date picker to feed.
+        "tenor_history": ({t: compact_history(df, years=3)
+                           for t, df in tenor_series.items() if df is not None}
+                          if prefix == "curve" else None),
     }
 
 
@@ -213,6 +221,10 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         # mean-reverting, so those are what carry context here.
         out["equity_indices"].setdefault(idx["region"], []).append({
             "id": idx["id"], "name": idx["name"], "currency": idx["currency"],
+            "region": idx["region"],
+            # Drives the tooltip on the index name: how it is weighted and
+            # whether its level includes dividends.
+            "weighting": idx.get("weighting"), "basis": idx.get("basis"),
             **(compute_return_metrics(df) if df is not None else {}),
             "vol_context": _ctx(_rolling_vol_series(df)) if df is not None else None,
             "drawdown_context": _ctx(_drawdown_series(df)) if df is not None else None,
