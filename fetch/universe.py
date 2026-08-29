@@ -81,8 +81,10 @@ CURRENCIES = [
 # copper is quoted in USD/lb on COMEX but USD/tonne on the LME.
 # ---------------------------------------------------------------------------
 COMMODITIES = [
-    {"id": "brent", "name": "Brent Crude", "yahoo": "BZ=F",
+    {"id": "brent", "name": "Oil — Brent Crude", "yahoo": "BZ=F",
      "exchange": "ICE", "contract": "Brent Crude, front month", "unit": "USD/bbl"},
+    {"id": "wti", "name": "Oil — WTI", "yahoo": "CL=F",
+     "exchange": "NYMEX", "contract": "WTI Light Sweet Crude, front month", "unit": "USD/bbl"},
     {"id": "natgas_hh", "name": "Natural Gas — Henry Hub (US)", "yahoo": "NG=F",
      "exchange": "NYMEX", "contract": "Henry Hub Natural Gas, front month", "unit": "USD/MMBtu"},
     {"id": "natgas_ttf", "name": "Natural Gas — TTF (Europe)", "yahoo": "TTF=F",
@@ -168,13 +170,22 @@ YIELD_CURVES = {
         },
     },
     "CH": {
-        "source": "fred", "cadence": "monthly",
-        "note": "SNB retired its Confederation bond yield cubes in 2025 "
-                "(see SPEC.md's endpoint appendix). Only a monthly 10y OECD series remains, "
-                "which lags roughly two months — flagged in the UI so it is "
-                "never read as a daily quote.",
-        "lagged": True,
-        "tenors": {"2Y": None, "5Y": None, "10Y": "IRLTLT01CHM156N", "30Y": None},
+        # The SNB's own daily curve froze at 2025-07-31 with no successor, and
+        # every official free alternative was checked and rejected on
+        # 2026-08-29 (SPEC.md, dead ends). This is the project's ONLY
+        # unofficial source, taken deliberately over a two-month-old OECD
+        # monthly print. It publishes 2Y and 10Y and nothing else, and it
+        # serves only today's value, so history builds forward from first run.
+        "source": "tradingeconomics", "cadence": "daily",
+        "te_country": "switzerland",
+        "unofficial": True,
+        # curve.CH.10Y carries OECD monthly history before the 2026-08-29
+        # switch and weekly quotes after it, so it has no single cadence.
+        "mixed_history": True,
+        "note": "TradingEconomics interbank quotes, not an official curve — "
+                "the SNB retired its own in July 2025 and publishes no "
+                "successor. 2y and 10y only; there is no free Swiss 5y or 30y.",
+        "tenors": {"2Y": "2Y", "5Y": None, "10Y": "10Y", "30Y": None},
     },
     "CN": {
         "source": "chinabond", "cadence": "daily",
@@ -309,16 +320,16 @@ GDP_DEFINITION = ("Real (chain-linked volume), national currency, not PPP, "
 # silently non-comparable.
 # ---------------------------------------------------------------------------
 CREDIT_SPREADS = [
-    {"id": "us_ig", "region": "US", "name": "US investment grade OAS",
+    {"id": "us_ig", "region": "US", "name": "US investment grade credit spread",
      "series": "BAMLC0A0CM", "grade": "IG", "stack_leg": True,
      "series_id": "credit.US.ig_oas"},
-    {"id": "us_hy", "region": "US", "name": "US high yield OAS",
+    {"id": "us_hy", "region": "US", "name": "US high yield credit spread",
      "series": "BAMLH0A0HYM2", "grade": "HY", "stack_leg": False,
      "series_id": "credit.US.hy_oas"},
-    {"id": "eu_hy", "region": "EZ", "name": "Euro high yield OAS",
+    {"id": "eu_hy", "region": "EZ", "name": "Euro high yield credit spread",
      "series": "BAMLHE00EHYIOAS", "grade": "HY", "stack_leg": False,
      "series_id": "credit.EZ.hy_oas"},
-    {"id": "em_corp", "region": "EM", "name": "EM corporate OAS",
+    {"id": "em_corp", "region": "EM", "name": "EM corporate credit spread",
      "series": "BAMLEMCBPIOAS", "grade": "IG/HY blend", "stack_leg": False,
      "series_id": "credit.EM.corp_oas"},
 ]
@@ -334,19 +345,12 @@ COST_OF_CAPITAL_NOTE = (
 # ---------------------------------------------------------------------------
 # 7c. Liquidity / lending conditions.
 #
-# The Fed's Senior Loan Officer Survey is quarterly, so it MUST carry its own
-# cadence — under the default daily staleness threshold every reading would be
-# flagged stale within a fortnight of publication.
+# Dropped 2026-08-29 at Marco's request: the Fed's SLOOS was the only region
+# with a keyless feed, and a single-country lending panel was not being used.
+# The already-stored sloos.US.ci_large rows stay in the database — the store is
+# append-only — they are simply no longer fetched or displayed.
 # ---------------------------------------------------------------------------
-LIQUIDITY_INDICATORS = [
-    {"id": "sloos_ci", "region": "US", "cadence": "quarterly",
-     "name": "SLOOS — banks tightening C&I standards (large/medium firms)",
-     "series": "DRTSCILM", "unit": "net % of banks tightening",
-     "series_id": "sloos.US.ci_large",
-     "note": "US only. The ECB runs an equivalent Bank Lending Survey, but not "
-             "on any keyless feed found — so this panel is deliberately "
-             "single-country rather than showing seven empty rows."},
-]
+LIQUIDITY_INDICATORS = []
 
 # ---------------------------------------------------------------------------
 # 7d. FX hedging cost, from a CHF investor's seat — the two pairs Marco named.
@@ -380,9 +384,10 @@ CROSS_ASSET_SET = [
     {"id": "eq_jp", "label": "Japan equities", "yahoo": "^N225", "series_id": "equity.JP.nikkei225"},
     {"id": "eq_em", "label": "EM equities", "yahoo": "EEM", "series_id": "equity.EM.msci_em"},
     {"id": "bond_ust", "label": "UST 7-10y", "yahoo": "IEF", "series_id": "bond_proxy.IEF"},
-    {"id": "bond_ustlong", "label": "UST 20y+", "yahoo": "TLT", "series_id": "bond_proxy.TLT"},
+    {"id": "bond_eur", "label": "Euro govt bonds", "yahoo": "IEGA.AS",
+     "series_id": "bond_proxy.IEGA"},
     {"id": "gold", "label": "Gold", "yahoo": "GC=F", "series_id": "commodity.gold"},
-    {"id": "usd", "label": "USD (DXY)", "yahoo": "DX-Y.NYB", "series_id": "fx.dxy"},
+    {"id": "oil", "label": "Oil (Brent)", "yahoo": "BZ=F", "series_id": "commodity.brent"},
 ]
 # In WEEKS, since storage is weekly: one year and two years.
 CORRELATION_WINDOWS = [52, 104]

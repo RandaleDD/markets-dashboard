@@ -104,11 +104,14 @@ _CURVE_SOURCES = {
     "boe_glc":    ("fetch_boe_glc", False),      # current-month workbook only
     "mof":        ("fetch_mof_jgb", False),      # one stitched file, no window
     "norges":     ("fetch_norges_curve", True),
+    # Scraped, snapshot-only: returns today's value and nothing else.
+    "tradingeconomics": ("fetch_tradingeconomics_bond", False),
 }
 
 _CURVE_SOURCE_NAMES = {
     "fred": "FRED", "bundesbank": "Deutsche Bundesbank", "ecb": "ECB Data Portal",
     "boe_glc": "Bank of England GLC", "mof": "Japan MOF", "norges": "Norges Bank",
+    "tradingeconomics": "TradingEconomics (unofficial)",
 }
 
 
@@ -124,13 +127,24 @@ def _curve_series(prefix: str, category: str, curves: dict, unit: str,
         for tenor, key in cfg["tenors"].items():
             if not key:
                 continue  # no source for this tenor (CH 2/5/30y, NO 30y)
-            kwargs = {"which": cfg.get("glc_file", "nominal"), "tenor_years": key} \
-                if src == "boe_glc" else {_curve_arg(src): key}
+            if src == "boe_glc":
+                kwargs = {"which": cfg.get("glc_file", "nominal"), "tenor_years": key}
+            elif src == "tradingeconomics":
+                kwargs = {"country": cfg["te_country"], "tenor": key}
+            else:
+                kwargs = {_curve_arg(src): key}
             out.append(Series(
                 series_id=f"{prefix}.{region}.{tenor}",
                 category=category, region=region,
                 description=f"{region} {kind}, {tenor}"
                             + (f" ({cfg['basis']})" if cfg.get("basis") else ""),
+                # A curve whose source changed mid-life has no single spacing:
+                # Switzerland holds OECD monthly prints up to 2026-06 and
+                # weekly TradingEconomics quotes after it. "irregular" is the
+                # honest label and opts it out of gap detection, the same
+                # mechanism policy rates use. Staleness still applies, via
+                # cadence.
+                native_periodicity="irregular" if cfg.get("mixed_history") else None,
                 unit=unit, cadence=cadence, source=_CURVE_SOURCE_NAMES[src],
                 fetcher=fetcher, fetch_kwargs=kwargs, bounded=bounded,
                 # The daily path reads the current-month workbook; bootstrap

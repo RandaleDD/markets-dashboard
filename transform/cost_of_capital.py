@@ -9,13 +9,13 @@ that is attractive, and produces no composite score.
 from __future__ import annotations
 
 LEG_LABELS = {
-    "real_risk_free": "Real risk-free (10y)",
+    "risk_free": "Risk-free (nominal 10y)",
     "credit_spread": "IG credit spread",
     "erp": "Equity risk premium",
 }
 
 
-def stack_cost_of_capital(real_risk_free=None, credit_spread=None, erp=None) -> dict:
+def stack_cost_of_capital(risk_free=None, credit_spread=None, erp=None) -> dict:
     """
     Each leg in percentage points, any of them None.
 
@@ -24,7 +24,7 @@ def stack_cost_of_capital(real_risk_free=None, credit_spread=None, erp=None) -> 
     rather than dropping out of the table, but the total is then not
     comparable with a complete stack and has to say so.
     """
-    legs = {"real_risk_free": real_risk_free, "credit_spread": credit_spread, "erp": erp}
+    legs = {"risk_free": risk_free, "credit_spread": credit_spread, "erp": erp}
     present = {k: v for k, v in legs.items() if v is not None}
     missing = [k for k, v in legs.items() if v is None]
     total = round(sum(present.values()), 2) if present else None
