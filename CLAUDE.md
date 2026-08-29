@@ -37,32 +37,30 @@ checkout is how the Actions runner gets yesterday's data instead of
 re-bootstrapping. `bootstrap.py` is a one-time seed, never on the schedule.
 
 ## Current status
-Last verified live run (2026-08-29): **102/121 `ok`, 6 `partial`, 3 `stale`,
-10 `stubbed`, 0 `failed`.** Database: 142 series, 128,527 observations,
-20.5 MiB. Data quality: 139 fresh, 3 stale, 0 missing; 7 open flags.
+Last verified live run (2026-08-29): **104/122 `ok`, 7 `partial`, 2 `stale`,
+9 `stubbed`, 0 `failed`.** Database: 143 tracked series, 130,542 observations,
+20.9 MiB (145 series have stored rows — two are retired but keep their
+history). Data quality: 141 fresh, 2 stale, 0 missing; 6 open flags.
+`site/data/latest.json` is 842 KB.
 
-`stale`, `stubbed` and `partial` here are all expected, not a to-do list.
+None of the non-`ok` states is a to-do list:
 
-- **3 stale** — real publication lag: Norway GDP, the Swiss monthly 10y, and
-  Shiller's CAPE file ending 2024-09. UK GDP left this list when it moved to
-  ONS's monthly index.
-- **10 stubbed** — the gaps SPEC.md records as having no free source: the
-  China curve, six regions' inflation expectations, and all three Eurozone
-  equity panels (`erp:EZ`, `valuation:EZ`, `costcap:EZ`), which are
-  `descoped` rather than pending because Damodaran publishes member states
-  with no bloc aggregate.
-- **6 partial** — the cost-of-capital stacks for UK/DE/CH/CN/JP/NO. They
-  gained an ERP leg on 2026-08-29 and so moved up from `stubbed`, but the
-  stack wants three legs and only the US has all of them: outside the US and
-  UK there is no real-yield 10y (no linker curve), and outside the US there is
-  no IG credit spread. `missing_legs` in the payload names which.
+- **2 stale** — real publication lag: Norway GDP, and Shiller's CAPE file
+  ending 2024-09. Switzerland left this list on 2026-08-29 when its curve moved
+  to a daily source.
+- **9 stubbed** — no free source exists: the China curve, six regions'
+  inflation expectations, and the two Eurozone equity panels, which are
+  `descoped` rather than pending because Damodaran publishes member states with
+  no bloc aggregate.
+- **7 partial** — every cost-of-capital stack except the US. All have the
+  risk-free and ERP legs; only the US has an IG credit spread. `missing_legs`
+  in the payload names what each lacks.
+- **6 open flags** — all genuine: US CPI missing 2025-10 (the release the
+  shutdown delayed), a 34-week hole in the BoE's real and inflation 2y points,
+  and the 2 stale series above.
 
 Chasing the stubbed set again is wasted effort unless a new source appears;
-SPEC.md's endpoint appendix lists what has already been tried and failed.
-
-The 7 open `data_quality_flags` are all genuine: US CPI is missing 2025-10 (the
-release the US shutdown delayed), the BoE's real and inflation 2y points have a
-34-week hole in the source, and the 3 stale series above.
+SPEC.md's dead ends list what has been tried.
 
 Re-run `python3 pipeline.py --mode live` to refresh these numbers before
 trusting them — this section is a snapshot and goes stale on its own.
@@ -91,23 +89,18 @@ trusting them — this section is a snapshot and goes stale on its own.
   than silently re-bootstrapping over accumulated history.
 - Every fetcher in `fetch/sources.py` returns `None` on failure, never
   raises — the pipeline must survive individual source outages.
-- `python3 pipeline.py --mode sample` regenerates synthetic data for frontend
-  work without network access. It goes through the *same* ingest -> quality ->
-  export phases as live mode, against its own gitignored
-  `data/markets-sample.db`, so the no-network path cannot silently rot and
-  synthetic numbers can never reach the real **store**.
+- `--mode sample` regenerates synthetic data for offline frontend work through
+  the *same* phases as live mode, against its own gitignored
+  `data/markets-sample.db` — so the no-network path cannot rot and synthetic
+  numbers never reach the real **store**.
 - **`--mode` defaults to `sample`, and every mode writes the same
-  `site/data/latest.json`.** So a bare `python3 pipeline.py --export-only`
-  silently overwrites the published payload with synthetic numbers — the
-  separate database protects the store, not the JSON. Always spell it
-  `python3 pipeline.py --mode live --export-only` when rebuilding the real
-  payload from what is already stored (no network; use it when only
-  `transform/` or the export changed). If you do clobber it, re-running with
-  `--mode live` restores it; `latest.json` carries `is_sample` if you need to
-  check which one is on disk.
-- `python3 pipeline.py --mode live` is the real thing — run it, then serve the
-  site over http (`cd site && python3 -m http.server 8000`). `file://` will not
-  work; the JSON fetch needs http.
+  `site/data/latest.json`.** A bare `--export-only` therefore overwrites the
+  published payload with synthetic numbers: the separate database protects the
+  store, not the JSON. Always write `--mode live --export-only`. Re-running
+  `--mode live` repairs it, and `latest.json` carries `is_sample` to tell you
+  which is on disk.
+- `--mode live` is the real thing. To preview, serve over http
+  (`cd site && python3 -m http.server 8000`) — `file://` breaks the JSON fetch.
 - A failed fetch must degrade to `None`, never a partial or malformed value —
   the frontend's "not yet wired" label is driven by `None` in the JSON, not by
   `source_status`.
@@ -130,15 +123,27 @@ trusting them — this section is a snapshot and goes stale on its own.
   `empty_payload()` creates its own empty dict, so forgetting this silently
   ships a payload with no status block. Same for `data_quality`, which
   `pipeline.py` fills in after the export returns.
-- `weekly.yml` commits both `site/data/latest.json` and `data/markets.db` on
-  every run, so expect merge conflicts on both when pushing local work. Both
-  are generated output: take your regenerated version, don't hand-merge them.
-  For the database that means re-running the pipeline, never resolving hunks.
+- `weekly.yml` commits `site/data/latest.json`, `data/markets.db` and
+  `data/DATA-CATALOG.csv` every run, so expect merge conflicts on all three
+  when pushing local work. All are generated output: take your regenerated
+  version, never hand-merge — for the database that means re-running the
+  pipeline, not resolving hunks.
 - `data/DATA-CATALOG.csv` is half hand-written, half generated. `db/catalog_sync.py`
   owns the coverage columns to the right and may flip `Status` between `ok`
   and `stale`; it must never touch the prose columns or a scope decision
   (`planned (v2)`, `no source found`, `exists, not free`, `descoped`).
   `tests/test_catalog_sync.py` holds that line.
+- **Pushing to `main` does not publish the site.** Pages is set to build from
+  a workflow, so `.github/workflows/pages.yml` is what deploys `site/`. It
+  triggers on push *and* on `weekly.yml` completing — the weekly job commits
+  with `GITHUB_TOKEN`, and a token-authored push cannot start another workflow,
+  so the push trigger alone would never fire for the Saturday run. After a
+  push, confirm the live URL changed rather than assuming it did.
+- Switzerland's curve is the **one unofficial source** here (TradingEconomics,
+  scraped, 2y and 10y only). The SNB retired its own curve in July 2025 with no
+  successor. It returns today's value only, so history builds forward one run
+  at a time, and `curve.CH.10Y` holds OECD monthly prints before the switch —
+  which is why it is marked `irregular` and opts out of gap detection.
 - `Update Dashboard.command` is Marco's double-click entry point: sync, fetch,
   publish, preview. Keep it working and keep its output in plain English — it
   is the one file here meant to be used without reading any code.
