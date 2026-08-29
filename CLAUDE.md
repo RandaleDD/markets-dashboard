@@ -40,21 +40,24 @@ Last verified live run (2026-08-29): **102/121 `ok`, 6 `partial`, 3 `stale`,
 10 `stubbed`, 0 `failed`.** Database: 142 series, 128,527 observations,
 20.5 MiB. Data quality: 139 fresh, 3 stale, 0 missing; 7 open flags.
 
-`stale` and `stubbed` here are expected, not a to-do list. The 3 stale are real
-publication lag (Norway GDP, the Swiss monthly 10y, Shiller's CAPE file ending
-2024-09) — UK GDP left that list when it moved to ONS's monthly index. The
-10 stubbed are the gaps SPEC.md records as having no free source — the China
-curve, six regions' inflation expectations, and the two Eurozone valuation /
-ERP rows, which are `descoped` rather than pending because Damodaran publishes
-member states with no bloc aggregate. Chasing them again is wasted effort
-unless a new source appears; SPEC.md's endpoint appendix lists what has already
-been tried and failed.
+`stale`, `stubbed` and `partial` here are all expected, not a to-do list.
 
-Non-US valuation and risk premia went live on 2026-08-29 (roadmap step 6): 30
-new Damodaran series across UK/DE/CH/CN/JP/NO — six country risk premia back to
-2000, and four median trailing multiples each (P/E, P/B, P/S, EV/EBITDA) back
-to 2020. That is 30, not the 12 rows the catalog had reserved, because one
-`valuation.<R>` id could only hold one of the four multiples.
+- **3 stale** — real publication lag: Norway GDP, the Swiss monthly 10y, and
+  Shiller's CAPE file ending 2024-09. UK GDP left this list when it moved to
+  ONS's monthly index.
+- **10 stubbed** — the gaps SPEC.md records as having no free source: the
+  China curve, six regions' inflation expectations, and all three Eurozone
+  equity panels (`erp:EZ`, `valuation:EZ`, `costcap:EZ`), which are
+  `descoped` rather than pending because Damodaran publishes member states
+  with no bloc aggregate.
+- **6 partial** — the cost-of-capital stacks for UK/DE/CH/CN/JP/NO. They
+  gained an ERP leg on 2026-08-29 and so moved up from `stubbed`, but the
+  stack wants three legs and only the US has all of them: outside the US and
+  UK there is no real-yield 10y (no linker curve), and outside the US there is
+  no IG credit spread. `missing_legs` in the payload names which.
+
+Chasing the stubbed set again is wasted effort unless a new source appears;
+SPEC.md's endpoint appendix lists what has already been tried and failed.
 
 The 7 open `data_quality_flags` are all genuine: US CPI is missing 2025-10 (the
 release the US shutdown delayed), the BoE's real and inflation 2y points have a
@@ -77,11 +80,12 @@ trusting them — this section is a snapshot and goes stale on its own.
   annualises with sqrt(52), the windows are named in weeks, and there is no
   1-day change. Never reintroduce a daily-grain label over weekly data.
 - Adding a series = one row in `universe.py`, then
-  `python3 bootstrap.py --series <id>`. It never touches the other 111.
-- `bootstrap.py` pulls ~89MB of BoE GLC archives, and the Damodaran country
-  series pull 26 `ctryprem` + 5 `countrystats` year-stamped archive files.
-  Both are `archive_kwargs` paths: the weekly run reads only the current file.
-  Run it once, by hand. If the
+  `python3 bootstrap.py --series <id>` (repeatable). It backfills only the ids
+  named and leaves every other stored series untouched.
+- `bootstrap.py` pulls the deep archives: ~89MB of BoE GLC zips, plus ~10MB
+  across 25 `ctryprem` and 5 `countrystats` year-stamped Damodaran files. All
+  are `archive_kwargs` paths, so the weekly run reads only each source's
+  current file and never touches them. Run bootstrap once, by hand. If the
   weekly workflow ever finds `data/markets.db` missing it fails loudly rather
   than silently re-bootstrapping over accumulated history.
 - Every fetcher in `fetch/sources.py` returns `None` on failure, never
@@ -90,10 +94,16 @@ trusting them — this section is a snapshot and goes stale on its own.
   work without network access. It goes through the *same* ingest -> quality ->
   export phases as live mode, against its own gitignored
   `data/markets-sample.db`, so the no-network path cannot silently rot and
-  synthetic numbers can never reach the real store.
-- `python3 pipeline.py --export-only` rebuilds `latest.json` from what is
-  already stored, with no network at all. Use it when only `transform/` or the
-  export changed.
+  synthetic numbers can never reach the real **store**.
+- **`--mode` defaults to `sample`, and every mode writes the same
+  `site/data/latest.json`.** So a bare `python3 pipeline.py --export-only`
+  silently overwrites the published payload with synthetic numbers — the
+  separate database protects the store, not the JSON. Always spell it
+  `python3 pipeline.py --mode live --export-only` when rebuilding the real
+  payload from what is already stored (no network; use it when only
+  `transform/` or the export changed). If you do clobber it, re-running with
+  `--mode live` restores it; `latest.json` carries `is_sample` if you need to
+  check which one is on disk.
 - `python3 pipeline.py --mode live` is the real thing — run it, then serve the
   site over http (`cd site && python3 -m http.server 8000`). `file://` will not
   work; the JSON fetch needs http.

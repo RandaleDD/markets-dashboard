@@ -105,7 +105,7 @@ actually uses today.
 | Non-US equity risk premia | Damodaran `ctryprem.xlsx` (rating-based country risk premium) | Live for UK/DE/CH/CN/JP/NO, annual, back to 2000 from the year-stamped archives. Stores the **country** premium, which is 0.00 for every Aaa sovereign; `db/export.py` adds the mature-market base (`erp.US`) back on for display. No Eurozone aggregate exists, so `erp.EZ` is descoped |
 | Non-US equity valuation | Damodaran `countrystats.xls` (median trailing P/E, P/B, P/S, EV/EBITDA) | Live for the same six regions, annual, **2020 onward only** — the 2012-2019 archives publish means rather than medians, and splicing the two would put a methodology break mid-series. Not cyclically adjusted, so not comparable to the US CAPE. `valuation.EZ` is descoped |
 
-Eleven institutions, and still gaps. No single source covers this, free or
+Twelve institutions, and still gaps. No single source covers this, free or
 paid short of a full commercial terminal — the spread of sources is by design.
 
 ## Architecture
@@ -118,8 +118,9 @@ paid short of a full commercial terminal — the spread of sources is by design.
     db/ingest.py        watermark -> fetch only what's newer -> INSERT OR IGNORE
     db/quality.py       staleness / gaps / outliers / curve consistency -> flags
     db/export.py        latest_observations -> site/data/latest.json
+    db/catalog_sync.py  writes what IS stored back into DATA-CATALOG.csv
     transform/          derived metrics, consumed by the export
-    pipeline.py         ingest -> quality -> export, in that order
+    pipeline.py         ingest -> quality -> export -> sync, in that order
     bootstrap.py        one-time seed; never on the schedule
 
 A persistent SQLite store (`data/markets.db`) → a JSON export
@@ -180,7 +181,7 @@ dated, retrievable snapshot held both locally and on GitHub.
 This is also why the grain is weekly rather than daily. At daily grain the
 store was 585,503 observations and 98.7 MiB — and GitHub hard-rejects any file
 over 100 MiB, so it was 1.3 MiB from being unpushable on its first commit. At
-weekly it is 128,227 observations and 20.3 MiB, growing ~2 MiB a year.
+weekly it is 128,527 observations and 20.5 MiB, growing ~2 MiB a year.
 
 ### Adding a series later
 
@@ -225,7 +226,7 @@ other series is touched.
 
 ## Appendix — endpoint reference
 
-Absorbed from the former `SPEC.md's endpoint appendix`. Per-series quirks now live in
+Absorbed from the former `NETWORK.md`. Per-series quirks now live in
 `DATA-CATALOG.csv`'s "Notes / quirks" column, which the pipeline keeps in step
 with the database. What is kept here is the cross-cutting knowledge that
 belongs to no single series and is expensive to re-derive.
@@ -308,5 +309,7 @@ Three traps, all silent:
 - PMI / economic surprise index.
 - Energy-transition/infrastructure-specific layer.
 - CHF-converted equity returns (local currency only).
-- Non-US FCF yield / EV-EBITDA (no free source found).
+- Non-US free-cash-flow yield (no free source found). Non-US EV/EBITDA left
+  this list on 2026-08-29 — Damodaran's `countrystats.xls` publishes it, and it
+  is now stored for UK/DE/CH/CN/JP/NO alongside P/E, P/B and P/S.
 - Journaling / knowledge-base features — deferred to their own project.
