@@ -1,7 +1,7 @@
 """
 The one non-negotiable constraint, enforced rather than documented.
 
-DATABASE-PLAN.md: "No UPDATE statement and no DELETE statement exists anywhere
+SPEC.md: "No UPDATE statement and no DELETE statement exists anywhere
 in this design's interaction with `observations`. That is not an implementation
 detail -- it is the requirement."
 

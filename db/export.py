@@ -1,7 +1,7 @@
 """
 Export: turn what the database currently holds into site/data/latest.json.
 
-Deliberately a separate step from ingest (DATABASE-PLAN.md, "JSON export --
+Deliberately a separate step from ingest (SPEC.md, "JSON export --
 decoupled from fetching"). The number the dashboard shows is always the
 database's own answer as of the last run, never a value computed from whatever
 this run happened to fetch. That is what lets the ingest step be cheap and

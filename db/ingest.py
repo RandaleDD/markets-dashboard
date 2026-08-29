@@ -2,7 +2,7 @@
 Incremental ingest: ask what we already have, fetch only what might be newer,
 attach what is genuinely new.
 
-Per DATABASE-PLAN.md there are exactly two outcomes for every candidate row --
+Per SPEC.md there are exactly two outcomes for every candidate row --
 **ignore it** (already stored) or **attach it** (new). There is no third case,
 and no UPDATE or DELETE anywhere in this path. `insert_observations`'s
 ON CONFLICT DO NOTHING is what makes "ignore" free.

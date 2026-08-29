@@ -1,6 +1,6 @@
 -- Persistent, APPEND-ONLY store for every series the dashboard tracks.
 --
--- The one non-negotiable rule (DATABASE-PLAN.md, "Incremental update logic"):
+-- The one non-negotiable rule (SPEC.md, "The store is append-only"):
 -- nothing in this project ever issues UPDATE or DELETE against `observations`.
 -- A revision is a new row with a later vintage_date, not a changed row. The
 -- `latest_observations` view is the only place "the current value" exists,

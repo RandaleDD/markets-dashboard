@@ -7,7 +7,7 @@ writes goes through ON CONFLICT DO NOTHING, so re-ingesting a value the
 database already holds costs one index probe and changes nothing.
 
 If you are adding a function to this module and it contains the word UPDATE or
-DELETE aimed at `observations`, stop -- that is the one thing DATABASE-PLAN.md
+DELETE aimed at `observations`, stop -- that is the one thing SPEC.md
 rules out outright. `tests/test_append_only.py` greps for it.
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 # The database lives in the repo working tree and IS COMMITTED, alongside
-# site/data/latest.json -- see DATABASE-PLAN.md. That is what makes the
+# site/data/latest.json -- see SPEC.md. That is what makes the
 # GitHub Actions runner start each day from yesterday's accumulated history
 # instead of re-bootstrapping, and git's own commit history is the backup.
 DEFAULT_DB_PATH = REPO_ROOT / "data" / "markets.db"

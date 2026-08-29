@@ -2,7 +2,7 @@
 Cost-of-capital stack: the literal inputs to discounting a long-duration
 asset, laid out leg by leg rather than collapsed into one figure.
 
-Descriptive only, per V2-PLAN.md's governing constraint. This states what the
+Descriptive only, per SPEC.md's governing constraint. This states what the
 market is charging for each layer of risk. It makes no claim about whether
 that is attractive, and produces no composite score.
 """

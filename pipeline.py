@@ -9,7 +9,7 @@ Pipeline orchestrator. Three phases, in this order, every run:
                                      # for frontend work with no network
   python3 pipeline.py --export-only  # rebuild the JSON from what's stored
 
-The database is the source of truth (see DATABASE-PLAN.md). Ingest attaches
+The database is the source of truth (see SPEC.md). Ingest attaches
 only what is genuinely new to `data/markets.db` and never rewrites anything;
 export then rebuilds `site/data/latest.json` from what the database currently
 holds, over the FULL accumulated history, regardless of how much of it arrived

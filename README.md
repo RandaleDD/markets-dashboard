@@ -1,58 +1,86 @@
 # Markets Dashboard
 
-Personal daily markets dashboard — equity indices, yield curves, central bank
-rates, inflation, real yields, equity risk premia, GDP growth, currencies,
-commodities, and equity valuation metrics across US/UK/Eurozone/Germany/
-Switzerland/China/Japan. Static site, refreshed daily via GitHub Actions,
-hosted free on GitHub Pages.
+Personal markets dashboard — equity indices, yield curves, central bank rates,
+inflation and inflation expectations, real yields, credit spreads, equity risk
+premia, GDP growth, currencies, commodities, valuation, cross-asset
+correlation and a growth/inflation regime map, across
+US/UK/Eurozone/Germany/Switzerland/China/Japan/Norway.
 
-See `SPEC.md` for the full design and `NETWORK.md` for an important caveat:
-the data fetchers were written but not live-tested (see below for why), so
-treat the first real run as part of the setup, not a sign something's wrong.
+Static site, refreshed weekly by GitHub Actions, hosted free on GitHub Pages.
+CHF-based reader in Zurich; no server to maintain.
+
+- `SPEC.md` — scope, sourcing table, architecture, roadmap.
+- `NETWORK.md` — what each endpoint actually returns and what has been ruled out.
+- `CLAUDE.md` — working conventions and the last verified run status.
+- `DATA-CATALOG.csv` — the reviewed sourcing decision for every series.
+
+## How it works
+
+A persistent, **append-only** SQLite store (`data/markets.db`, committed to
+this repo) accumulates history. Each run:
+
+1. **Ingest** — for every series, ask the database what the newest stored
+   observation is, fetch only what is newer, and insert it. Nothing is ever
+   updated or deleted; a revised GDP or CPI print is *appended* with a later
+   `vintage_date` and the original stays.
+2. **Quality** — staleness, gaps, outliers and curve consistency, written to
+   `data_quality_flags`.
+3. **Export** — rebuild `site/data/latest.json` from the database, over the
+   full accumulated history.
+
+The stored grain is **weekly**: one observation per completed week, the Friday
+close or the last session before it. Everything derived is therefore weekly —
+volatility annualises with sqrt(52), windows are named in weeks.
 
 ## Setup (one-time)
 
-1. **Create a GitHub repo** and push this folder to it:
+1. **Seed the database.** It is committed, so a fresh clone already has it and
+   this is only needed when starting from nothing:
+
    ```bash
-   cd markets-dashboard
-   git init
-   git add .
-   git commit -m "Initial scaffold"
-   gh repo create markets-dashboard --private --source=. --push
-   # or: create the repo on github.com, then git remote add origin <url> && git push -u origin main
+   pip install -r requirements.txt
+   python3 bootstrap.py          # ~10 min; pulls ~89MB of BoE archives once
+   ```
+
+   Bootstrap is never run on a schedule. To add a single new series later,
+   after adding its row to `fetch/universe.py`:
+
+   ```bash
+   python3 bootstrap.py --series curve.US.10Y
    ```
 
 2. **Enable GitHub Pages**: repo Settings → Pages → Source: "GitHub Actions".
 
-3. **(Optional) Add a FRED API key**: not required — the pipeline uses FRED's
-   keyless `fredgraph.csv` endpoint — but if you later want the richer JSON
-   API, get a free key at https://fred.stlouisfed.org/docs/api/api_key.html
-   and add it as a repo secret named `FRED_API_KEY`.
+3. **First run**: Actions tab → "Weekly data refresh" → "Run workflow". After
+   that it runs itself every Saturday at 06:00 UTC.
 
-4. **First run**: Actions tab → "Daily data refresh" → "Run workflow" (manual
-   trigger). Check the run log — the pipeline logs which sources succeeded
-   (`ok`), failed, or are still stubbed. Expect some `failed` entries on the
-   first run; see NETWORK.md for how to iterate on those.
-
-5. Your dashboard will be live at `https://<your-username>.github.io/markets-dashboard/`
-   (or wherever Pages reports — check the Actions run summary).
+A `FRED_API_KEY` repo secret is optional and not required — the pipeline uses
+FRED's keyless `fredgraph.csv` endpoint.
 
 ## Local development
 
 ```bash
-pip install -r requirements.txt
-python pipeline.py --mode sample   # synthetic data, no network needed
-# or
-python pipeline.py --mode live     # real fetches — needs normal internet access
+python3 pipeline.py --mode sample   # synthetic data, no network, own database
+python3 pipeline.py --mode live     # fetch what's new, then rebuild the JSON
+python3 pipeline.py --export-only   # rebuild the JSON from what's stored
 
 cd site && python3 -m http.server 8000
-# open http://localhost:8000 — must be served over http, not file://,
-# since the page fetches data/latest.json
+# open http://localhost:8000 — must be http, not file://, since the page
+# fetches data/latest.json
 ```
 
-## Why some data is missing on first launch
+Checks:
 
-Not every source has a confirmed, working fetcher yet — see `SPEC.md`'s
-phased roadmap and `fetch/sources.py`'s TODOs. The frontend shows
-"not yet wired" for anything that isn't live yet rather than a fake number,
-so what you see is always honest about what's real.
+```bash
+python3 -m unittest discover -s tests -t .   # includes the append-only guard
+python3 tools/render_check.py                # macOS only; catches shifted table columns
+```
+
+## What is deliberately missing
+
+The frontend shows "not yet wired" rather than a fake number, so what you see
+is always honest about what is real. The gaps are recorded in `SPEC.md` and
+`DATA-CATALOG-ruled-out.csv` — the China yield curve, most regions'
+inflation expectations, and non-US valuation multiples. Most are permanent:
+Switzerland and Norway issue no inflation-linked debt at all, so there is no
+instrument to source, free or paid.

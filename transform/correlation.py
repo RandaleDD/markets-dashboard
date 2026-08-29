@@ -1,7 +1,7 @@
 """
 Rolling cross-asset correlation.
 
-Descriptive only, per V2-PLAN.md's governing constraint: this reports how
+Descriptive only, per SPEC.md's governing constraint: this reports how
 assets have co-moved over a fixed recent window. It makes no diversification
 recommendation and produces no composite score.
 

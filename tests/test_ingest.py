@@ -1,7 +1,7 @@
 """
 Ingest semantics, against a real SQLite file and a stubbed fetcher.
 
-What these pin down, all of it straight out of DATABASE-PLAN.md:
+What these pin down, all of it straight out of SPEC.md:
   - re-ingesting an unchanged series attaches nothing (the "ignore" case)
   - a non-revisable series always writes vintage_date = date (inert mechanism)
   - a restated GDP/CPI figure is APPENDED with today's vintage, the first print

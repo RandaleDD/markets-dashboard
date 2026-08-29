@@ -7,15 +7,16 @@ persistent SQLite store**, static site on GitHub Pages, no server to maintain.
 
 Live: https://randaledd.github.io/markets-dashboard/
 
-- `SPEC.md` — scope decisions, the sourcing table (what every category uses and
-  where the permanent gaps are), architecture, roadmap. **The sourcing table is
-  authoritative; don't restate it here.**
+- `SPEC.md` — scope decisions, the sourcing table (what every category uses
+  and where the permanent gaps are), the architecture including why the store
+  is append-only and how a revision is handled, and the roadmap. **The
+  sourcing table is authoritative; don't restate it here.**
 - `NETWORK.md` — what each endpoint actually returns, its quirks, and the dead
   ends already ruled out. Read it before touching `fetch/sources.py`.
-- `DATABASE-PLAN.md` — why the store is append-only and how a revision is
-  handled. `DATA-CATALOG.csv` is the reviewed sourcing decision per series and
-  seeds `series_catalog`; `DATA-CATALOG-ruled-out.csv` records the permanent
-  structural gaps.
+- `DATA-CATALOG.csv` — the reviewed sourcing decision per series; it seeds
+  `series_catalog`. `DATA-CATALOG-ruled-out.csv` records the permanent
+  structural gaps (Swiss and Norwegian inflation expectations: neither
+  government issues inflation-linked debt, so there is nothing to source).
 
 ## Architecture
 

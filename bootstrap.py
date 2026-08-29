@@ -6,7 +6,7 @@ One-time seed of data/markets.db. NOT part of the daily run.
     python3 bootstrap.py --series curve.UK.10Y --series gdp.UK
     python3 bootstrap.py --skip-archives      # everything except the 89MB BoE zips
 
-What "one-time" buys, per DATABASE-PLAN.md: this is the only run that pulls the
+What "one-time" buys, per SPEC.md: this is the only run that pulls the
 Bank of England's deep GLC archives (glcnominalddata.zip ~39MB plus the real
 and inflation zips, ~89MB together, 1979 onward). Every run after this reads
 only the small current-month workbook. The same applies in spirit to every
@@ -15,8 +15,7 @@ run asks for what is newer than the watermark.
 
 Re-running is safe but pointless: every row it re-fetches is already stored, so
 ON CONFLICT DO NOTHING discards it and nothing changes. Use `--series` to seed
-one newly-added series without touching the other 111 (DATABASE-PLAN.md,
-"Adding a new series later").
+one newly-added series without touching the other 111 (SPEC.md, "Adding a series later").
 """
 from __future__ import annotations
 
