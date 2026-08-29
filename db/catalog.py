@@ -39,7 +39,7 @@ from db import registry
 
 logger = logging.getLogger("markets_dashboard.db.catalog")
 
-CATALOG_CSV = Path(__file__).resolve().parent.parent / "DATA-CATALOG.csv"
+CATALOG_CSV = Path(__file__).resolve().parent.parent / "data" / "DATA-CATALOG.csv"
 
 IN_SCOPE = {"ok", "stale"}
 CONDITIONAL = {"planned (v2)"}          # in scope only once a fetcher exists

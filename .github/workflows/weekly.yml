@@ -54,7 +54,7 @@ jobs:
           # DATA-CATALOG.csv is rewritten by db/catalog_sync.py on every run,
           # so it has to be committed too or the next checkout discards the
           # coverage the run just measured.
-          git add site/data/latest.json data/markets.db DATA-CATALOG.csv
+          git add site/data/latest.json data/markets.db data/DATA-CATALOG.csv
           git diff --staged --quiet || git commit -m "Weekly data refresh $(date -u +%Y-%m-%d)"
           git push
 

@@ -6,11 +6,12 @@ number comes from, and how the thing is put together.
 Live at https://randaledd.github.io/markets-dashboard/.
 
 Companion docs: `CLAUDE.md` (working conventions and the last verified run
-status) and `DATA-CATALOG.csv` — the reviewed sourcing decision for every
-series, which seeds the database's `series_catalog` table and which the
-pipeline keeps in step with what is actually stored on every run.
-`DATA-CATALOG-ruled-out.csv` records the permanent structural gaps. Endpoint
-mechanics and dead ends are in the appendix at the foot of this file.
+status) and `data/DATA-CATALOG.csv` — the reviewed sourcing decision for
+every series, which seeds the database's `series_catalog` table and which the
+pipeline keeps in step with what is actually stored on every run. Permanent
+structural gaps are rows in it too, marked `no source found` with the reason
+and the date last checked. Endpoint mechanics and dead ends are in the
+appendix at the foot of this file.
 
 ## Governing constraint
 
@@ -79,7 +80,7 @@ and the correlation heatmap makes no diversification recommendation.
 ## Data sourcing
 
 Endpoint mechanics, quirks and dead ends are in the appendix below; the
-per-series record is `DATA-CATALOG.csv`. This table is what each category
+per-series record is `data/DATA-CATALOG.csv`. This table is what each category
 actually uses today.
 
 | Category | Source | State |

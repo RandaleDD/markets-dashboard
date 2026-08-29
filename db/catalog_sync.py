@@ -44,7 +44,7 @@ from db import registry, store
 
 logger = logging.getLogger("markets_dashboard.db.catalog_sync")
 
-CATALOG_CSV = Path(__file__).resolve().parent.parent / "DATA-CATALOG.csv"
+CATALOG_CSV = Path(__file__).resolve().parent.parent / "data" / "DATA-CATALOG.csv"
 
 ID_COLUMN = "Identifier"
 STATUS_COLUMN = "Status"
