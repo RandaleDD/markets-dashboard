@@ -17,6 +17,15 @@ single header set that works everywhere.
   - The Bank of England and Japan's MOF do the opposite: they return an error
     page unless the UA looks like a browser.
 Hence `_get` takes per-source headers and defaults to requests' own UA.
+
+Every fetcher takes an optional `start=` (an ISO date). It is a *hint*, not a
+contract: sources with a bounded-query parameter (FRED's `cosd`, SDMX's
+`startPeriod`, yfinance's `start`) narrow the request to it, which is what
+makes the daily incremental run cheap. Sources without one (Bundesbank, which
+accepts `startPeriod` and ignores it; the BoE workbooks; MOF; Shiller;
+Damodaran) return their whole small snapshot regardless. Callers must not
+assume the returned frame begins at `start` -- `db/ingest.py` filters against
+the watermark itself and lets ON CONFLICT DO NOTHING discard the rest.
 """
 from __future__ import annotations
 
@@ -67,13 +76,15 @@ def _frame(dates, values) -> pd.DataFrame | None:
 # Yahoo's chart API needs a cookie+crumb handshake that the library does for us
 # (a bare request to query1/query2 returns 429).
 # ---------------------------------------------------------------------------
-def fetch_yahoo(ticker: str) -> pd.DataFrame | None:
+def fetch_yahoo(ticker: str, start: str | None = None) -> pd.DataFrame | None:
     if not ticker:
         return None
     try:
         import yfinance as yf
 
-        hist = yf.Ticker(ticker).history(period="max", auto_adjust=False)
+        tk = yf.Ticker(ticker)
+        hist = (tk.history(start=start, auto_adjust=False) if start
+                else tk.history(period="max", auto_adjust=False))
     except Exception as exc:  # noqa: BLE001
         logger.warning("Yahoo fetch failed for %s: %s", ticker, exc)
         return None
@@ -100,11 +111,14 @@ def fetch_yahoo(ticker: str) -> pd.DataFrame | None:
 # FRED — public fredgraph.csv endpoint, no API key needed.
 # Confirmed: returns "observation_date,<SERIES_ID>", missing values as ".".
 # ---------------------------------------------------------------------------
-def fetch_fred(series_id: str) -> pd.DataFrame | None:
+def fetch_fred(series_id: str, start: str | None = None) -> pd.DataFrame | None:
     if not series_id:
         return None
     # No UA override here — see the module docstring.
-    resp = _get("https://fred.stlouisfed.org/graph/fredgraph.csv", params={"id": series_id})
+    params = {"id": series_id}
+    if start:
+        params["cosd"] = start  # fredgraph's own "chart observation start date"
+    resp = _get("https://fred.stlouisfed.org/graph/fredgraph.csv", params=params)
     if resp is None or not resp.text:
         return None
     try:
@@ -131,13 +145,13 @@ def fetch_fred(series_id: str) -> pd.DataFrame | None:
 # Fed/BoE/ECB/SNB/PBoC/BoJ. SDMX v2 REST, CSV flavour.
 # Confirmed working: returns TIME_PERIOD / OBS_VALUE among the SDMX columns.
 # ---------------------------------------------------------------------------
-def fetch_bis_policy_rate(ref_area: str) -> pd.DataFrame | None:
+def fetch_bis_policy_rate(ref_area: str, start: str | None = None) -> pd.DataFrame | None:
     if not ref_area:
         return None
     # Without startPeriod the full daily history comes back — 57MB for JP,
     # which blows the request timeout. Three years is ample for a policy rate.
     url = f"https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/D.{ref_area}"
-    resp = _get(url, params={"format": "csv", "startPeriod": _start_period(years=25)})
+    resp = _get(url, params={"format": "csv", "startPeriod": start or _start_period(years=25)})
     if resp is None or not resp.text:
         return None
     try:
@@ -177,12 +191,13 @@ CPI_UNIT_YOY = "771"   # year-on-year percent change
 CPI_UNIT_INDEX = "628"  # index level
 
 
-def fetch_bis_cpi(ref_area: str, unit: str = CPI_UNIT_YOY) -> pd.DataFrame | None:
+def fetch_bis_cpi(ref_area: str, unit: str = CPI_UNIT_YOY,
+                  start: str | None = None) -> pd.DataFrame | None:
     """unit=771 -> year-on-year percent; unit=628 -> index level."""
     if not ref_area:
         return None
     url = f"https://stats.bis.org/api/v2/data/dataflow/BIS/WS_LONG_CPI/1.0/M.{ref_area}"
-    resp = _get(url, params={"format": "csv", "startPeriod": _start_period(years=25)})
+    resp = _get(url, params={"format": "csv", "startPeriod": start or _start_period(years=25)})
     if resp is None or not resp.text:
         return None
     try:
@@ -209,7 +224,13 @@ def fetch_bis_cpi(ref_area: str, unit: str = CPI_UNIT_YOY) -> pd.DataFrame | Non
 # Response is a CSV with a ~9-line metadata preamble, then "date,value,flag"
 # rows, with "." for missing observations.
 # ---------------------------------------------------------------------------
-def fetch_bundesbank(series_key: str) -> pd.DataFrame | None:
+def fetch_bundesbank(series_key: str, start: str | None = None) -> pd.DataFrame | None:
+    """
+    `start` is accepted and ignored on purpose. Measured 2026-08-29: this
+    endpoint returns the identical 10,620-row history (1997 onward) whether or
+    not `startPeriod` is passed, so it is a snapshot source in practice. The
+    payload is small and the ingest step discards what it already holds.
+    """
     if not series_key:
         return None
     resp = _get(f"https://api.statistiken.bundesbank.de/rest/download/BBSIS/{series_key}",
@@ -342,14 +363,14 @@ def fetch_mof_jgb(tenor: str) -> pd.DataFrame | None:
 # and G_N_C (all government bonds). We use G_N_C — AAA tracks the Bund almost
 # exactly, which made the old Eurozone row a duplicate of Germany.
 # ---------------------------------------------------------------------------
-def fetch_ecb(series_key: str, years: int = 15) -> pd.DataFrame | None:
+def fetch_ecb(series_key: str, years: int = 15, start: str | None = None) -> pd.DataFrame | None:
     if not series_key:
         return None
     # Without startPeriod the full history comes back — ~3MB per curve tenor,
     # which intermittently blows the read timeout. The dashboard only needs
     # the recent window.
     resp = _get(f"https://data-api.ecb.europa.eu/service/data/{series_key}",
-                params={"format": "csvdata", "startPeriod": _start_period(years=years)})
+                params={"format": "csvdata", "startPeriod": start or _start_period(years=years)})
     if resp is None or not resp.text:
         return None
     try:
@@ -374,78 +395,140 @@ def fetch_ecb(series_key: str, years: int = 15) -> pd.DataFrame | None:
 # which only publish 5y/10y/20y and have no 2y or 30y.
 # ---------------------------------------------------------------------------
 _GLC_CACHE = {}
-_GLC_URL = "https://www.bankofengland.co.uk/-/media/boe/files/statistics/yield-curves/latest-yield-curve-data.zip"
+_GLC_BASE = "https://www.bankofengland.co.uk/-/media/boe/files/statistics/yield-curves/"
+_GLC_URL = _GLC_BASE + "latest-yield-curve-data.zip"
 _GLC_FILES = {
     "nominal": "GLC Nominal daily data current month.xlsx",
     "real": "GLC Real daily data current month.xlsx",
     "inflation": "GLC Inflation daily data current month.xlsx",
 }
+# The one-time deep archives. Roughly 89MB across the three, which is why they
+# are pulled by bootstrap.py ONCE and never by the daily run -- see
+# DATABASE-PLAN.md "Bootstrap". Each zip holds one workbook per era
+# (1979-1984, 1985-1989, ... 2025 to present).
+_GLC_ARCHIVES = {
+    "nominal": _GLC_BASE + "glcnominalddata.zip",
+    "real": _GLC_BASE + "glcrealddata.zip",
+    "inflation": _GLC_BASE + "glcinflationddata.zip",
+}
 
 
-def _glc_book(which: str):
-    """Returns (maturities_series, dated_rows_df) for one GLC workbook."""
-    if which in _GLC_CACHE:
-        return _GLC_CACHE[which]
-    _GLC_CACHE[which] = None
-    if "zip" not in _GLC_CACHE:
-        _GLC_CACHE["zip"] = None
-        resp = _get(_GLC_URL, headers=BROWSER_HEADERS)
+def _glc_spot_sheets(xl_names) -> list:
+    """
+    The spot-curve sheets, whatever this era's workbook calls them.
+
+    Sheet naming is NOT stable across the archive: workbooks up to 2024 use
+    "3. nominal spot, short end" / "4. nominal spot curve", while 2025-to-
+    present and the current-month file use "3. spot, short end" /
+    "4. spot curve". Matching on the "N. ... spot ..." shape covers both, and
+    both sheets are needed because the real and inflation books start their
+    long-end sheet well beyond 2 years.
+    """
+    return [n for n in xl_names
+            if n.strip()[:2] in ("3.", "4.") and "spot" in n.lower()]
+
+
+def _glc_parse(book_bytes: bytes) -> list:
+    """[(maturities_row, dated_rows_df), ...] for every spot sheet in a workbook."""
+    out = []
+    xl = pd.ExcelFile(io.BytesIO(book_bytes))
+    for sheet in _glc_spot_sheets(xl.sheet_names):
+        try:
+            df = xl.parse(sheet_name=sheet, header=None)
+        except Exception:  # noqa: BLE001 - a malformed sheet must not lose the others
+            continue
+        maturities = pd.to_numeric(df.iloc[3], errors="coerce")
+        dates = pd.to_datetime(df[0], errors="coerce", format="mixed")
+        rows = df[dates.notna()].copy()
+        if rows.empty:
+            continue
+        rows[0] = dates[dates.notna()]
+        out.append((maturities, rows))
+    return out
+
+
+def _glc_book(which: str, archive: bool = False):
+    """
+    Returns [(maturities, dated_rows), ...] for one GLC curve.
+
+    archive=False fetches the small current-month workbook (the daily path).
+    archive=True fetches the multi-decade zip -- bootstrap only.
+    """
+    ck = (which, archive)
+    if ck in _GLC_CACHE:
+        return _GLC_CACHE[ck]
+    _GLC_CACHE[ck] = None
+    url = _GLC_ARCHIVES[which] if archive else _GLC_URL
+    zk = ("zip", url)
+    if zk not in _GLC_CACHE:
+        _GLC_CACHE[zk] = None
+        if archive:
+            logger.info("BoE GLC: downloading the one-time %s archive (~25-39MB)", which)
+        resp = _get(url, headers=BROWSER_HEADERS)
         if resp is not None and resp.content:
             try:
                 import zipfile
-                _GLC_CACHE["zip"] = zipfile.ZipFile(io.BytesIO(resp.content))
+                _GLC_CACHE[zk] = zipfile.ZipFile(io.BytesIO(resp.content))
             except Exception as exc:  # noqa: BLE001
-                logger.warning("BoE GLC zip open failed: %s", exc)
-    zf = _GLC_CACHE.get("zip")
+                logger.warning("BoE GLC zip open failed (%s): %s", url, exc)
+    zf = _GLC_CACHE.get(zk)
     if zf is None:
         return None
     try:
-        name = _GLC_FILES[which]
-        # The real and inflation workbooks start their long-end sheet well
-        # beyond 2 years, so both sheets are read and concatenated to give one
-        # continuous maturity axis per date.
+        if archive:
+            # Every era workbook in the zip, oldest first.
+            names = sorted(n for n in zf.namelist() if n.lower().endswith(".xlsx"))
+        else:
+            names = [_GLC_FILES[which]]
         books = []
-        for sheet in ("3. spot, short end", "4. spot curve"):
+        for name in names:
             try:
-                df = pd.read_excel(io.BytesIO(zf.read(name)), sheet_name=sheet, header=None)
-            except Exception:  # noqa: BLE001 - sheet may not exist in every workbook
-                continue
-            maturities = pd.to_numeric(df.iloc[3], errors="coerce")
-            dates = pd.to_datetime(df[0], errors="coerce", format="mixed")
-            rows = df[dates.notna()].copy()
-            if rows.empty:
-                continue
-            rows[0] = dates[dates.notna()]
-            books.append((maturities, rows))
+                books.extend(_glc_parse(zf.read(name)))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("BoE GLC workbook %s failed: %s", name, exc)
         if not books:
             return None
-        _GLC_CACHE[which] = books
+        _GLC_CACHE[ck] = books
         return books
     except Exception as exc:  # noqa: BLE001
         logger.warning("BoE GLC parse failed for %s: %s", which, exc)
         return None
 
 
-def fetch_boe_glc(which: str, tenor_years: str) -> pd.DataFrame | None:
-    """which is 'nominal' | 'real' | 'inflation'; tenor_years like '2', '10', '30'."""
-    books = _glc_book(which)
+def fetch_boe_glc(which: str, tenor_years: str, archive: bool = False) -> pd.DataFrame | None:
+    """
+    which is 'nominal' | 'real' | 'inflation'; tenor_years like '2', '10', '30'.
+
+    archive=True reads the deep multi-decade zip instead of the current-month
+    workbook. Only bootstrap.py passes it.
+    """
+    books = _glc_book(which, archive)
     if not books:
         return None
     try:
         target = float(tenor_years)
-        best = None
+        # One workbook per era in the archive, and two sheets per workbook, so
+        # the tenor is collected from EVERY block that carries it rather than
+        # from the single best-matching one -- picking one block would silently
+        # return a single era's slice of the history.
+        parts = []
         for maturities, rows in books:
             if not maturities.notna().any():
                 continue
             col = (maturities - target).abs().idxmin()
-            gap = abs(float(maturities[col]) - target)
-            if best is None or gap < best[0]:
-                best = (gap, rows, col)
-        if best is None or best[0] > 0.3:
+            if abs(float(maturities[col]) - target) > 0.3:
+                continue
+            part = _frame(rows[0], rows[col])
+            if part is not None:
+                parts.append(part)
+        if not parts:
             logger.warning("BoE GLC %s: no column near %sy", which, tenor_years)
             return None
-        _, rows, col = best
-        return _frame(rows[0], rows[col])
+        df = pd.concat(parts, ignore_index=True)
+        # Later blocks win on an overlapping date (the short-end sheet and the
+        # long-end sheet both carry ~2y-5y, and eras overlap at their seams).
+        df = df.drop_duplicates(subset=["date"], keep="last")
+        return _frame(df["date"], df["value"])
     except Exception as exc:  # noqa: BLE001
         logger.warning("BoE GLC tenor extract failed (%s %s): %s", which, tenor_years, exc)
         return None
@@ -458,7 +541,7 @@ def fetch_boe_glc(which: str, tenor_years: str) -> pd.DataFrame | None:
 _NORGES_CURVE_CACHE = {}
 
 
-def fetch_norges_curve(tenor: str) -> pd.DataFrame | None:
+def fetch_norges_curve(tenor: str, start: str | None = None) -> pd.DataFrame | None:
     """
     One tenor of the Norwegian zero-coupon government curve.
 
@@ -472,7 +555,7 @@ def fetch_norges_curve(tenor: str) -> pd.DataFrame | None:
     if "table" not in _NORGES_CURVE_CACHE:
         _NORGES_CURVE_CACHE["table"] = None
         resp = _get("https://data.norges-bank.no/api/data/GOVT_ZEROCOUPON/B.",
-                    params={"format": "csv", "startPeriod": _start_period(years=25)})
+                    params={"format": "csv", "startPeriod": start or _start_period(years=25)})
         if resp is not None and resp.text:
             try:
                 df = pd.read_csv(io.StringIO(resp.text), sep=";")
@@ -497,12 +580,12 @@ def fetch_norges_curve(tenor: str) -> pd.DataFrame | None:
     return _frame(sub["date"], sub["value"])
 
 
-def fetch_norges(key: str) -> pd.DataFrame | None:
+def fetch_norges(key: str, start: str | None = None) -> pd.DataFrame | None:
     """key is a dataflow path such as 'IR/B.KPRA.SD' or 'GOVT_ZEROCOUPON/B.10Y'."""
     if not key:
         return None
     resp = _get(f"https://data.norges-bank.no/api/data/{key}",
-                params={"format": "csv", "startPeriod": _start_period(years=25)})
+                params={"format": "csv", "startPeriod": start or _start_period(years=25)})
     if resp is None or not resp.text:
         return None
     try:
@@ -515,6 +598,133 @@ def fetch_norges(key: str) -> pd.DataFrame | None:
     except Exception as exc:  # noqa: BLE001
         logger.warning("Norges parse failed for %s: %s", key, exc)
         return None
+
+
+# ---------------------------------------------------------------------------
+# ONS — UK monthly GDP, from the Office for National Statistics' own time
+# series API. Replaces FRED's quarterly NGDPRSAXDCGBQ per DATA-CATALOG.csv.
+#
+# Two genuine upgrades, both measured 2026-08-29: monthly rather than
+# quarterly, and two quarters fresher (ONS carried 2026-06 while FRED's UK
+# series stopped at 2026-Q1).
+#
+# The series is ONS's monthly GVA index. That is what "monthly GDP" IS in the
+# UK — ONS estimates it on the output approach and publishes it under the GVA
+# label — so the description must say so rather than calling it plain GDP.
+# History starts 1997-01; FRED's quarterly series went back to 1955, so this
+# trades ~40 years of low-frequency history for frequency and freshness.
+# ---------------------------------------------------------------------------
+ONS_BASE = "https://www.ons.gov.uk/economy/grossdomesticproductgdp/timeseries"
+
+_ONS_MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+               "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
+
+
+def fetch_ons_timeseries(series_code: str, dataset: str,
+                         start: str | None = None) -> pd.DataFrame | None:
+    """
+    One ONS time series, e.g. series_code='ecy2', dataset='mgdp'.
+
+    `start` is accepted and ignored: the endpoint has no windowing parameter
+    and the whole series is a ~70KB JSON document.
+
+    Returns the monthly observations. ONS dates read "1997 JAN", so they are
+    parsed against an explicit month map rather than a locale-dependent format.
+    """
+    if not series_code or not dataset:
+        return None
+    resp = _get(f"{ONS_BASE}/{series_code.lower()}/{dataset.lower()}/data",
+                headers={**BROWSER_HEADERS, "Accept": "application/json"})
+    if resp is None or not resp.content:
+        return None
+    try:
+        payload = resp.json()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ONS %s/%s: response was not JSON: %s", series_code, dataset, exc)
+        return None
+    months = payload.get("months") or []
+    if not months:
+        logger.warning("ONS %s/%s: no monthly observations in response", series_code, dataset)
+        return None
+    dates, values = [], []
+    for row in months:
+        parts = str(row.get("date", "")).split()
+        if len(parts) != 2 or parts[1].upper() not in _ONS_MONTHS:
+            continue
+        try:
+            dates.append(pd.Timestamp(year=int(parts[0]), month=_ONS_MONTHS[parts[1].upper()], day=1))
+        except (TypeError, ValueError):
+            continue
+        values.append(row.get("value"))
+    return _frame(dates, values)
+
+
+# ---------------------------------------------------------------------------
+# Eurostat — euro area real GDP levels, replacing FRED's CLVMNACSCAB1GQEA19
+# per DATA-CATALOG.csv.
+#
+# NOT the catalog's named dataset. teina011 was checked first (2026-08-29) and
+# carries only percentage CHANGES over a rolling 12 quarters — no level series
+# at all. The pipeline derives every region's growth from levels on purpose
+# (FRED's OECD growth series are discontinued; see NETWORK.md), and 12 points
+# cannot answer a percentile window either. namq_10_gdp is the quarterly
+# national accounts behind it and gives the level, so it is used instead.
+#
+# Second, independent reason the switch is right: this is EA20, the current
+# euro-area membership. FRED's series is EA19, which has been superseded since
+# Croatia joined in 2023.
+#
+# Response is JSON-stat: `value` is a sparse {flat_index: number} map and the
+# time dimension carries {period_label: index}, so the two are joined by index
+# rather than by position.
+# ---------------------------------------------------------------------------
+EUROSTAT_BASE = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data"
+
+
+def fetch_eurostat(dataset: str, filters: dict | None = None,
+                   start: str | None = None) -> pd.DataFrame | None:
+    """
+    dataset e.g. 'namq_10_gdp'; filters e.g. {"geo": "EA20", "unit": "CLV15_MEUR"}.
+
+    `start` maps to Eurostat's own `sinceTimePeriod`, so this IS a bounded
+    source for the daily incremental run.
+    """
+    if not dataset:
+        return None
+    params = {"format": "JSON", "lang": "EN", **(filters or {})}
+    if start:
+        params["sinceTimePeriod"] = str(start)[:7]
+    resp = _get(f"{EUROSTAT_BASE}/{dataset}", params=params)
+    if resp is None or not resp.content:
+        return None
+    try:
+        payload = resp.json()
+        time_index = payload["dimension"]["time"]["category"]["index"]
+        values = payload["value"]
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Eurostat %s: unexpected payload: %s", dataset, exc)
+        return None
+    by_position = {position: label for label, position in time_index.items()}
+    dates, nums = [], []
+    for flat_index, value in values.items():
+        label = by_position.get(int(flat_index))
+        if label is None:
+            continue
+        dates.append(_eurostat_period(label))
+        nums.append(value)
+    if not dates:
+        logger.warning("Eurostat %s: no observations matched the time dimension", dataset)
+        return None
+    return _frame(dates, nums)
+
+
+def _eurostat_period(label: str):
+    """'2026-Q2' -> the quarter's first day; '2026-07' and '2026' also handled."""
+    text = str(label).strip()
+    if "Q" in text:
+        year, quarter = text.split("-Q")
+        return pd.Timestamp(year=int(year), month=(int(quarter) - 1) * 3 + 1, day=1)
+    return pd.to_datetime(text, errors="coerce")
 
 
 # ---------------------------------------------------------------------------

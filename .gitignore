@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .DS_Store
 _to_delete/
+
+# Sample runs write here so synthetic numbers can never reach the real store.
+# data/markets.db itself IS committed — it is the accumulated history.
+data/markets-sample.db
