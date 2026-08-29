@@ -252,42 +252,6 @@ def fetch_bundesbank(series_key: str, start: str | None = None) -> pd.DataFrame 
 
 
 # ---------------------------------------------------------------------------
-# Bank of England — Interactive Statistical Database (IADB) CSV export.
-# Confirmed: needs a browser UA, returns "DATE,<SERIESCODE>" with dd Mon yyyy
-# dates. Covers the nominal gilt curve at 5y/10y/20y and Bank Rate.
-# ---------------------------------------------------------------------------
-def fetch_boe(series_code: str) -> pd.DataFrame | None:
-    if not series_code:
-        return None
-    params = {
-        "csv.x": "yes",
-        "Datefrom": "01/Jan/2000",
-        "Dateto": "now",
-        "SeriesCodes": series_code,
-        "CSVF": "TN",
-        "UsingCodes": "Y",
-        "VPD": "Y",
-        "VFD": "N",
-    }
-    resp = _get("https://www.bankofengland.co.uk/boeapps/iadb/fromshowcolumns.asp",
-                params=params, headers=BROWSER_HEADERS)
-    if resp is None or not resp.text:
-        return None
-    try:
-        text = resp.text.strip()
-        if "," not in text.split("\n")[0]:
-            logger.warning("BoE %s: no CSV returned (got %r)", series_code, text[:80])
-            return None
-        df = pd.read_csv(io.StringIO(text))
-        if df.shape[1] < 2:
-            return None
-        return _frame(df.iloc[:, 0], df.iloc[:, 1])
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("BoE parse failed for %s: %s", series_code, exc)
-        return None
-
-
-# ---------------------------------------------------------------------------
 # Japan — Ministry of Finance JGB interest rate CSV. One request returns the
 # whole 1Y..40Y curve for the current month, so it is fetched once per run and
 # cached rather than re-downloaded per tenor.
@@ -580,26 +544,6 @@ def fetch_norges_curve(tenor: str, start: str | None = None) -> pd.DataFrame | N
     return _frame(sub["date"], sub["value"])
 
 
-def fetch_norges(key: str, start: str | None = None) -> pd.DataFrame | None:
-    """key is a dataflow path such as 'IR/B.KPRA.SD' or 'GOVT_ZEROCOUPON/B.10Y'."""
-    if not key:
-        return None
-    resp = _get(f"https://data.norges-bank.no/api/data/{key}",
-                params={"format": "csv", "startPeriod": start or _start_period(years=25)})
-    if resp is None or not resp.text:
-        return None
-    try:
-        df = pd.read_csv(io.StringIO(resp.text), sep=";")
-        df.columns = [c.strip().upper() for c in df.columns]
-        if "TIME_PERIOD" not in df.columns or "OBS_VALUE" not in df.columns:
-            logger.warning("Norges %s: unexpected columns %s", key, df.columns.tolist())
-            return None
-        return _frame(df["TIME_PERIOD"], df["OBS_VALUE"])
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Norges parse failed for %s: %s", key, exc)
-        return None
-
-
 # ---------------------------------------------------------------------------
 # ONS — UK monthly GDP, from the Office for National Statistics' own time
 # series API. Replaces FRED's quarterly NGDPRSAXDCGBQ per DATA-CATALOG.csv.
@@ -725,34 +669,6 @@ def _eurostat_period(label: str):
         year, quarter = text.split("-Q")
         return pd.Timestamp(year=int(year), month=(int(quarter) - 1) * 3 + 1, day=1)
     return pd.to_datetime(text, errors="coerce")
-
-
-# ---------------------------------------------------------------------------
-# Still unsourced. Each returns None so the pipeline degrades to a "not yet
-# wired" cell rather than shipping wrong or stale numbers. See SPEC.md's endpoint appendix.
-# ---------------------------------------------------------------------------
-def fetch_snb(cube: str, params: dict | None = None) -> pd.DataFrame | None:
-    # data.snb.ch exposes a documented per-cube CSV API, but the Confederation
-    # bond yield series has been retired: the daily 'rendoblid' and monthly
-    # 'rendoblim' cubes both still return 200 while stopping at 2025-07, with a
-    # shared final publishing date of 2025-09-01. Money-market cubes on the
-    # same portal (e.g. 'zimoma') are current, so this is a discontinued
-    # series, not an outage, and no successor cube id responds.
-    # Returning None deliberately: a visibly missing Swiss curve beats a
-    # year-old one presented as today's. Needs a different institution
-    # (SIX Swiss Exchange or the SNB statistical bulletin).
-    logger.info("fetch_snb: no live source (cube %s discontinued/stale)", cube)
-    return None
-
-
-def fetch_chinabond(tenor: str) -> pd.DataFrame | None:
-    # yield.chinabond.com.cn returns a JS-rendered HTML shell. queryGjqxInfo
-    # serves a 956-byte shell regardless of parameters, and the yield_main
-    # XHR paths (getYieldDataForWeb, queryTypeValues) are 404. No plain-HTTP
-    # data endpoint found. TODO: needs either a headless browser or a
-    # different institution (CFETS) — neither is worth it for one curve yet.
-    logger.info("fetch_chinabond: not yet wired up (%s)", tenor)
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -1107,8 +1023,3 @@ def fetch_damodaran_country_multiple(region: str, column: str,
         return None
     return _frame(dates, values)
 
-
-def fetch_etf_factsheet(ticker: str) -> dict | None:
-    # iShares/SSGA fact sheets are PDFs; needs a pdfplumber step. Phase 4.
-    logger.info("fetch_etf_factsheet: not yet implemented (%s)", ticker)
-    return None

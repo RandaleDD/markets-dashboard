@@ -390,15 +390,19 @@ CORRELATION_WINDOWS = [52, 104]
 # ---------------------------------------------------------------------------
 # 8. Equity valuation + equity risk premium.
 # ---------------------------------------------------------------------------
+# `cape_source` is the discriminator the export uses: CAPE is US-only, because
+# it needs a long cyclically-adjusted earnings history that exists for the
+# S&P 500 and not for these other indices. The rest of the row is the index
+# label shown beside each region's multiples.
 VALUATION_PROXIES = [
-    {"region": "US", "name": "S&P 500", "cape_source": "shiller", "etf_proxy": None},
-    {"region": "UK", "name": "FTSE 100", "cape_source": None, "etf_proxy": "ewu.us"},
-    {"region": "EZ", "name": "STOXX 600", "cape_source": None, "etf_proxy": "ezu.us"},
-    {"region": "DE", "name": "DAX", "cape_source": None, "etf_proxy": "ewg.us"},
-    {"region": "CH", "name": "SMI", "cape_source": None, "etf_proxy": "ewl.us"},
-    {"region": "CN", "name": "CSI 300 / Hang Seng", "cape_source": None, "etf_proxy": "mchi.us"},
-    {"region": "JP", "name": "Nikkei 225", "cape_source": None, "etf_proxy": "ewj.us"},
-    {"region": "NO", "name": "OSEBX", "cape_source": None, "etf_proxy": "enor.us"},
+    {"region": "US", "name": "S&P 500", "cape_source": "shiller"},
+    {"region": "UK", "name": "FTSE 100", "cape_source": None},
+    {"region": "EZ", "name": "STOXX 600", "cape_source": None},
+    {"region": "DE", "name": "DAX", "cape_source": None},
+    {"region": "CH", "name": "SMI", "cape_source": None},
+    {"region": "CN", "name": "CSI 300 / Hang Seng", "cape_source": None},
+    {"region": "JP", "name": "Nikkei 225", "cape_source": None},
+    {"region": "NO", "name": "OSEBX", "cape_source": None},
 ]
 
 # Damodaran's country files cover these six of the eight regions. The US is
