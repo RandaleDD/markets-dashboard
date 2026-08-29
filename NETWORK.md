@@ -119,12 +119,31 @@ Widened, with measured cost:
 
 `TIMEOUT` raised 30s → 60s to match the larger payloads.
 
-**Not fixed: the UK curve has no deep history.** The BoE GLC archive exists
-(`glcnominalddata.zip`) but is **39MB for nominal alone**, and real and
-inflation would need their own, so roughly 120MB per daily run purely to
-annotate a percentile. Deliberately skipped — UK curve, real yield and implied
-inflation figures carry no context annotation, and the UI hides it rather than
-showing "N/A". Revisit only if the archive gets a lighter endpoint.
+**Fixed 2026-08-29: the UK curve now has deep history.** The objection was
+never the archive's size in itself, it was paying 89MB on *every* run. With a
+persistent database the download happens once, in `bootstrap.py`, and the
+weekly run only ever touches the small current-month workbook. Measured:
+
+| Archive | Size | Tenors reached |
+|---|---|---|
+| `glcnominalddata.zip` | 39.0MB | 2y/5y/10y back to **1979-01-02** (12,026 daily rows); 30y only to 2016 — the BoE did not publish that point earlier |
+| `glcrealddata.zip` | 25.0MB | 5y/10y to 1985-01-02, 2y to 1985-06-28, 30y to 2016 |
+| `glcinflationddata.zip` | 24.7MB | same shape as real |
+
+Two traps in the archives, both silent:
+- **Sheet names are not stable across eras.** Workbooks up to 2024 use
+  `3. nominal spot, short end` / `4. nominal spot curve`; the 2025-to-present
+  workbook and the current-month file use `3. spot, short end` /
+  `4. spot curve`. `_glc_spot_sheets` matches the `N. ... spot ...` shape.
+- **Each zip holds one workbook per era**, so the tenor has to be collected
+  from every block and concatenated. Taking the single best-matching block —
+  which the pre-archive code did, because there was only ever one — silently
+  returns one era's slice of the history.
+- The archives are cut at the **end of the previous month** (they ended
+  2026-07-31 while the current-month workbook held August), so `bootstrap.py`
+  runs a snapshot pass straight after the deep pass to close that seam.
+
+UK curve, real yield and implied inflation now resolve percentile context.
 
 Also no context: the China curve (unsourced entirely) and non-US ERP
 (Damodaran is annual, so a 5y window is 5 observations — below the 24-point
@@ -169,3 +188,43 @@ node install fails on a missing `simdjson` bottle. `osascript -l JavaScript`
 runs JavaScriptCore and will execute `app.js` against a small DOM shim, which
 is how the renderer was cleared of blame here — it produced 16KB of correct
 HTML while the live page showed nothing.
+
+
+## Weekly grain (2026-08-29)
+
+The dashboard stores **one observation per completed week** — the last actual
+close on or before that week's Friday — for every source that publishes faster
+than that. `db/ingest.to_weekly` does the reduction before anything is
+inserted, so the grain is a property of what is stored, not of how it is read.
+
+- A week whose Friday was a market holiday keeps its **real date** (a Thursday)
+  rather than being relabelled to the Friday.
+- An **incomplete week is never stored**, so a mid-week run attaches nothing for
+  the weekly series instead of planting a Wednesday row beside Friday's.
+- **Yahoo emits a Saturday bar for FX pairs.** `EURCHF=X` carried
+  2026-08-29 = 0.93740 alongside Friday's 0.93664. The Saturday bar belongs to
+  the *next* week's bin, so it is correctly excluded — this is the one place
+  the weekly and the old daily pipeline disagree on a level, and the weekly
+  answer is the right one.
+
+Measured effect on the store: 585,503 observations / 98.7 MiB at daily grain
+became **128,227 observations / 20.3 MiB** at weekly. That matters because the
+file is committed and GitHub refuses any file over 100 MiB — the daily-grain
+database was 1.3 MiB from being unpushable on its first commit.
+
+Everything derived from these series is therefore weekly and says so:
+volatility annualises with **sqrt(52)**, windows are named in weeks (4w/13w
+volatility, 52w/104w correlation), and there is no 1-day change column.
+
+## Sources added 2026-08-29
+
+| Source | Endpoint | Notes |
+|---|---|---|
+| ONS (UK GDP) | `ons.gov.uk/economy/grossdomesticproductgdp/timeseries/ecy2/mgdp/data` | JSON, browser UA. Observations are under `months`, dated `"1997 JAN"` — parsed against an explicit month map, not a locale format. 354 months from 1997-01. Titled *Gross Value Added — Monthly*: UK monthly GDP **is** the output-approach GVA index, so the description has to say GVA. Replaced FRED's `NGDPRSAXDCGBQ`, which is quarterly and stopped at 2026-Q1 while ONS carried 2026-06. |
+| Eurostat (EZ GDP) | `ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/namq_10_gdp` | JSON-stat. **Not the catalog's `teina011`** — that carries only percentage *changes* over a rolling 12 quarters, and the pipeline derives growth from levels. `namq_10_gdp` with `unit=CLV15_MEUR, s_adj=SCA, na_item=B1GQ, geo=EA20` gives the level, 126 observations from 1995. Also **EA20**, the current membership, where FRED's series is the superseded EA19. `sinceTimePeriod` genuinely bounds the response (126 rows → 6). |
+| BIS CBPOL `D.NO` | as the other seven regions | Norway's policy rate consolidated off Norges Bank onto the endpoint already used everywhere else. Both were checked side by side and agree at 4.25; BIS reaches back to 2001. Norway's **yield curve** still comes from Norges Bank directly. |
+
+**Bundesbank ignores `startPeriod`.** Measured: the endpoint returns the
+identical 10,620-row history (1997 onward) with or without it. It is a snapshot
+source in practice; the payload is small and the ingest step discards what it
+already holds.

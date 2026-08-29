@@ -1,12 +1,13 @@
-name: Daily data refresh
+name: Weekly data refresh
 
 on:
   schedule:
-    # 06:00 UTC — after US close (previous day) and before Asia opens.
-    # Since this is a single daily EOD snapshot across 7 time zones, some
-    # regions' "latest" will be their prior session close and some will be
-    # more current — that's an inherent tradeoff of one daily run, not a bug.
-    - cron: "0 6 * * *"
+    # Saturday 06:00 UTC. The dashboard stores one observation per completed
+    # week -- Friday's close, or the last session before it -- so this runs
+    # after every market Marco tracks has closed for the week and before the
+    # next one opens. Running on any other day is harmless: the current week is
+    # incomplete, so the weekly series simply attach nothing.
+    - cron: "0 6 * * 6"
   workflow_dispatch: {} # allows manual "Run workflow" from the Actions tab
 
 permissions:
@@ -22,6 +23,8 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
+      # The database is committed, so the checkout IS the accumulated history.
+      # Without it the run would have no watermark and would re-bootstrap.
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -30,7 +33,16 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Run pipeline (live)
+      - name: Fail if the database is missing
+        # A silent re-bootstrap would pull ~89MB of BoE archives and quietly
+        # replace an accumulated store, so this stops rather than guessing.
+        run: |
+          test -s data/markets.db || {
+            echo "::error::data/markets.db is missing. Run bootstrap.py and commit it."
+            exit 1
+          }
+
+      - name: Run pipeline (ingest -> quality -> export)
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }} # optional — fredgraph.csv path doesn't need it
         run: python pipeline.py --mode live
@@ -39,8 +51,8 @@ jobs:
         run: |
           git config user.name "markets-dashboard-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add site/data/latest.json
-          git diff --staged --quiet || git commit -m "Daily data refresh $(date -u +%Y-%m-%d)"
+          git add site/data/latest.json data/markets.db
+          git diff --staged --quiet || git commit -m "Weekly data refresh $(date -u +%Y-%m-%d)"
           git push
 
       - uses: actions/configure-pages@v5
