@@ -1,0 +1,53 @@
+name: Deploy dashboard to Pages
+
+# The repository's Pages setting is "GitHub Actions" (build_type: workflow),
+# which means nothing is published unless a workflow does it. There was no such
+# workflow, so the live site had been frozen on an old build while main moved
+# on. This is that missing step.
+#
+# Two triggers, because one is not enough:
+#   - `push` covers hand-made changes to the site or its data.
+#   - `workflow_run` covers the weekly refresh. It commits site/data/latest.json
+#     using GITHUB_TOKEN, and GitHub deliberately does NOT let a token-authored
+#     push start another workflow — so a `push` trigger alone would silently
+#     never fire for the Saturday job, which is the one that matters most.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_run:
+    workflows: ["Weekly data refresh"]
+    types: [completed]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; queue instead of cancelling, so a data refresh
+# that lands mid-deploy still gets published rather than being dropped.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Upload the site directory
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Only site/ is published. The database, the pipeline and the
+          # catalogue stay in the repository and off the public page.
+          path: site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
