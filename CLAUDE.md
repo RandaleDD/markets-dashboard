@@ -117,4 +117,8 @@ trusting them — this section is a snapshot and goes stale on its own.
   Volatility and drawdown carry it instead. This is accepted, not a gap.
 - No Node on this machine (`brew install node` fails on a simdjson bottle).
   To actually execute `site/assets/app.js`, use `osascript -l JavaScript` with
-  a DOM shim — see NETWORK.md.
+  a DOM shim — `python3 tools/render_check.py` does this and asserts every
+  table's column headings still line up with the cells under them. Run it
+  after touching `app.js` or after renaming anything in the payload: nothing
+  else catches a shifted column, because the page still renders and still
+  looks plausible. macOS-only, so it is a tool, not a CI test.
