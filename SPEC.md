@@ -267,7 +267,7 @@ wrong fails *silently*.
 ### The BoE GLC archives
 
 `bootstrap.py` is the only thing that pulls these (~89MB across nominal, real
-and inflation). They give the UK curve history back to 1979-01-02 — 2y/5y/10y;
+and inflation). They give the UK curve history back to 1979-01-05 — 2y/5y/10y;
 the 30y only reaches 2016, because the BoE did not publish that point earlier.
 Three traps, all silent:
 
@@ -290,13 +290,17 @@ Three traps, all silent:
   stops 2025-03/04 (JP: 2021-06), `CPALTT01*` stops 2024-12, `NAEXKP01*Q657S`
   growth is discontinued. CPI moved to BIS; GDP to level series with growth
   derived here.
-- **SNB Confederation bond yields are discontinued.** Both `rendoblid` and
-  `rendoblim` return 200 while stopping at 2025-07. Money-market cubes on the
-  same portal are current, so the series was retired, not the portal broken.
-- **ChinaBond is JS-rendered** (`queryGjqxInfo` returns a 956-byte shell) and
-  **CFETS answers `{"Error":"Path not found."}` to every path**, including
-  plain HTML. The China curve has no remaining lead short of a headless
-  browser.
+- **SNB Confederation bond yields are discontinued.** Both `rendoblid` (daily)
+  and `rendoblim` (monthly) return 200 while stopping at 2025-07, on a shared
+  final publishing date of 2025-09-01, and no successor cube id responds.
+  Money-market cubes on the same portal (e.g. `zimoma`) are current, so the
+  series was retired, not the portal broken. A live Swiss curve would need a
+  different institution — SIX Swiss Exchange, or the SNB statistical bulletin.
+- **ChinaBond is JS-rendered** (`queryGjqxInfo` returns a 956-byte shell
+  regardless of parameters, and the `yield_main` XHR paths
+  `getYieldDataForWeb` / `queryTypeValues` are 404) and **CFETS answers
+  `{"Error":"Path not found."}` to every path**, including plain HTML. The
+  China curve has no remaining lead short of a headless browser.
 - **Euro-area market-implied inflation has no free source.** The practitioner
   standard is the EUR HICPx zero-coupon inflation swap. The ECB `FM` dataflow
   has no ILS series — its `ILS` codes are Israeli shekel.
