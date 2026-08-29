@@ -57,15 +57,20 @@ and the correlation heatmap makes no diversification recommendation.
   for a Zurich-based reader.
 - PMI / economic surprise index: dropped entirely (no clean free multi-country
   historical source exists). GDP section is actual growth data only.
-- Layout: 7 tabs — Equity Indices, Yield Curves (nominal + real + implied
-  inflation + euro spreads), Macroeconomics (policy rates + inflation + GDP),
-  Currencies, Commodities, Valuation (+ risk premia), Cross-Asset & Regime,
-  plus a Regional Snapshot that inverts the grouping: one region's equities,
-  curve, macro, valuation and FX together. Commodities are excluded there —
-  they are global.
-- Visualization: tables carry current-state data with sparklines. Clicking any
-  sparkline expands an inline line chart with selectable lookback
-  (3M/YTD/1Y/2Y/3Y/5Y, default 1Y), served from five years of weekly points.
+- Layout: 7 tabs — Macroeconomics (regime map + GDP + inflation + policy
+  rates), Equity Indices, Rates (curves + euro spreads + real yields + implied
+  inflation + credit + cost of capital), Currencies, Commodities, Valuation
+  (+ risk premia), Cross-Asset — plus a Regional Snapshot that inverts the
+  grouping: one region's equities, curve, macro, valuation and FX on one page.
+  Commodities are excluded there, being global. Macroeconomics leads because
+  it is the context everything else is read against.
+- Visualization: the Equity and Rates tabs each open with one large chart above
+  their table — index selection and lookback on the first, region selection and
+  an as-of date on the second. Elsewhere, tables carry sparklines that expand
+  into a line chart (3M/YTD/1Y/2Y/3Y/5Y, default 1Y) from five years of weekly
+  points. Two or more equity lines are always indexed to 100 at the start of
+  the window: they sit in different currencies at different levels, so nothing
+  else makes them comparable.
 - **Every figure states its definition.** Commodity rows carry exchange,
   contract and unit; GDP is labelled real / chain-linked / local currency /
   seasonally adjusted; inflation expectations carry tenor and index basis.
@@ -73,6 +78,13 @@ and the correlation heatmap makes no diversification recommendation.
   annualises with sqrt(52) and is labelled in weeks (4w/13w), correlation
   windows are 52w/104w, and there is no 1-day change column — a "1D" label
   over weekly data would be a number that does not mean what it says.
+- **The cost-of-capital risk-free leg is the nominal 10y, not a real yield.**
+  The equity risk premium beside it is Damodaran's implied ERP, itself measured
+  against a nominal government yield, so a real risk-free would remove
+  inflation twice. It is also the textbook convention — the risk-free is the
+  government yield in the currency and duration of the cash flows — and it
+  fills the table, since 7 of 8 regions publish a nominal 10y where only 2
+  publish a real one.
 - Equity index *levels* deliberately carry no percentile annotation. A price
   percentile on a trending series is always near the 100th and says nothing;
   volatility and drawdown are mean-reverting, so those carry it instead.
@@ -85,7 +97,7 @@ actually uses today.
 
 | Category | Source | State |
 |---|---|---|
-| Prices / FX / commodities | Yahoo Finance via `yfinance` | Live — 12 indices, VIX, 8 FX pairs, 7 commodities, 2 bond-return proxies |
+| Prices / FX / commodities | Yahoo Finance via `yfinance` | Live — 12 indices, VIX, 8 FX pairs, 8 commodities (Brent and WTI both, named so neither reads as plain "oil"), 2 bond-return proxies (US and euro governments). Gold/copper is derived from two of these rather than sourced again |
 | Central bank policy rates | BIS Data Portal `CBPOL`, all 7 regions on one endpoint | Live. Norway consolidated off Norges Bank onto `D.NO` 2026-08-29; Germany mirrors the ECB rate |
 | CPI, all 8 regions | BIS Data Portal `WS_LONG_CPI` | Live. Returns YoY and the index level in one response under different unit codes, so both are stored and annualised QoQ is derived |
 | GDP growth | FRED real-GDP *level* series for US/DE/CH/JP/NO/CN; **ONS** monthly index for the UK; **Eurostat `namq_10_gdp`** for the euro area | Live. YoY and annualised QoQ derived in the pipeline so every region shares one definition. China is annual-only |
@@ -97,16 +109,16 @@ actually uses today.
 | Germany curve | Deutsche Bundesbank daily Bund term structure | Live, all four tenors |
 | Japan curve | Japan MOF JGB CSV, current month stitched with the 1974 archive | Live, all four tenors |
 | Norway curve | Norges Bank `GOVT_ZEROCOUPON` | Live to 10y — **no 30y is published**, so that cell stays blank |
-| Switzerland curve | FRED `IRLTLT01CHM156N` | 10y only, monthly and ~2 months behind, flagged as such. The SNB retired its own curve |
+| Switzerland curve | TradingEconomics, scraped | **The one unofficial source here**, taken deliberately: the SNB retired its own daily curve in July 2025 with no successor, and every official free alternative was checked and rejected (see dead ends). Daily, 2y and 10y only, current value only — so history builds forward from 2026-08-29, and the OECD monthly prints before it stay in the same series |
 | China curve | — | **No free source.** ChinaBond is JS-rendered and CFETS rejects all programmatic access |
 | Euro-area / CH / CN / JP / NO inflation expectations | — | **No free source.** The practitioner standard is the zero-coupon inflation swap, which is not published free. CH and NO are permanent: neither government issues inflation-linked debt at all |
 | Credit spreads | ICE BofA OAS via FRED (US IG/HY, Euro HY, EM corporate) | Live. Capped at a rolling ~3 years by ICE licensing, so only the `full` percentile window resolves |
-| Liquidity / lending | Fed Senior Loan Officer Survey (`DRTSCILM`) via FRED | Live, quarterly, US only — no keyless euro-area equivalent found |
+| Liquidity / lending | — | **Dropped 2026-08-29.** The Fed's SLOOS was the only region with a keyless feed, and a single-country lending panel was not being used |
 | US equity valuation | Shiller CAPE (`ie_data.xls`); Damodaran implied ERP (FCFE) | Live. Shiller's file currently ends 2024-09, so it reports `stale` |
 | Non-US equity risk premia | Damodaran `ctryprem.xlsx` (rating-based country risk premium) | Live for UK/DE/CH/CN/JP/NO, annual, back to 2000 from the year-stamped archives. Stores the **country** premium, which is 0.00 for every Aaa sovereign; `db/export.py` adds the mature-market base (`erp.US`) back on for display. No Eurozone aggregate exists, so `erp.EZ` is descoped |
 | Non-US equity valuation | Damodaran `countrystats.xls` (median trailing P/E, P/B, P/S, EV/EBITDA) | Live for the same six regions, annual, **2020 onward only** — the 2012-2019 archives publish means rather than medians, and splicing the two would put a methodology break mid-series. Not cyclically adjusted, so not comparable to the US CAPE. `valuation.EZ` is descoped |
 
-Twelve institutions, and still gaps. No single source covers this, free or
+Twelve institutions and one scraped aggregator, and still gaps. No single source covers this, free or
 paid short of a full commercial terminal — the spread of sources is by design.
 
 ## Architecture
@@ -128,6 +140,21 @@ A persistent SQLite store (`data/markets.db`) → a JSON export
 (`site/data/latest.json`) → a static frontend reading that JSON → GitHub
 Actions running the pipeline weekly and redeploying to GitHub Pages. No server
 to maintain; a public URL accessible from anywhere.
+
+### Deployment takes two workflows, and the second is easy to miss
+
+`weekly.yml` refreshes the data and commits it. `pages.yml` publishes `site/`.
+They are separate because Pages here is set to build **from a workflow**, so
+nothing reaches the live URL unless a workflow puts it there — for a long
+period none did, and pushes to `main` silently changed nothing anyone could
+see while the site served an old build.
+
+`pages.yml` therefore triggers on `push` *and* on `weekly.yml` completing. The
+second trigger is the important one and the non-obvious one: the weekly job
+commits using `GITHUB_TOKEN`, and GitHub deliberately refuses to let a
+token-authored push start another workflow, so a `push` trigger alone would
+never fire for the Saturday run — the one that matters most. After any push,
+check that the live URL actually changed.
 
 ### The store is append-only. This is the requirement, not an implementation detail.
 
@@ -182,7 +209,7 @@ dated, retrievable snapshot held both locally and on GitHub.
 This is also why the grain is weekly rather than daily. At daily grain the
 store was 585,503 observations and 98.7 MiB — and GitHub hard-rejects any file
 over 100 MiB, so it was 1.3 MiB from being unpushable on its first commit. At
-weekly it is 128,527 observations and 20.5 MiB, growing ~2 MiB a year.
+weekly it is 130,542 observations and 20.9 MiB, growing ~2 MiB a year.
 
 ### Adding a series later
 
@@ -219,16 +246,66 @@ other series is touched.
    Both Eurozone rows stay `descoped`: Damodaran publishes member states with
    no bloc aggregate, and Germany's figure is not a stand-in for it — the same
    line already drawn between the Bundesbank and ECB curves.
-7. Polish: small-multiple yield curve charts, further chart treatment, mobile
-   layout pass.
-8. Stretch: IBKR Client Portal Web API to replace yfinance as the price layer.
-   Usable for ad hoc checks today but needs an authenticated session, so it is
-   not a fit for a headless job.
+7. ✅ Dashboard rework (2026-08-29). House palette, Macroeconomics leading,
+   "Rates" and "Cross-Asset" renamed, the regime map moved to Macro with a
+   how-to-read-it note, chart-led Equity and Rates tabs, index tooltips stating
+   weighting and return basis, the inflation table rebuilt on the curve tenor
+   columns, credit in basis points, a nominal cost-of-capital stack, and the
+   Regional Snapshot rebuilt as a cheat sheet. Also the Pages deploy workflow
+   that had been missing, without which pushing never updated the live site.
+
+### Next steps
+
+Three strands, roughly in order of value. None is started.
+
+8. **Fill the data gaps.** In descending order of what they would unlock:
+   - **Non-US investment-grade credit spreads.** This is the single highest-value
+     gap: it is the only leg missing from seven of the eight cost-of-capital
+     stacks, so one source would turn seven `partial` panels into `ok`.
+   - **A real Swiss source.** The scraped fallback works but is the only
+     unofficial input here, gives 2y and 10y only, and has no history before
+     2026-08-29. Worth re-checking the SNB portal periodically for a successor
+     cube.
+   - **Non-US dividend yields and forward multiples**, which would make the
+     Valuation tab more than trailing multiples and a risk premium.
+   - **China curve** and **euro-area / CH / CN / JP / NO inflation
+     expectations** — both blocked on sources that do not exist free rather
+     than on work. Do not re-attempt without new information; see dead ends.
+
+9. **Data cleanliness.** `db/quality.py` checks staleness, gaps, outliers and
+   curve consistency. What it does not yet do:
+   - **Plausibility bands per series.** Nothing would presently catch a yield
+     of 40% or a P/E of 4,000 — the outlier check is relative to a series' own
+     history, so a first bad print on a short series passes. This matters most
+     for the scraped Swiss curve, where a page restyle could silently return
+     the wrong number rather than failing.
+   - **Unit-drift detection.** A source switching between fractions and percent
+     is the failure mode that has bitten this project most (Damodaran twice),
+     and it is currently caught only by fetcher-specific heuristics.
+   - **Cross-series consistency.** Nothing asserts that a 2s10s spread agrees
+     with its own legs, or that a derived ratio moves when its inputs do.
+   - **Flag lifecycle.** Flags are raised but never cleared: two had to be
+     resolved by hand on 2026-08-29 after the conditions that raised them went
+     away. `quality.py` should retire a flag when its condition no longer holds.
+
+10. **Layout, readability, usability.** The 2026-08-29 rework covered structure
+    and colour; what remains is craft:
+    - A **mobile pass** — the tables are still desktop-shaped.
+    - **Crosshair and hover readout** on the two large charts, so a line can be
+      read at a date rather than estimated against the axis.
+    - **Small-multiple curve charts** — all eight regions at a glance rather
+      than one overlay at a time.
+    - The **Valuation tab is still thin**, and will stay thin until step 8
+      lands. Its layout should be revisited once it has more to show.
+
+11. Stretch: IBKR Client Portal Web API to replace yfinance as the price layer.
+    Usable for ad hoc checks today but needs an authenticated session, so it is
+    not a fit for a headless job.
 
 ## Appendix — endpoint reference
 
 Absorbed from the former `NETWORK.md`. Per-series quirks now live in
-`DATA-CATALOG.csv`'s "Notes / quirks" column, which the pipeline keeps in step
+`data/DATA-CATALOG.csv`'s "Notes / quirks" column, which the pipeline keeps in step
 with the database. What is kept here is the cross-cutting knowledge that
 belongs to no single series and is expensive to re-derive.
 
@@ -291,16 +368,24 @@ Three traps, all silent:
   stops 2025-03/04 (JP: 2021-06), `CPALTT01*` stops 2024-12, `NAEXKP01*Q657S`
   growth is discontinued. CPI moved to BIS; GDP to level series with growth
   derived here.
-- **SNB Confederation bond yields are discontinued.** Both `rendoblid` (daily)
-  and `rendoblim` (monthly) return 200 while stopping at 2025-07, on a shared
-  final publishing date of 2025-09-01, and no successor cube id responds.
-  Money-market cubes on the same portal (e.g. `zimoma`) are current, so the
-  series was retired, not the portal broken. A live Swiss curve would need a
-  different institution — SIX Swiss Exchange, or the SNB statistical bulletin.
+- **SNB Confederation bond yields are discontinued, and nothing official
+  replaced them.** `rendoblid` (daily) and `rendoblim` (monthly) both return
+  200 while stopping at 2025-07-31, and seven candidate successor cube ids were
+  tried on 2026-08-29 — all 404. Money-market cubes on the same portal (e.g.
+  `zimoma`) are current, so the series was retired, not the portal broken.
+  Everything else was checked the same day and rejected: FRED carries only the
+  OECD monthly 10y (~2 months behind), Yahoo has no Swiss sovereign ticker,
+  worldgovernmentbonds and FT render their tables in JavaScript, and
+  MarketWatch sits behind a DataDome captcha. SIX has a working JSON quote API
+  but serves individual bonds, so using it would mean computing and fitting a
+  curve ourselves — our methodology, not an institution's. Hence the scraped
+  TradingEconomics fallback, taken knowingly.
 - **ChinaBond is JS-rendered** (`queryGjqxInfo` returns a 956-byte shell
   regardless of parameters, and the `yield_main` XHR paths
   `getYieldDataForWeb` / `queryTypeValues` are 404) and **CFETS answers
-  `{"Error":"Path not found."}` to every path**, including plain HTML. The
+  `{"Error":"Path not found."}` to every path**, including plain HTML.
+  Re-checked 2026-08-29: a POST to `cbweb-czb-web/czb/queryGjqxInfo` returns
+  200 but with empty tables, and the MOF curve page is another JS shell. The
   China curve has no remaining lead short of a headless browser.
 - **Euro-area market-implied inflation has no free source.** The practitioner
   standard is the EUR HICPx zero-coupon inflation swap. The ECB `FM` dataflow
@@ -314,7 +399,13 @@ Three traps, all silent:
 - PMI / economic surprise index.
 - Energy-transition/infrastructure-specific layer.
 - CHF-converted equity returns (local currency only).
-- Non-US free-cash-flow yield (no free source found). Non-US EV/EBITDA left
-  this list on 2026-08-29 — Damodaran's `countrystats.xls` publishes it, and it
-  is now stored for UK/DE/CH/CN/JP/NO alongside P/E, P/B and P/S.
+- Non-US free-cash-flow yield, dividend yields, and forward (as opposed to
+  trailing) multiples — no free source found. Non-US EV/EBITDA left this list
+  on 2026-08-29: Damodaran's `countrystats.xls` publishes it, and it is now
+  stored for UK/DE/CH/CN/JP/NO alongside P/E, P/B and P/S.
+- Swap curves. The BoE publishes a genuine GBP OIS curve (it ships inside the
+  zip already downloaded weekly), but USD swaps died on FRED in 2016 and there
+  is no free EUR/CHF/JPY curve, so a "swaps by country" table would have one
+  row. Revisit if a multi-country free source appears.
+- Bank lending surveys — see the sourcing table.
 - Journaling / knowledge-base features — deferred to their own project.

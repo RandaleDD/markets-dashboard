@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T21:16:03.345453+00:00",
+  "generated_at": "2026-08-29T21:48:47.297886+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -49389,7 +49389,7 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-08-29T21:16:01.365747+00:00",
+    "generated_at": "2026-08-29T21:48:46.774247+00:00",
     "series": 143,
     "fresh": 141,
     "stale": 2,
@@ -49399,7 +49399,7 @@
     "flags_raised_this_run": {},
     "open_flags": {
       "gap": 4,
-      "stale": 3
+      "stale": 2
     },
     "open_flag_examples": [
       {
@@ -49422,13 +49422,6 @@
         "flag_type": "gap",
         "detail": "242 days beyond the expected weekly step between 2024-11-18 and 2025-07-25 (~34 week(s) with no observation)",
         "raised_at": "2026-08-29T05:57:20.630992+00:00"
-      },
-      {
-        "series_id": "curve.CH.10Y",
-        "date": "2026-06-01",
-        "flag_type": "stale",
-        "detail": "89d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-08-29T05:57:20.556233+00:00"
       },
       {
         "series_id": "gdp.NO",
