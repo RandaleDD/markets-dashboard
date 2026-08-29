@@ -2,7 +2,7 @@
 Percentile / z-score context: where does today's reading sit against this
 series' own history?
 
-Two things this module deliberately does NOT do, both from V2-PLAN.md's
+Two things this module deliberately does NOT do, both from SPEC.md's
 governing constraint:
   - It never combines series into a composite score.
   - It never labels a reading "cheap", "expensive", or anything directional.

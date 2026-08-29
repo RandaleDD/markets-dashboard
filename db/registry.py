@@ -369,6 +369,6 @@ def by_id() -> dict[str, Series]:
 
 # Series whose values genuinely get revised after first release, and therefore
 # need a real vintage_date. Everything else writes vintage_date = date, so the
-# mechanism is present but inert -- see DATABASE-PLAN.md "Revisions".
+# mechanism is present but inert -- see SPEC.md, "Revisions".
 def revisable_ids() -> set[str]:
     return {s.series_id for s in all_series() if s.revisable}

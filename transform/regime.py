@@ -1,7 +1,7 @@
 """
 Growth / inflation regime coordinates.
 
-Descriptive only, per V2-PLAN.md's governing constraint. Quadrant names below
+Descriptive only, per SPEC.md's governing constraint. Quadrant names below
 describe what the data is doing, not what anyone should do about it.
 
 **The definition, stated once here and carried into the UI label** (per the
