@@ -88,6 +88,22 @@ def _ctx(df, latest_value=None):
     return ctx if has_any(ctx) else None
 
 
+def _ctx_if_varies(df):
+    """
+    _ctx, but only where the series actually moves.
+
+    A percentile is meaningless on a flat line: the Aaa sovereigns (DE, CH, NO)
+    carry a country risk premium of exactly 0.00 in all 26 stored years, and
+    percentile_context would dutifully report that as the 100th percentile.
+    Same reasoning as the deliberate absence of a percentile on index levels.
+    """
+    if df is None or len(df) < 2:
+        return None
+    if float(df["value"].astype(float).std(ddof=0)) <= 0.0:
+        return None
+    return _ctx(df)
+
+
 def _drawdown_series(df):
     """Drawdown from running peak, in percent -- mean-reverting, so a
     percentile against its own history is informative."""
@@ -328,22 +344,49 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "context": _ctx(spread_hist) if spread_hist is not None else None,
         })
 
-    # --- Valuation (CAPE) and ERP ---
+    # --- Valuation (CAPE + Damodaran country multiples) and ERP ---
     cape_df = hist.get("valuation.US.cape")
     cape_st, cape_as_of = _series_status(cape_df, "monthly")
     erp_df = hist.get("erp.US")
     erp_st, erp_as_of = _series_status(erp_df, "annual")
+    # The mature-market base every Damodaran country risk premium is added to.
+    base_erp = _latest(erp_df)
+
     for entry in universe.VALUATION_PROXIES:
         region = entry["region"]
         is_us = entry.get("cape_source") == "shiller"
-        status[f"valuation:{region}"] = cape_st if is_us else "stubbed"
+        multiples, mult_as_of, mult_st = {}, None, None
+        for m in universe.VALUATION_MULTIPLES:
+            mdf = hist.get(f"valuation.{region}.{m['id']}")
+            value = _latest(mdf)
+            if value is None:
+                continue
+            mult_st, mult_as_of = _series_status(mdf, "annual")
+            multiples[m["id"]] = {
+                "value": round(value, 2),
+                "name": m["name"],
+                "context": _ctx_if_varies(mdf),
+            }
+        if is_us:
+            val_status = cape_st
+        elif multiples:
+            val_status = mult_st
+        else:
+            val_status = "stubbed"
+        status[f"valuation:{region}"] = val_status
         out["valuation"][region] = {
             "name": entry["name"],
             "cape": round(_latest(cape_df), 2) if (is_us and _latest(cape_df) is not None) else None,
             "cape_as_of": cape_as_of if is_us else None,
             "cape_context": (_ctx(cape_df) if is_us and cape_df is not None else None),
-            "forward_pe": None, "dividend_yield_pct": None,
-            "note": None if is_us else "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4).",
+            "multiples": multiples or None,
+            "multiples_as_of": mult_as_of,
+            "multiples_basis": ("Median across listed companies in the country, trailing. "
+                                "NOT cyclically adjusted, so not comparable to US CAPE."
+                                if multiples else None),
+            "note": None if (is_us or multiples) else
+                    "Damodaran publishes member states only, with no Eurozone aggregate "
+                    "(DATA-CATALOG.csv: valuation.EZ is descoped, not pending).",
         }
 
     for region in universe.REGIONS:
@@ -351,17 +394,41 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             status["erp:US"] = erp_st
             out["equity_risk_premia"]["US"] = {
                 "erp_pct": round(_latest(erp_df), 2),
+                "country_risk_premium_pct": None,
                 "method": "Damodaran implied ERP (FCFE), S&P 500",
                 "as_of": erp_as_of,
                 "context": _ctx(erp_df),
             }
             continue
-        pe = out["valuation"].get(region, {}).get("forward_pe")
+        # The stored series is the rating-based COUNTRY risk premium -- a spread
+        # over a mature market, and exactly 0.00 for every Aaa sovereign. Adding
+        # the mature-market base back on reproduces Damodaran's own "Total Equity
+        # Risk Premium" column (UK: 4.23 + 0.776 = 5.006, matching the file), and
+        # keeps the displayed number comparable to the US reading beside it.
+        # Both legs are Damodaran at the same annual vintage.
+        crp_df = hist.get(f"erp.{region}")
+        crp = _latest(crp_df)
+        if crp is not None and base_erp is not None:
+            crp_st, crp_as_of = _series_status(crp_df, "annual")
+            status[f"erp:{region}"] = crp_st
+            out["equity_risk_premia"][region] = {
+                "erp_pct": round(base_erp + crp, 2),
+                "country_risk_premium_pct": round(crp, 2),
+                "method": ("Damodaran total ERP: US mature-market base (implied, FCFE) "
+                           "plus the rating-based country risk premium"),
+                "as_of": crp_as_of,
+                # The percentile describes the country premium, the part that
+                # actually moves; it is suppressed for the Aaa sovereigns whose
+                # premium has been flat zero for the whole history.
+                "context": _ctx_if_varies(crp_df),
+            }
+            continue
         y10 = out["yield_curves"].get(region, {}).get("tenors", {}).get("10Y")
-        val = compute_erp(pe, y10)
+        val = compute_erp(None, y10)
         status[f"erp:{region}"] = "ok" if val is not None else "stubbed"
         out["equity_risk_premia"][region] = {
             "erp_pct": val,
+            "country_risk_premium_pct": None,
             "method": "Earnings yield minus 10y govt yield" if val is not None else None,
             "as_of": None,
             "context": None,

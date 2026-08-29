@@ -48,6 +48,23 @@ BASE_LEVELS = {
     "policy_rate.CH": 1.00, "policy_rate.CN": 3.10, "policy_rate.JP": 0.50,
     "policy_rate.NO": 4.25,
     "valuation.US.cape": 34.2, "erp.US": 4.23, "sloos.US.ci_large": 5.0,
+    # Damodaran country data. The Aaa sovereigns really are 0.0 in the live
+    # store; sample mode keeps them non-zero so the synthetic run still
+    # exercises the percentile path.
+    "erp.UK": 0.78, "erp.DE": 0.20, "erp.CH": 0.15, "erp.CN": 0.91,
+    "erp.JP": 0.91, "erp.NO": 0.18,
+    "valuation.UK.pe": 18.1, "valuation.UK.pb": 1.63, "valuation.UK.ps": 1.56,
+    "valuation.UK.ev_ebitda": 10.1,
+    "valuation.DE.pe": 19.9, "valuation.DE.pb": 1.43, "valuation.DE.ps": 0.99,
+    "valuation.DE.ev_ebitda": 10.5,
+    "valuation.CH.pe": 23.2, "valuation.CH.pb": 2.05, "valuation.CH.ps": 1.69,
+    "valuation.CH.ev_ebitda": 13.2,
+    "valuation.CN.pe": 40.7, "valuation.CN.pb": 2.63, "valuation.CN.ps": 3.40,
+    "valuation.CN.ev_ebitda": 26.2,
+    "valuation.JP.pe": 13.9, "valuation.JP.pb": 1.18, "valuation.JP.ps": 0.75,
+    "valuation.JP.ev_ebitda": 7.1,
+    "valuation.NO.pe": 16.4, "valuation.NO.pb": 1.62, "valuation.NO.ps": 1.62,
+    "valuation.NO.ev_ebitda": 12.7,
     "credit.US.ig_oas": 0.79, "credit.US.hy_oas": 2.63,
     "credit.EZ.hy_oas": 2.56, "credit.EM.corp_oas": 1.39,
     "spread_benchmark.DE": 3.07, "spread.FR": 3.6, "spread.IT": 4.0, "spread.ES": 3.8,

@@ -519,28 +519,31 @@ function renderValuation() {
       hasAny ? "" : `<span class="stub">awaiting non-US valuation sourcing</span>`,
     ];
   });
-  const covered = REGION_ORDER.filter((r) => ((DATA.valuation || {})[r] || {}).cape != null).length;
+  const erpCovered = REGION_ORDER.filter((r) => ((DATA.equity_risk_premia || {})[r] || {}).erp_pct != null).length;
 
+  const mult = (v, key) => (v.multiples || {})[key];
+  const multCell = (v, key) => {
+    const m = mult(v, key);
+    return m && m.value != null ? `${m.value.toFixed(2)}${ctxTag(m.context)}` : dash();
+  };
   const detailRows = REGION_ORDER.map((region) => {
     const v = (DATA.valuation || {})[region] || {};
     const e = (DATA.equity_risk_premia || {})[region] || {};
     return [
       regionName(region), v.name || "",
-      v.forward_pe != null ? v.forward_pe.toFixed(1) : dash(),
-      v.dividend_yield_pct != null ? `${v.dividend_yield_pct.toFixed(1)}%` : dash(),
-      e.method ? `<span class="ccy">${e.method}</span>` : dash(),
-      v.cape_as_of || e.as_of || dash(),
+      multCell(v, "pe"), multCell(v, "pb"), multCell(v, "ps"), multCell(v, "ev_ebitda"),
+      v.multiples_as_of || v.cape_as_of || e.as_of || dash(),
     ];
   });
 
   document.getElementById("panel-valuation").innerHTML =
     `<h2>Valuation Scorecard</h2>` +
-    note(`CAPE and equity risk premium across regions, with each reading's percentile against its own history. <strong>${covered} of ${REGION_ORDER.length} regions have CAPE today</strong> — non-US coverage needs ETF fact-sheet parsing (SPEC.md Phase 4) and is not implemented, so the empty rows are a known sourcing gap, not a load failure.`) +
+    note(`CAPE and equity risk premium across regions, with each reading's percentile against its own history. CAPE is US-only by design — it needs a long cyclically-adjusted earnings history that exists for the S&amp;P 500 and not for the other indices. <strong>${erpCovered} of ${REGION_ORDER.length} regions have an ERP.</strong> The Eurozone is blank on both because Damodaran publishes member states with no bloc aggregate, and Germany's figure is not a stand-in for it.`) +
     table(["Region", "CAPE", "ERP", ""], scoreRows) +
 
-    `<h2 class="mt">Valuation Detail</h2>` +
-    note("Forward P/E and dividend yield are the fields awaiting non-US sourcing.") +
-    table(["Region", "Index", "Fwd P/E", "Div Yield", "ERP method", "As of"], detailRows);
+    `<h2 class="mt">Country Multiples</h2>` +
+    note("Damodaran's country aggregates: the <strong>median</strong> across listed companies in each country, on <strong>trailing</strong> earnings, book, sales and EBITDA. These are not cyclically adjusted, so they are not comparable to the CAPE above — and the median basis only starts in 2020, because the earlier vintages of the source publish means instead.") +
+    table(["Region", "Index", "P/E", "P/B", "P/S", "EV/EBITDA", "As of"], detailRows);
 }
 
 
@@ -785,10 +788,21 @@ function renderSnapshot(region) {
   const fx = (DATA.currencies || []).find((f) => f.id === fxForRegion);
   const fxCards = fx ? card(fx.name, fmtNum(fx.level, 4), `${fmtPct(fx.chg_1w_pct)} 1W · ${fmtPct(fx.chg_ytd_pct)} YTD`) : `<div class="card empty">—</div>`;
 
+  const vm = val.multiples || {};
+  const mCard = (label, key, unit) =>
+    vm[key] && vm[key].value != null
+      ? card(label, vm[key].value.toFixed(2), unit)
+      : "";
   const valCards = [
-    card("CAPE", val.cape != null ? val.cape.toFixed(1) : dash(), val.name || ""),
+    // CAPE is US-only by construction; the country multiples fill the row for
+    // the six Damodaran regions. Both are labelled so they are never read as
+    // the same measure.
+    val.cape != null ? card("CAPE", val.cape.toFixed(1), val.name || "") : "",
+    mCard("P/E (trailing, median)", "pe", val.name || ""),
+    mCard("P/B", "pb", "median, trailing"),
+    mCard("EV/EBITDA", "ev_ebitda", "median, trailing"),
     card("ERP", erp.erp_pct != null ? erp.erp_pct.toFixed(2) + "%" : dash(), erp.method || ""),
-  ].join("");
+  ].filter(Boolean).join("");
 
   document.getElementById("snapshot-body").innerHTML =
     `<h3 class="snap-head">Equities</h3><div class="cards">${equityCards}</div>` +

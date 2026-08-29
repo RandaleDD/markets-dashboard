@@ -849,6 +849,265 @@ def fetch_damodaran_erp() -> pd.DataFrame | None:
         return None
 
 
+# ---------------------------------------------------------------------------
+# Damodaran (NYU Stern) country data: ctryprem (country risk premium) and
+# countrystats (aggregated country valuation multiples).
+#
+# Both are keyed by COUNTRY NAME, not any ISO code, so the name -> region map
+# below is explicit rather than fuzzy-matched: several Damodaran rows would
+# otherwise collide ("China" vs "Chile", "United Kingdom" vs "United Arab
+# Emirates"). Names also carry footnote markers in some vintages
+# ("Germany [1]" through the 2008-2011 files), which `_dam_country` strips.
+#
+# Both files are year-stamped archives -- <name><YY>.xls[x] -- where YY is the
+# DATA year and the file itself is published the following January (
+# ctryprem24.xlsx carries "Date of update: 2025-01-01"). So archive YY is
+# stamped YY-12-31, and the undated current file is the most recent completed
+# year. That makes the two sequences continuous with no overlap.
+#
+# Traps, both confirmed against every archive year on 2026-08-29:
+#   - The header row moves between vintages (ctryprem: row 6, 7, 17, 19 or 20;
+#     countrystats: row 0, 1, 7 or 8), so it MUST be scanned for. The 15-row
+#     window fetch_damodaran_erp uses is too narrow -- ctryprem 2002-2008 puts
+#     it at row 20.
+#   - The sheet name moves too: "Sheet1" (2000), "Country premiums"
+#     (2001-2011), "ERPs by country" (2012-now).
+#   - ctryprem values are FRACTIONS in every vintage (0.00776 = 0.776%), so
+#     they are multiplied by 100 unconditionally. The magnitude heuristic in
+#     fetch_damodaran_erp cannot be reused here: Germany, Switzerland and
+#     Norway are Aaa and carry a country risk premium of exactly 0.0 in all 26
+#     years, so a per-country max would be 0 and prove nothing.
+#   - countrystats changed STATISTIC in 2020: 2012-2019 publish "Average of
+#     Trailing PE", 2020+ publish "Median Trailing PE". Those are not the same
+#     series -- the means run 3-10x higher (Germany 171.3 in 2013 vs 15.9 in
+#     2024) -- so only median-basis vintages are accepted. See SPEC.md.
+# ---------------------------------------------------------------------------
+_DAM_ARCHIVE = "https://pages.stern.nyu.edu/~adamodar/pc/archives/"
+_DAM_DATASET = "https://pages.stern.nyu.edu/~adamodar/pc/datasets/"
+
+# Damodaran's country name -> this dashboard's region code. Explicit by
+# design; do not replace with a fuzzy match.
+DAMODARAN_COUNTRY_NAMES = {
+    "united kingdom": "UK",
+    "germany": "DE",
+    "switzerland": "CH",
+    "china": "CN",
+    "japan": "JP",
+    "norway": "NO",
+}
+
+# ctryprem archives confirmed present for 2000-2024; countrystats for
+# 2012-2024, but only 2020+ are median-basis and therefore usable.
+_CTRYPREM_FIRST_YEAR = 2000
+_COUNTRYSTATS_FIRST_YEAR = 2020
+_DAM_LAST_ARCHIVE_YEAR = 2024
+
+_DAM_CACHE = {}
+
+
+def _dam_country(value) -> str:
+    """Normalise a Damodaran country cell: strip footnote markers and case."""
+    name = re.sub(r"\s*\[\d+\]\s*$", "", str(value).strip())
+    return re.sub(r"\s+", " ", name).lower()
+
+
+# The current file's extension differs per dataset and is stable; hardcoding it
+# keeps the weekly run from making a guaranteed-404 request every Saturday.
+_DAM_CURRENT_EXT = {"ctryprem": "xlsx", "countrystats": "xls"}
+
+
+def _dam_book(name: str, year: int | None):
+    """
+    Download one Damodaran workbook and return it as a pandas ExcelFile.
+
+    year=None is the undated current file; an int is the year-stamped archive.
+    Cached per (name, year) so six regions share one download, and pre-seeded
+    to None so a failure is not retried once per region.
+    """
+    ck = (name, year)
+    if ck in _DAM_CACHE:
+        return _DAM_CACHE[ck]
+    _DAM_CACHE[ck] = None
+    if year is None:
+        first = _DAM_CURRENT_EXT.get(name, "xlsx")
+        other = "xls" if first == "xlsx" else "xlsx"
+        urls = [f"{_DAM_DATASET}{name}.{first}", f"{_DAM_DATASET}{name}.{other}"]
+    else:
+        # Extension varies by vintage; .xlsx only appears from 2018.
+        urls = [f"{_DAM_ARCHIVE}{name}{year % 100:02d}.xls",
+                f"{_DAM_ARCHIVE}{name}{year % 100:02d}.xlsx"]
+    for url in urls:
+        resp = _get(url, headers=BROWSER_HEADERS)
+        if resp is None or not resp.content:
+            continue
+        try:
+            _DAM_CACHE[ck] = pd.ExcelFile(io.BytesIO(resp.content))
+            return _DAM_CACHE[ck]
+        except Exception as exc:  # noqa: BLE001 - a bad vintage must not lose the others
+            logger.warning("Damodaran: %s not readable as Excel: %s", url, exc)
+    return None
+
+
+def _dam_header(raw, first_col: str, needle) -> int | None:
+    """
+    Locate the real header row. `needle` is a predicate over the lowered cells.
+
+    Scans 30 rows, not 15: ctryprem's 2002-2008 vintages put the header at
+    row 20, under a block of prose and input cells.
+    """
+    for i in range(min(30, len(raw))):
+        row = [str(x).strip().lower() for x in raw.iloc[i].tolist()]
+        if first_col in row and needle(row):
+            return i
+    return None
+
+
+def _dam_table(xl, sheet_pattern: str, first_col: str, needle):
+    """Find the right sheet + header row and return a labelled body frame."""
+    if xl is None:
+        return None
+    sheets = [s for s in xl.sheet_names if re.search(sheet_pattern, s, re.I)] or xl.sheet_names
+    for sheet in sheets:
+        if re.search(r"lookup|faq|explanation|tax rates|worksheet|sequence", sheet, re.I):
+            continue
+        try:
+            raw = xl.parse(sheet_name=sheet, header=None)
+        except Exception:  # noqa: BLE001 - a malformed sheet must not lose the others
+            continue
+        hdr = _dam_header(raw, first_col, needle)
+        if hdr is None:
+            continue
+        body = raw.iloc[hdr + 1:].copy()
+        body.columns = [str(x).strip() for x in raw.iloc[hdr]]
+        return body
+    return None
+
+
+def _dam_col_index(body, predicate) -> int | None:
+    """
+    Position of the FIRST column whose name satisfies `predicate`.
+
+    Positional, not by label, because several vintages repeat a column name:
+    ctryprem 2012-2015 carry two columns both headed "Country Risk Premium",
+    and the current file has "Country Risk Premium" beside "Country Risk
+    Premium3". The leftmost is the rating-based measure the catalog asks for;
+    the later ones are the CDS-based variant. Selecting by label would hand
+    back both as a Series.
+    """
+    for i, col in enumerate(body.columns):
+        if predicate(str(col).strip()):
+            return i
+    return None
+
+
+def _dam_pick(body, region: str, col_idx: int | None):
+    """The one value for `region` out of a country-keyed Damodaran table."""
+    target = next((n for n, r in DAMODARAN_COUNTRY_NAMES.items() if r == region), None)
+    if target is None or body is None or col_idx is None:
+        return None
+    key = body.iloc[:, 0].map(_dam_country)
+    hit = body[key == target]
+    if hit.empty:
+        return None
+    value = pd.to_numeric(hit.iloc[0, col_idx], errors="coerce")
+    return None if pd.isna(value) else float(value)
+
+
+def fetch_damodaran_crp(region: str, archive: bool = False) -> pd.DataFrame | None:
+    """
+    Country risk premium for one region, Damodaran's rating-based method.
+
+    This is NOT the earnings-yield-implied construct fetch_damodaran_erp
+    computes for erp.US -- it is the sovereign-rating default spread scaled to
+    equity, and it is zero for every Aaa sovereign. db/export.py adds the
+    mature-market base (erp.US) back on for display.
+
+    archive=True walks the year-stamped files back to 2000 -- bootstrap only.
+    """
+    years = list(range(_CTRYPREM_FIRST_YEAR, _DAM_LAST_ARCHIVE_YEAR + 1)) if archive else []
+    dates, values = [], []
+    try:
+        for year in years + [None]:
+            body = _dam_table(
+                _dam_book("ctryprem", year),
+                r"erps by country|country premiums|sheet1",
+                "country",
+                lambda row: any(c == "country risk premium" for c in row),
+            )
+            if body is None:
+                continue
+            idx = _dam_col_index(body, lambda c: c.lower() == "country risk premium")
+            value = _dam_pick(body, region, idx)
+            if value is None:
+                continue
+            stamp = _DAM_LAST_ARCHIVE_YEAR + 1 if year is None else year
+            dates.append(f"{stamp}-12-31")
+            # Fractions in every vintage. Unconditional: an all-Aaa country is
+            # 0.0 throughout, so a magnitude heuristic would have nothing to test.
+            values.append(value * 100.0)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Damodaran CRP parse failed for %s: %s", region, exc)
+        return None
+    if not dates:
+        logger.warning("Damodaran CRP: nothing parsed for %s", region)
+        return None
+    return _frame(dates, values)
+
+
+def fetch_damodaran_country_multiple(region: str, column: str,
+                                     archive: bool = False) -> pd.DataFrame | None:
+    """
+    One aggregated valuation multiple for one region, from countrystats.
+
+    `column` is the bare metric name ("Trailing PE", "PBV", ...); the sheet
+    spells it "median(Trailing PE)" or "Median Trailing PE" depending on
+    vintage. Only median-basis vintages (2020 onward) are read -- see the
+    banner above for why the 2012-2019 mean-basis files are excluded.
+    """
+    years = list(range(_COUNTRYSTATS_FIRST_YEAR, _DAM_LAST_ARCHIVE_YEAR + 1)) if archive else []
+    wanted = column.strip().lower()
+    dates, values = [], []
+
+    def _is_median(col: str) -> bool:
+        # Accept "median(Trailing PE)" and "Median Trailing PE"; reject the
+        # pre-2020 "Average of Trailing PE" outright.
+        low = col.lower()
+        if "median" not in low:
+            return False
+        tail = re.sub(r"[^a-z0-9/ ]", " ", low).split("median", 1)[-1]
+        return re.sub(r"\s+", " ", tail).strip() == wanted
+
+    try:
+        for year in years + [None]:
+            body = _dam_table(
+                _dam_book("countrystats", year),
+                r"sheet1|industry|country",
+                "country",
+                lambda row: any("trailing pe" in c for c in row),
+            )
+            if body is None:
+                continue
+            idx = _dam_col_index(body, _is_median)
+            if idx is None:
+                if year is not None:
+                    logger.info("Damodaran countrystats %s: no median-basis %r column, skipped",
+                                year, column)
+                continue
+            value = _dam_pick(body, region, idx)
+            if value is None:
+                continue
+            stamp = _DAM_LAST_ARCHIVE_YEAR + 1 if year is None else year
+            dates.append(f"{stamp}-12-31")
+            values.append(value)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Damodaran countrystats parse failed for %s %s: %s", region, column, exc)
+        return None
+    if not dates:
+        logger.warning("Damodaran countrystats: nothing parsed for %s %s", region, column)
+        return None
+    return _frame(dates, values)
+
+
 def fetch_etf_factsheet(ticker: str) -> dict | None:
     # iShares/SSGA fact sheets are PDFs; needs a pdfplumber step. Phase 4.
     logger.info("fetch_etf_factsheet: not yet implemented (%s)", ticker)

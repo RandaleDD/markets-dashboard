@@ -102,7 +102,8 @@ actually uses today.
 | Credit spreads | ICE BofA OAS via FRED (US IG/HY, Euro HY, EM corporate) | Live. Capped at a rolling ~3 years by ICE licensing, so only the `full` percentile window resolves |
 | Liquidity / lending | Fed Senior Loan Officer Survey (`DRTSCILM`) via FRED | Live, quarterly, US only — no keyless euro-area equivalent found |
 | US equity valuation | Shiller CAPE (`ie_data.xls`); Damodaran implied ERP (FCFE) | Live. Shiller's file currently ends 2024-09, so it reports `stale` |
-| Non-US equity valuation and risk premia | Damodaran `countrystats.xls` / `ctryprem.xlsx` | **Not implemented.** Catalogued and in scope; no fetcher written yet, so the catalog join reports them every run |
+| Non-US equity risk premia | Damodaran `ctryprem.xlsx` (rating-based country risk premium) | Live for UK/DE/CH/CN/JP/NO, annual, back to 2000 from the year-stamped archives. Stores the **country** premium, which is 0.00 for every Aaa sovereign; `db/export.py` adds the mature-market base (`erp.US`) back on for display. No Eurozone aggregate exists, so `erp.EZ` is descoped |
+| Non-US equity valuation | Damodaran `countrystats.xls` (median trailing P/E, P/B, P/S, EV/EBITDA) | Live for the same six regions, annual, **2020 onward only** — the 2012-2019 archives publish means rather than medians, and splicing the two would put a methodology break mid-series. Not cyclically adjusted, so not comparable to the US CAPE. `valuation.EZ` is descoped |
 
 Eleven institutions, and still gaps. No single source covers this, free or
 paid short of a full commercial terminal — the spread of sources is by design.
@@ -206,10 +207,16 @@ other series is touched.
    correlation heatmap, valuation scorecard.
 5. ✅ Persistent append-only store, incremental ingest, data-quality flags,
    weekly cadence.
-6. **Open** — non-US valuation and risk premia from Damodaran's
-   `countrystats.xls` and `ctryprem.xlsx`. Catalogued, no fetcher yet; twelve
-   `series_catalog` rows are waiting on it. This replaces the older plan to
+6. ✅ Non-US valuation and risk premia from Damodaran's `countrystats.xls`
+   and `ctryprem.xlsx`, for UK/DE/CH/CN/JP/NO. This replaced the older plan to
    parse ETF fact-sheet PDFs, which needed `pdfplumber` and gave less.
+   Delivered as **30 series, not the 12 originally catalogued**: the country
+   risk premium is one series per region, but `countrystats.xls` carries four
+   distinct multiples (P/E, P/B, P/S, EV/EBITDA) and a single `valuation.<R>`
+   id could only ever have held one of them, so each is its own series.
+   Both Eurozone rows stay `descoped`: Damodaran publishes member states with
+   no bloc aggregate, and Germany's figure is not a stand-in for it — the same
+   line already drawn between the Bundesbank and ECB curves.
 7. Polish: small-multiple yield curve charts, further chart treatment, mobile
    layout pass.
 8. Stretch: IBKR Client Portal Web API to replace yfinance as the price layer.
@@ -251,6 +258,8 @@ wrong fails *silently*.
 | ECB | Two euro-area curve flavours: `G_N_C` (all bonds, used) and `G_N_A` (AAA-only, which tracks the Bund so closely it duplicates Germany) |
 | Shiller CAPE | Genuine legacy `.xls`, needs **xlrd**. The header spans two rows and the upper one contains a second cell reading "CAPE" belonging to the Excess CAPE Yield block — match the lower row, where column 0 is exactly "Date". Dates are fractional (1871.01 = Jan) |
 | Damodaran ERP | Use **"Implied ERP (FCFE)"**. "Implied Premium (DDM)" sits to its left and is a different, materially lower measure (1.69% vs 4.23% for 2025). Values are fractions, not percent |
+| Damodaran `ctryprem` | Archives are `ctryprem<YY>.xls` for 2000-2017 and `.xlsx` from 2018 (2023 is xlsx-only), under `pc/archives/`; the undated `pc/datasets/ctryprem.xlsx` is the most recent completed year. **Archive `YY` is data year `YY`, published the following January** — `ctryprem24.xlsx` carries "Date of update: 2025-01-01" — so it is stamped `YY-12-31`. The sheet name moves (`Sheet1` 2000, `Country premiums` 2001-2011, `ERPs by country` 2012-now) and the header row sits as deep as **row 20**, so the 15-row scan used for `histimpl.xls` is too narrow. 2012-2015 carry **two columns both headed "Country Risk Premium"** (the second is CDS-based), and the current file adds `Country Risk Premium3` — take the leftmost, positionally, or pandas hands back a Series. Country names carry footnote markers (`Germany [1]`) in the 2008-2011 files. Values are fractions in every vintage, and the magnitude heuristic used for `histimpl.xls` **cannot** be reused: DE/CH/NO are Aaa and read exactly 0.0 in all 26 years, so a per-country max proves nothing. The UK is genuinely absent from `ctryprem05.xls` |
+| Damodaran `countrystats` | Archived as `countrystats<YY>.xls` for **2012-2024** — the catalog previously recorded this depth as unconfirmed; it is confirmed. But the file changed statistic in the 2020 vintage: 2012-2019 publish `Average of <metric>`, 2020+ publish `Median <metric>`, and the means run 3-10x higher (Germany trailing P/E 171.3 in 2013 vs 15.9 in 2024). **Only median-basis vintages are read**, so history starts 2020. Header row moves between rows 0, 1, 7 and 8; column count swings from 20 to 256 |
 | ONS | Observations are under `months`, dated `"1997 JAN"` — parse against an explicit month map, not a locale format |
 | Eurostat | JSON-stat: `value` is a sparse `{flat_index: number}` map and the time dimension carries `{period_label: index}`, so the two join by index, never by position |
 
