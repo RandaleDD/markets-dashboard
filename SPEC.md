@@ -5,11 +5,12 @@ number comes from, and how the thing is put together.
 
 Live at https://randaledd.github.io/markets-dashboard/.
 
-Companion docs: `NETWORK.md` (what each endpoint actually returns, its quirks,
-and the dead ends already ruled out) and `CLAUDE.md` (working conventions and
-the current run status). `DATA-CATALOG.csv` is the reviewed sourcing decision
-for every series and seeds the database's `series_catalog` table;
-`DATA-CATALOG-ruled-out.csv` records the permanent structural gaps.
+Companion docs: `CLAUDE.md` (working conventions and the last verified run
+status) and `DATA-CATALOG.csv` — the reviewed sourcing decision for every
+series, which seeds the database's `series_catalog` table and which the
+pipeline keeps in step with what is actually stored on every run.
+`DATA-CATALOG-ruled-out.csv` records the permanent structural gaps. Endpoint
+mechanics and dead ends are in the appendix at the foot of this file.
 
 ## Governing constraint
 
@@ -77,8 +78,8 @@ and the correlation heatmap makes no diversification recommendation.
 
 ## Data sourcing
 
-Endpoint mechanics, quirks and dead ends are in `NETWORK.md`; the per-series
-record of decisions is `DATA-CATALOG.csv`. This table is what each category
+Endpoint mechanics, quirks and dead ends are in the appendix below; the
+per-series record is `DATA-CATALOG.csv`. This table is what each category
 actually uses today.
 
 | Category | Source | State |
@@ -214,6 +215,83 @@ other series is touched.
 8. Stretch: IBKR Client Portal Web API to replace yfinance as the price layer.
    Usable for ad hoc checks today but needs an authenticated session, so it is
    not a fit for a headless job.
+
+## Appendix — endpoint reference
+
+Absorbed from the former `SPEC.md's endpoint appendix`. Per-series quirks now live in
+`DATA-CATALOG.csv`'s "Notes / quirks" column, which the pipeline keeps in step
+with the database. What is kept here is the cross-cutting knowledge that
+belongs to no single series and is expensive to re-derive.
+
+### The User-Agent trap
+
+There is no single header set that works across these sources, and getting it
+wrong fails *silently*.
+
+- **FRED must not get a browser User-Agent.** It sits behind Akamai, which
+  tarpits requests whose UA claims to be a browser while the TLS fingerprint is
+  Python's: the request hangs until it read-times-out. A tool-shaped UA
+  (`python-requests/*`, `curl/*`) returns in ~0.2s. An "honest" project UA
+  fails too — it is an allowlist of known tool UAs, not a politeness check.
+- **The Bank of England and Japan's MOF are the exact opposite** — they serve
+  an error page unless the UA looks like a browser.
+
+`_get()` therefore takes per-source headers and defaults to requests' own UA.
+
+### Parsing traps worth keeping
+
+| Source | Trap |
+|---|---|
+| Yahoo (yfinance) | The latest bar often carries a **NaN close while a session is open** (^GDAXI, ^SSMI, ^HSI, ^N225) — must `dropna`, or a raw `NaN` lands in the JSON and breaks the frontend. Yahoo also emits a **Saturday bar for FX pairs**, which belongs to the following week's bin. The library does Yahoo's cookie+crumb handshake; a bare request returns 429 |
+| BIS CPI | One response mixes two unit codes: **`771` = YoY %, `628` = index level**. Filtering on `unit_measure` is mandatory, or the two get silently interleaved |
+| BIS policy rates | **Needs `startPeriod`** — unbounded history is 57MB for Japan and blows the timeout |
+| Bundesbank | ~9-line metadata preamble before `date,value,flag`; `.` for missing. **Accepts `startPeriod` and ignores it** — measured, it returns the identical 10,620-row history either way |
+| MOF Japan | **Shift-JIS (cp932), not UTF-8**, and line 1 is a title row. The current-month file must be stitched with `historical/jgbcme_all.csv` for history back to 1974 |
+| Norges Bank | **Semicolon-delimited** CSV, and the header repeats `TENOR` for both the code and its label, so columns must be taken positionally |
+| ECB | Two euro-area curve flavours: `G_N_C` (all bonds, used) and `G_N_A` (AAA-only, which tracks the Bund so closely it duplicates Germany) |
+| Shiller CAPE | Genuine legacy `.xls`, needs **xlrd**. The header spans two rows and the upper one contains a second cell reading "CAPE" belonging to the Excess CAPE Yield block — match the lower row, where column 0 is exactly "Date". Dates are fractional (1871.01 = Jan) |
+| Damodaran ERP | Use **"Implied ERP (FCFE)"**. "Implied Premium (DDM)" sits to its left and is a different, materially lower measure (1.69% vs 4.23% for 2025). Values are fractions, not percent |
+| ONS | Observations are under `months`, dated `"1997 JAN"` — parse against an explicit month map, not a locale format |
+| Eurostat | JSON-stat: `value` is a sparse `{flat_index: number}` map and the time dimension carries `{period_label: index}`, so the two join by index, never by position |
+
+### The BoE GLC archives
+
+`bootstrap.py` is the only thing that pulls these (~89MB across nominal, real
+and inflation). They give the UK curve history back to 1979-01-02 — 2y/5y/10y;
+the 30y only reaches 2016, because the BoE did not publish that point earlier.
+Three traps, all silent:
+
+- **Sheet names are not stable across eras.** Workbooks up to 2024 use
+  `3. nominal spot, short end` / `4. nominal spot curve`; the 2025-to-present
+  workbook and the current-month file use `3. spot, short end` /
+  `4. spot curve`.
+- **Each zip holds one workbook per era**, so a tenor must be collected from
+  every block and concatenated. Taking the single best-matching block returns
+  one era's slice of the history and looks plausible.
+- **The archives are cut at the end of the previous month**, so bootstrap runs
+  a snapshot pass straight after the deep pass to close the seam.
+
+### Dead ends — do not re-attempt without new information
+
+- **Stooq** serves a JavaScript proof-of-work anti-bot page instead of CSV on
+  every path. Not solvable headlessly. Replaced by Yahoo.
+- **FRED's OECD-sourced national series are frozen.** They still return
+  HTTP 200 — which is exactly why the staleness check exists. `*CPIALLMINMEI`
+  stops 2025-03/04 (JP: 2021-06), `CPALTT01*` stops 2024-12, `NAEXKP01*Q657S`
+  growth is discontinued. CPI moved to BIS; GDP to level series with growth
+  derived here.
+- **SNB Confederation bond yields are discontinued.** Both `rendoblid` and
+  `rendoblim` return 200 while stopping at 2025-07. Money-market cubes on the
+  same portal are current, so the series was retired, not the portal broken.
+- **ChinaBond is JS-rendered** (`queryGjqxInfo` returns a 956-byte shell) and
+  **CFETS answers `{"Error":"Path not found."}` to every path**, including
+  plain HTML. The China curve has no remaining lead short of a headless
+  browser.
+- **Euro-area market-implied inflation has no free source.** The practitioner
+  standard is the EUR HICPx zero-coupon inflation swap. The ECB `FM` dataflow
+  has no ILS series — its `ILS` codes are Israeli shekel.
+- **Yahoo has no CSI 300 index history** — `000300.SS`/`399300.SZ` accept only
+  `period=1d/5d`. The CNY-priced tracker ETF `510300.SS` stands in.
 
 ## Explicitly out of scope
 

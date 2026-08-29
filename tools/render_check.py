@@ -18,7 +18,7 @@ run the renderer.
 This runs the renderer for real and asserts, per table, that the number of
 header cells equals the number of cells in every body row.
 
-It also catches the failure NETWORK.md records under "Deploy integrity": a
+It also catches the failure CLAUDE.md records under the asset-versioning convention: a
 panel that renders completely empty because the JS has no handler for markup
 that the HTML now carries.
 
@@ -26,7 +26,7 @@ HOW IT RUNS
 
 There is no Node on this machine (`brew install node` fails on a simdjson
 bottle), so this drives JavaScriptCore through `osascript -l JavaScript`
-against a minimal DOM shim -- the technique NETWORK.md already describes.
+against a minimal DOM shim -- the technique SPEC.md's endpoint appendix already describes.
 
 Two traps, both of which cost time the first time round:
   - `main()` is async and JavaScriptCore does not drain the microtask queue

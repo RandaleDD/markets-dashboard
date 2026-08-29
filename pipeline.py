@@ -2,7 +2,7 @@
 """
 Pipeline orchestrator. Three phases, in this order, every run:
 
-    ingest  -> quality -> export
+    ingest  -> quality -> export -> sync the catalog
 
   python3 pipeline.py --mode live    # fetch what's new, then rebuild the JSON
   python3 pipeline.py --mode sample  # same phases against synthetic data,
@@ -34,7 +34,7 @@ import logging
 import re
 from pathlib import Path
 
-from db import catalog, export, ingest, quality, registry, store
+from db import catalog, catalog_sync, export, ingest, quality, registry, store
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("markets_dashboard.pipeline")
@@ -89,6 +89,13 @@ def run(mode: str, export_only: bool = False, db_path: str | None = None,
         payload["data_quality"] = {
             k: v for k, v in dq.items() if k != "series_detail"}
         payload["data_quality"]["open_flag_examples"] = store.open_flags(conn, limit=25)
+
+        # Write back what the database actually holds, so DATA-CATALOG.csv is
+        # a readable mirror of the store rather than a record that can drift
+        # away from it. Sample runs are skipped: they would stamp synthetic
+        # coverage onto the reviewed catalog.
+        if mode != "sample":
+            catalog_sync.sync(conn)
     finally:
         store.finish_run(conn, run_id)
         conn.close()
