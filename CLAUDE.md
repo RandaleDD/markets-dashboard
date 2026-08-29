@@ -36,17 +36,25 @@ checkout is how the Actions runner gets yesterday's data instead of
 re-bootstrapping. `bootstrap.py` is a one-time seed, never on the schedule.
 
 ## Current status
-Last verified live run (2026-08-29): **90/121 `ok`, 1 `partial`, 3 `stale`,
-27 `stubbed`, 0 `failed`.** Database: 112 series, 128,227 observations,
-20.3 MiB. Data quality: 109 fresh, 3 stale, 0 missing; 7 open flags.
+Last verified live run (2026-08-29): **102/121 `ok`, 6 `partial`, 3 `stale`,
+10 `stubbed`, 0 `failed`.** Database: 142 series, 128,527 observations,
+20.5 MiB. Data quality: 139 fresh, 3 stale, 0 missing; 7 open flags.
 
 `stale` and `stubbed` here are expected, not a to-do list. The 3 stale are real
 publication lag (Norway GDP, the Swiss monthly 10y, Shiller's CAPE file ending
 2024-09) — UK GDP left that list when it moved to ONS's monthly index. The
-27 stubbed are the gaps SPEC.md records as having no free source — the China
-curve, six regions' inflation expectations, and non-US valuation and risk
-premia. Chasing them again is wasted effort unless a new source appears;
-SPEC.md's endpoint appendix lists what has already been tried and failed.
+10 stubbed are the gaps SPEC.md records as having no free source — the China
+curve, six regions' inflation expectations, and the two Eurozone valuation /
+ERP rows, which are `descoped` rather than pending because Damodaran publishes
+member states with no bloc aggregate. Chasing them again is wasted effort
+unless a new source appears; SPEC.md's endpoint appendix lists what has already
+been tried and failed.
+
+Non-US valuation and risk premia went live on 2026-08-29 (roadmap step 6): 30
+new Damodaran series across UK/DE/CH/CN/JP/NO — six country risk premia back to
+2000, and four median trailing multiples each (P/E, P/B, P/S, EV/EBITDA) back
+to 2020. That is 30, not the 12 rows the catalog had reserved, because one
+`valuation.<R>` id could only hold one of the four multiples.
 
 The 7 open `data_quality_flags` are all genuine: US CPI is missing 2025-10 (the
 release the US shutdown delayed), the BoE's real and inflation 2y points have a
@@ -70,7 +78,10 @@ trusting them — this section is a snapshot and goes stale on its own.
   1-day change. Never reintroduce a daily-grain label over weekly data.
 - Adding a series = one row in `universe.py`, then
   `python3 bootstrap.py --series <id>`. It never touches the other 111.
-- `bootstrap.py` pulls ~89MB of BoE GLC archives. Run it once, by hand. If the
+- `bootstrap.py` pulls ~89MB of BoE GLC archives, and the Damodaran country
+  series pull 26 `ctryprem` + 5 `countrystats` year-stamped archive files.
+  Both are `archive_kwargs` paths: the weekly run reads only the current file.
+  Run it once, by hand. If the
   weekly workflow ever finds `data/markets.db` missing it fails loudly rather
   than silently re-bootstrapping over accumulated history.
 - Every fetcher in `fetch/sources.py` returns `None` on failure, never

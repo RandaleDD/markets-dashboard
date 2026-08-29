@@ -335,6 +335,32 @@ def all_series() -> list[Series]:
         cadence="annual", source="Damodaran/NYU Stern, histimpl.xls",
         fetcher="fetch_damodaran_erp", bounded=False))
 
+    # Damodaran's country files, one workbook serving six regions. Both are
+    # year-stamped snapshot archives, so the deep history only comes down under
+    # bootstrap's archive pass -- the weekly run reads the current file alone.
+    for region in universe.DAMODARAN_REGIONS:
+        out.append(Series(
+            series_id=f"erp.{region}", category="Equity risk premium", region=region,
+            description=f"{region} country risk premium (Damodaran rating-based method)",
+            unit="%", cadence="annual",
+            source="Damodaran/NYU Stern, ctryprem.xlsx",
+            fetcher="fetch_damodaran_crp",
+            fetch_kwargs={"region": region},
+            archive_kwargs={"region": region, "archive": True},
+            bounded=False))
+        for m in universe.VALUATION_MULTIPLES:
+            out.append(Series(
+                series_id=f"valuation.{region}.{m['id']}", category="Valuation",
+                region=region,
+                description=f"{region} median {m['name']}, aggregated by country "
+                            f"(NOT cyclically adjusted -- not comparable to US CAPE)",
+                unit="ratio (x)", cadence="annual",
+                source="Damodaran/NYU Stern, countrystats.xls",
+                fetcher="fetch_damodaran_country_multiple",
+                fetch_kwargs={"region": region, "column": m["column"]},
+                archive_kwargs={"region": region, "column": m["column"], "archive": True},
+                bounded=False))
+
     # --- Credit spreads and liquidity ---------------------------------------
     for cs in universe.CREDIT_SPREADS:
         out.append(Series(

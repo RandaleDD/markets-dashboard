@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T07:47:48.659002+00:00",
+  "generated_at": "2026-08-29T13:26:14.021893+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -31982,17 +31982,15 @@
       "legs": {
         "real_risk_free": 1.83,
         "credit_spread": null,
-        "erp": null
+        "erp": 5.01
       },
-      "total_pct": 1.83,
+      "total_pct": 6.84,
       "complete": false,
       "missing_legs": [
-        "credit_spread",
-        "erp"
+        "credit_spread"
       ],
       "missing_labels": [
-        "IG credit spread",
-        "Equity risk premium"
+        "IG credit spread"
       ]
     },
     "EZ": {
@@ -32018,95 +32016,85 @@
       "legs": {
         "real_risk_free": null,
         "credit_spread": null,
-        "erp": null
+        "erp": 4.23
       },
-      "total_pct": null,
+      "total_pct": 4.23,
       "complete": false,
       "missing_legs": [
         "real_risk_free",
-        "credit_spread",
-        "erp"
+        "credit_spread"
       ],
       "missing_labels": [
         "Real risk-free (10y)",
-        "IG credit spread",
-        "Equity risk premium"
+        "IG credit spread"
       ]
     },
     "CH": {
       "legs": {
         "real_risk_free": null,
         "credit_spread": null,
-        "erp": null
+        "erp": 4.23
       },
-      "total_pct": null,
+      "total_pct": 4.23,
       "complete": false,
       "missing_legs": [
         "real_risk_free",
-        "credit_spread",
-        "erp"
+        "credit_spread"
       ],
       "missing_labels": [
         "Real risk-free (10y)",
-        "IG credit spread",
-        "Equity risk premium"
+        "IG credit spread"
       ]
     },
     "CN": {
       "legs": {
         "real_risk_free": null,
         "credit_spread": null,
-        "erp": null
+        "erp": 5.14
       },
-      "total_pct": null,
+      "total_pct": 5.14,
       "complete": false,
       "missing_legs": [
         "real_risk_free",
-        "credit_spread",
-        "erp"
+        "credit_spread"
       ],
       "missing_labels": [
         "Real risk-free (10y)",
-        "IG credit spread",
-        "Equity risk premium"
+        "IG credit spread"
       ]
     },
     "JP": {
       "legs": {
         "real_risk_free": null,
         "credit_spread": null,
-        "erp": null
+        "erp": 5.14
       },
-      "total_pct": null,
+      "total_pct": 5.14,
       "complete": false,
       "missing_legs": [
         "real_risk_free",
-        "credit_spread",
-        "erp"
+        "credit_spread"
       ],
       "missing_labels": [
         "Real risk-free (10y)",
-        "IG credit spread",
-        "Equity risk premium"
+        "IG credit spread"
       ]
     },
     "NO": {
       "legs": {
         "real_risk_free": null,
         "credit_spread": null,
-        "erp": null
+        "erp": 4.23
       },
-      "total_pct": null,
+      "total_pct": 4.23,
       "complete": false,
       "missing_legs": [
         "real_risk_free",
-        "credit_spread",
-        "erp"
+        "credit_spread"
       ],
       "missing_labels": [
         "Real risk-free (10y)",
-        "IG credit spread",
-        "Equity risk premium"
+        "IG credit spread"
       ]
     }
   },
@@ -32136,8 +32124,9 @@
           "since": "1881-01-01"
         }
       },
-      "forward_pe": null,
-      "dividend_yield_pct": null,
+      "multiples": null,
+      "multiples_as_of": null,
+      "multiples_basis": null,
       "note": null
     },
     "UK": {
@@ -32145,68 +32134,202 @@
       "cape": null,
       "cape_as_of": null,
       "cape_context": null,
-      "forward_pe": null,
-      "dividend_yield_pct": null,
-      "note": "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."
+      "multiples": {
+        "pe": {
+          "value": 18.07,
+          "name": "trailing P/E",
+          "context": null
+        },
+        "pb": {
+          "value": 1.63,
+          "name": "price / book",
+          "context": null
+        },
+        "ps": {
+          "value": 1.56,
+          "name": "price / sales",
+          "context": null
+        },
+        "ev_ebitda": {
+          "value": 10.1,
+          "name": "EV / EBITDA",
+          "context": null
+        }
+      },
+      "multiples_as_of": "2025-12-31",
+      "multiples_basis": "Median across listed companies in the country, trailing. NOT cyclically adjusted, so not comparable to US CAPE.",
+      "note": null
     },
     "EZ": {
       "name": "STOXX 600",
       "cape": null,
       "cape_as_of": null,
       "cape_context": null,
-      "forward_pe": null,
-      "dividend_yield_pct": null,
-      "note": "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."
+      "multiples": null,
+      "multiples_as_of": null,
+      "multiples_basis": null,
+      "note": "Damodaran publishes member states only, with no Eurozone aggregate (DATA-CATALOG.csv: valuation.EZ is descoped, not pending)."
     },
     "DE": {
       "name": "DAX",
       "cape": null,
       "cape_as_of": null,
       "cape_context": null,
-      "forward_pe": null,
-      "dividend_yield_pct": null,
-      "note": "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."
+      "multiples": {
+        "pe": {
+          "value": 19.88,
+          "name": "trailing P/E",
+          "context": null
+        },
+        "pb": {
+          "value": 1.43,
+          "name": "price / book",
+          "context": null
+        },
+        "ps": {
+          "value": 0.99,
+          "name": "price / sales",
+          "context": null
+        },
+        "ev_ebitda": {
+          "value": 10.47,
+          "name": "EV / EBITDA",
+          "context": null
+        }
+      },
+      "multiples_as_of": "2025-12-31",
+      "multiples_basis": "Median across listed companies in the country, trailing. NOT cyclically adjusted, so not comparable to US CAPE.",
+      "note": null
     },
     "CH": {
       "name": "SMI",
       "cape": null,
       "cape_as_of": null,
       "cape_context": null,
-      "forward_pe": null,
-      "dividend_yield_pct": null,
-      "note": "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."
+      "multiples": {
+        "pe": {
+          "value": 23.2,
+          "name": "trailing P/E",
+          "context": null
+        },
+        "pb": {
+          "value": 2.05,
+          "name": "price / book",
+          "context": null
+        },
+        "ps": {
+          "value": 1.69,
+          "name": "price / sales",
+          "context": null
+        },
+        "ev_ebitda": {
+          "value": 13.15,
+          "name": "EV / EBITDA",
+          "context": null
+        }
+      },
+      "multiples_as_of": "2025-12-31",
+      "multiples_basis": "Median across listed companies in the country, trailing. NOT cyclically adjusted, so not comparable to US CAPE.",
+      "note": null
     },
     "CN": {
       "name": "CSI 300 / Hang Seng",
       "cape": null,
       "cape_as_of": null,
       "cape_context": null,
-      "forward_pe": null,
-      "dividend_yield_pct": null,
-      "note": "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."
+      "multiples": {
+        "pe": {
+          "value": 40.72,
+          "name": "trailing P/E",
+          "context": null
+        },
+        "pb": {
+          "value": 2.63,
+          "name": "price / book",
+          "context": null
+        },
+        "ps": {
+          "value": 3.4,
+          "name": "price / sales",
+          "context": null
+        },
+        "ev_ebitda": {
+          "value": 26.23,
+          "name": "EV / EBITDA",
+          "context": null
+        }
+      },
+      "multiples_as_of": "2025-12-31",
+      "multiples_basis": "Median across listed companies in the country, trailing. NOT cyclically adjusted, so not comparable to US CAPE.",
+      "note": null
     },
     "JP": {
       "name": "Nikkei 225",
       "cape": null,
       "cape_as_of": null,
       "cape_context": null,
-      "forward_pe": null,
-      "dividend_yield_pct": null,
-      "note": "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."
+      "multiples": {
+        "pe": {
+          "value": 13.89,
+          "name": "trailing P/E",
+          "context": null
+        },
+        "pb": {
+          "value": 1.18,
+          "name": "price / book",
+          "context": null
+        },
+        "ps": {
+          "value": 0.75,
+          "name": "price / sales",
+          "context": null
+        },
+        "ev_ebitda": {
+          "value": 7.09,
+          "name": "EV / EBITDA",
+          "context": null
+        }
+      },
+      "multiples_as_of": "2025-12-31",
+      "multiples_basis": "Median across listed companies in the country, trailing. NOT cyclically adjusted, so not comparable to US CAPE.",
+      "note": null
     },
     "NO": {
       "name": "OSEBX",
       "cape": null,
       "cape_as_of": null,
       "cape_context": null,
-      "forward_pe": null,
-      "dividend_yield_pct": null,
-      "note": "P/E and dividend yield need ETF fact-sheet parsing (SPEC Phase 4)."
+      "multiples": {
+        "pe": {
+          "value": 16.42,
+          "name": "trailing P/E",
+          "context": null
+        },
+        "pb": {
+          "value": 1.62,
+          "name": "price / book",
+          "context": null
+        },
+        "ps": {
+          "value": 1.62,
+          "name": "price / sales",
+          "context": null
+        },
+        "ev_ebitda": {
+          "value": 12.65,
+          "name": "EV / EBITDA",
+          "context": null
+        }
+      },
+      "multiples_as_of": "2025-12-31",
+      "multiples_basis": "Median across listed companies in the country, trailing. NOT cyclically adjusted, so not comparable to US CAPE.",
+      "note": null
     }
   },
   "equity_risk_premia": {
     "US": {
       "erp_pct": 4.23,
+      "country_risk_premium_pct": null,
       "method": "Damodaran implied ERP (FCFE), S&P 500",
       "as_of": "2025-12-31",
       "context": {
@@ -32221,45 +32344,79 @@
       }
     },
     "UK": {
-      "erp_pct": null,
-      "method": null,
-      "as_of": null,
-      "context": null
+      "erp_pct": 5.01,
+      "country_risk_premium_pct": 0.78,
+      "method": "Damodaran total ERP: US mature-market base (implied, FCFE) plus the rating-based country risk premium",
+      "as_of": "2025-12-31",
+      "context": {
+        "5y": null,
+        "10y": null,
+        "full": {
+          "pct": 88.0,
+          "z": 1.19,
+          "n": 25,
+          "since": "2000-12-31"
+        }
+      }
     },
     "EZ": {
       "erp_pct": null,
+      "country_risk_premium_pct": null,
       "method": null,
       "as_of": null,
       "context": null
     },
     "DE": {
-      "erp_pct": null,
-      "method": null,
-      "as_of": null,
+      "erp_pct": 4.23,
+      "country_risk_premium_pct": 0.0,
+      "method": "Damodaran total ERP: US mature-market base (implied, FCFE) plus the rating-based country risk premium",
+      "as_of": "2025-12-31",
       "context": null
     },
     "CH": {
-      "erp_pct": null,
-      "method": null,
-      "as_of": null,
+      "erp_pct": 4.23,
+      "country_risk_premium_pct": 0.0,
+      "method": "Damodaran total ERP: US mature-market base (implied, FCFE) plus the rating-based country risk premium",
+      "as_of": "2025-12-31",
       "context": null
     },
     "CN": {
-      "erp_pct": null,
-      "method": null,
-      "as_of": null,
-      "context": null
+      "erp_pct": 5.14,
+      "country_risk_premium_pct": 0.91,
+      "method": "Damodaran total ERP: US mature-market base (implied, FCFE) plus the rating-based country risk premium",
+      "as_of": "2025-12-31",
+      "context": {
+        "5y": null,
+        "10y": null,
+        "full": {
+          "pct": 30.8,
+          "z": -0.51,
+          "n": 26,
+          "since": "2000-12-31"
+        }
+      }
     },
     "JP": {
-      "erp_pct": null,
-      "method": null,
-      "as_of": null,
-      "context": null
+      "erp_pct": 5.14,
+      "country_risk_premium_pct": 0.91,
+      "method": "Damodaran total ERP: US mature-market base (implied, FCFE) plus the rating-based country risk premium",
+      "as_of": "2025-12-31",
+      "context": {
+        "5y": null,
+        "10y": null,
+        "full": {
+          "pct": 38.5,
+          "z": -0.38,
+          "n": 26,
+          "since": "2000-12-31"
+        }
+      }
     },
     "NO": {
-      "erp_pct": null,
-      "method": null,
-      "as_of": null,
+      "erp_pct": 4.23,
+      "country_risk_premium_pct": 0.0,
+      "method": "Damodaran total ERP: US mature-market base (implied, FCFE) plus the rating-based country risk premium",
+      "as_of": "2025-12-31",
       "context": null
     }
   },
@@ -32345,21 +32502,21 @@
     "spread:Italy": "ok",
     "spread:Spain": "ok",
     "valuation:US": "stale",
-    "valuation:UK": "stubbed",
+    "valuation:UK": "ok",
     "valuation:EZ": "stubbed",
-    "valuation:DE": "stubbed",
-    "valuation:CH": "stubbed",
-    "valuation:CN": "stubbed",
-    "valuation:JP": "stubbed",
-    "valuation:NO": "stubbed",
+    "valuation:DE": "ok",
+    "valuation:CH": "ok",
+    "valuation:CN": "ok",
+    "valuation:JP": "ok",
+    "valuation:NO": "ok",
     "erp:US": "ok",
-    "erp:UK": "stubbed",
+    "erp:UK": "ok",
     "erp:EZ": "stubbed",
-    "erp:DE": "stubbed",
-    "erp:CH": "stubbed",
-    "erp:CN": "stubbed",
-    "erp:JP": "stubbed",
-    "erp:NO": "stubbed",
+    "erp:DE": "ok",
+    "erp:CH": "ok",
+    "erp:CN": "ok",
+    "erp:JP": "ok",
+    "erp:NO": "ok",
     "credit:us_ig": "ok",
     "credit:us_hy": "ok",
     "credit:eu_hy": "ok",
@@ -32380,20 +32537,20 @@
     "costcap:US": "ok",
     "costcap:UK": "partial",
     "costcap:EZ": "stubbed",
-    "costcap:DE": "stubbed",
-    "costcap:CH": "stubbed",
-    "costcap:CN": "stubbed",
-    "costcap:JP": "stubbed",
-    "costcap:NO": "stubbed"
+    "costcap:DE": "partial",
+    "costcap:CH": "partial",
+    "costcap:CN": "partial",
+    "costcap:JP": "partial",
+    "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-08-29T07:47:48.352684+00:00",
-    "series": 112,
-    "fresh": 109,
+    "generated_at": "2026-08-29T13:26:13.489270+00:00",
+    "series": 142,
+    "fresh": 139,
     "stale": 3,
     "missing": 0,
     "gapped": 4,
-    "observations": 128228,
+    "observations": 128527,
     "flags_raised_this_run": {},
     "open_flags": {
       "gap": 4,

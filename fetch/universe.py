@@ -401,5 +401,24 @@ VALUATION_PROXIES = [
     {"region": "NO", "name": "OSEBX", "cape_source": None, "etf_proxy": "enor.us"},
 ]
 
+# Damodaran's country files cover these six of the eight regions. The US is
+# sourced separately (Shiller CAPE + histimpl implied ERP) and the Eurozone is
+# deliberately absent: countrystats.xls and ctryprem.xlsx carry member states
+# only, with no bloc aggregate, and substituting Germany's figure for the bloc
+# is the same error as reading the Bundesbank curve as the ECB's. Both EZ rows
+# are `descoped` in DATA-CATALOG.csv, not planned.
+DAMODARAN_REGIONS = ["UK", "DE", "CH", "CN", "JP", "NO"]
+
+# The aggregated multiples taken from countrystats.xls. `column` is the bare
+# metric as Damodaran spells it; the fetcher matches the median-basis variant
+# ("median(Trailing PE)" / "Median Trailing PE") and rejects the pre-2020
+# mean-basis columns outright.
+VALUATION_MULTIPLES = [
+    {"id": "pe", "column": "Trailing PE", "name": "trailing P/E"},
+    {"id": "pb", "column": "PBV", "name": "price / book"},
+    {"id": "ps", "column": "PS", "name": "price / sales"},
+    {"id": "ev_ebitda", "column": "EV/EBITDA", "name": "EV / EBITDA"},
+]
+
 # Chart lookback windows offered by the frontend.
 CHART_PERIODS = ["3M", "YTD", "1Y", "2Y", "3Y", "5Y"]
