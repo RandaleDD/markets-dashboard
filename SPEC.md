@@ -183,7 +183,7 @@ weekly it is 128,227 observations and 20.3 MiB, growing ~2 MiB a year.
 ### Adding a series later
 
 One row in `fetch/universe.py`, then `python3 bootstrap.py --series <id>`.
-The daily join picks it up from the next run; its watermark simply returns
+The weekly run picks it up from then on; its watermark simply returns
 nothing until the backfill runs, which is indistinguishable from any other
 series before its first data point. No migration, and no row belonging to any
 other series is touched.
