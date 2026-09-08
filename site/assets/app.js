@@ -224,14 +224,29 @@ function niceTicks(min, max, count) {
   return out;
 }
 
+// The class matters: `.axis` and `.grid` are only ever styled as descendants
+// of a chart class, so an unclassed <svg> here left the tick labels at the SVG
+// default (black, ~16px) and the gridlines at stroke:none -- invisible. Both
+// the Equity and Rates top charts render through this one function.
 function chartFrame(inner, yTicks, y, xLabels, yLabelFmt) {
   const grid = yTicks.map((v) =>
     `<line class="grid" x1="${CH_L}" x2="${CHART_W - CH_R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>` +
     `<text class="axis" x="${CH_L - 8}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${yLabelFmt(v)}</text>`
   ).join("");
-  return `<svg viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="xMidYMid meet" role="img">
+  return `<svg class="frame-chart" viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="xMidYMid meet" role="img">
       ${grid}${xLabels}${inner}
     </svg>`;
+}
+
+// Axis dates as "Sep '25". Six full ISO dates crowd a 900-unit axis into an
+// unreadable row; the year is what carries meaning at this density.
+const AXIS_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function axisDate(iso) {
+  const [y, m] = String(iso).split("-");
+  if (!m) return iso;
+  return `${AXIS_MONTHS[parseInt(m, 10) - 1]} '${y.slice(2)}`;
 }
 
 function chartLegend(lines) {
@@ -274,7 +289,7 @@ function dateChart(lines, period, rebase) {
   let xLabels = "";
   for (let i = 0; i < n; i++) {
     const p = spine[Math.round((i / (n - 1)) * (spine.length - 1))];
-    xLabels += `<text class="axis" x="${x(p[0]).toFixed(1)}" y="${CHART_H - 10}" text-anchor="${i === 0 ? "start" : i === n - 1 ? "end" : "middle"}">${p[0]}</text>`;
+    xLabels += `<text class="axis" x="${x(p[0]).toFixed(1)}" y="${CHART_H - 10}" text-anchor="${i === 0 ? "start" : i === n - 1 ? "end" : "middle"}">${axisDate(p[0])}</text>`;
   }
 
   const paths = shaped.map((l) =>
@@ -474,14 +489,16 @@ function renderEquities() {
     if (!indices.length) return;
     rows.push({ band: region === "EM" ? "Emerging Markets" : regionName(region) });
     indices.forEach((idx) => {
-      rows.push([
+      // className, not a wrapper span: the indent belongs to the row's
+      // relationship with the band above it, not to the index name.
+      rows.push({ className: "idx-row", cells: [
         `<span class="has-tip" data-tip="${indexTip(idx)}">${idx.name}</span> <span class="ccy">${idx.currency}</span>`,
         fmtNum(idx.level, (idx.level || 0) > 100 ? 1 : 4),
         fmtPct(idx.chg_1w_pct), fmtPct(idx.chg_mtd_pct),
         fmtPct(idx.chg_ytd_pct), fmtPct(idx.chg_1y_pct),
         fmtPct(idx.drawdown_from_ath_pct) + ctxTag(idx.drawdown_context),
         (idx.realized_vol_13w_pct != null ? `${idx.realized_vol_13w_pct.toFixed(1)}%` : dash()) + ctxTag(idx.vol_context),
-      ]);
+      ] });
     });
   });
 
@@ -516,7 +533,8 @@ function tableWithRaw(headers, rows) {
     if (typeof r === "string") return r;
     if (r && r.band !== undefined) return `<tr class="region-band"><td colspan="${headers.length}">${r.band}</td></tr>`;
     const cells = Array.isArray(r) ? r : r.cells;
-    return `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+    const cls = (!Array.isArray(r) && r.className) ? ` class="${r.className}"` : "";
+    return `<tr${cls}>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
   }).join("");
   return `<div class="table-wrap"><table><thead>${thead}</thead><tbody>${body}</tbody></table></div>`;
 }
@@ -731,16 +749,25 @@ function renderMacro() {
     const cb = (DATA.macro.policy_rates || {})[region] || {};
     return [regionName(region), pctPlain(cb.rate_pct) + ctxTag(cb.context), cb.as_of || dash()];
   });
+  // Period vs As of: a statistical agency dates an observation to the FIRST
+  // day of the period it covers, so Q2 2026 GDP is filed under 2026-04-01 and
+  // July's CPI under 2026-07-01. Showing only that date reads as months-old
+  // data when it is the newest release there is. Period says what the number
+  // measures; As of keeps the date it is filed under.
   const infRows = REGION_ORDER.map((region) => {
     const i = (DATA.macro.inflation || {})[region] || {};
-    return [regionName(region), pctPlain(i.yoy_pct, 1) + ctxTag(i.context), pctPlain(i.qoq_ann_pct, 1), i.as_of || dash()];
+    return [regionName(region), pctPlain(i.yoy_pct, 1) + ctxTag(i.context),
+            pctPlain(i.qoq_ann_pct, 1) + ctxTag(i.qoq_ann_context),
+            i.period_label || dash(), i.as_of || dash()];
   });
   const gdpRows = REGION_ORDER.map((region) => {
     const g = (DATA.macro.gdp || {})[region] || {};
     return [
-      regionName(region), pctPlain(g.yoy_pct, 1),
-      g.qoq_ann_pct != null ? pctPlain(g.qoq_ann_pct, 1) : `<span class="stub">n/a (annual series)</span>`,
-      g.as_of || dash(),
+      regionName(region), pctPlain(g.yoy_pct, 1) + ctxTag(g.context),
+      g.qoq_ann_pct != null
+        ? pctPlain(g.qoq_ann_pct, 1) + ctxTag(g.qoq_ann_context)
+        : `<span class="stub">n/a (annual series)</span>`,
+      g.period_label || dash(), g.as_of || dash(),
     ];
   });
 
@@ -752,21 +779,14 @@ function renderMacro() {
     regimeBlock =
       `<h2>Growth / Inflation Regime Map</h2>` +
       `<p class="regime-explain">
-         <strong>How to read this.</strong> Each region sits at its latest growth rate
-         (left to right) and inflation rate (bottom to top), so the chart is a
-         picture of where economies actually are, not a forecast. The two
-         dividing lines are the long-run averages, which split the space into
-         four quadrants: <em>top-right</em> is growth with inflation
-         (overheating), <em>top-left</em> is weak growth with high inflation
-         (stagflationary), <em>bottom-left</em> is weak growth with cooling
-         prices (disinflationary slowdown), and <em>bottom-right</em> is growth
-         without inflation (the benign quadrant). What matters more than the
-         quadrant is the <em>direction of travel</em> — step the quarter slider
-         back and watch which way a region has been moving. Positions shift
-         with data revisions, and the quadrant names describe the data, not
-         what to do about it.
+         <strong>Which way each economy is heading — not where it is.</strong>
+         A region's position is how much its growth rate and its inflation rate
+         <em>changed</em> over the quarter, in percentage points. So the centre
+         lines are zero: on them, nothing changed. Right means growth picked up,
+         up means inflation picked up.
+         <br>
+         The hollow dot is the previous quarter, the arrow points to now.
        </p>` +
-      note((DATA.regime && DATA.regime.axis_definition) || "") +
       `<div class="regime-controls">
          <label for="regime-slider">Quarter: <strong id="regime-label">${selected}</strong></label>
          <input id="regime-slider" type="range" min="0" max="${quarters.length - 1}" value="${idx}" step="1"/>
@@ -778,11 +798,11 @@ function renderMacro() {
     regimeBlock +
     `<h2 class="mt">GDP Growth</h2>` +
     note(DATA.macro.gdp_definition || "") +
-    table(["Region", "Real GDP YoY", "QoQ annualised", "As of"], gdpRows) +
+    table(["Region", "Real GDP YoY", "QoQ annualised", "Period", "As of"], gdpRows) +
 
     `<h2 class="mt">Inflation</h2>` +
-    note("Headline consumer prices. Year-on-year, plus the latest quarter annualised — the second is noisier but turns sooner.") +
-    table(["Region", "CPI YoY", "QoQ annualised", "As of"], infRows) +
+    note("Headline consumer prices. Year-on-year, plus the latest quarter annualised — the second is noisier but turns sooner. <strong>Period</strong> is what the figure measures; <strong>As of</strong> is the date it is filed under, which is the first day of that period.") +
+    table(["Region", "CPI YoY", "QoQ annualised", "Period", "As of"], infRows) +
 
     `<h2 class="mt">Central Bank Policy Rates</h2>` +
     note("Source: BIS Data Portal (CBPOL), all regions on one endpoint; Germany mirrors the ECB. A policy rate legitimately sits unchanged for months, so an older date is not a stale figure.") +
@@ -853,48 +873,55 @@ function renderCommodities() {
 }
 
 function renderValuation() {
-  const scoreRows = REGION_ORDER.map((region) => {
-    const v = (DATA.valuation || {})[region] || {};
-    const e = (DATA.equity_risk_premia || {})[region] || {};
-    const hasAny = v.cape != null || e.erp_pct != null;
-    return [
-      regionName(region),
-      v.cape != null ? `<strong>${v.cape.toFixed(1)}</strong>${ctxTag(v.cape_context)}` : dash(),
-      e.erp_pct != null ? `<strong>${e.erp_pct.toFixed(2)}%</strong>${ctxTag(e.context)}` : dash(),
-      // The only region that reaches this branch is the Eurozone, and it is
-      // descoped rather than pending: Damodaran publishes member states with
-      // no bloc aggregate. Saying "awaiting sourcing" would promise work that
-      // is deliberately not going to happen.
-      hasAny ? "" : `<span class="stub">no bloc-level source — see DATA-CATALOG.csv</span>`,
-    ];
-  });
-  const erpCovered = REGION_ORDER.filter((r) => ((DATA.equity_risk_premia || {})[r] || {}).erp_pct != null).length;
-
+  // One table, not two. The scorecard and the country multiples were both
+  // eight rows keyed by the same region order, and their coverage is
+  // complementary rather than overlapping -- the US has a CAPE and no
+  // multiples, the other seven have multiples and no CAPE -- so splitting them
+  // put a region's valuation on two tables and left each half full of dashes.
+  const COLS = 9;
   const mult = (v, key) => (v.multiples || {})[key];
   const multCell = (v, key) => {
     const m = mult(v, key);
     return m && m.value != null ? `${m.value.toFixed(2)}${ctxTag(m.context)}` : dash();
   };
-  const detailRows = REGION_ORDER.map((region) => {
+
+  const rows = [];
+  REGION_ORDER.forEach((region) => {
     const v = (DATA.valuation || {})[region] || {};
     const e = (DATA.equity_risk_premia || {})[region] || {};
-    return [
-      regionName(region), v.name || "",
+    // CAPE carries its own as-of: Shiller's file ends well before the
+    // multiples' vintage, and one shared "As of" would quietly date the CAPE
+    // to a year it does not belong to.
+    const capeCell = v.cape != null
+      ? `<span class="has-tip" data-tip="Shiller cyclically-adjusted P/E${v.cape_as_of ? `, as of ${v.cape_as_of}` : ""}"><strong>${v.cape.toFixed(1)}</strong></span>${ctxTag(v.cape_context)}`
+      : dash();
+    const erpCell = e.erp_pct != null
+      ? `<span class="has-tip" data-tip="Damodaran implied equity risk premium${e.as_of ? `, as of ${e.as_of}` : ""}"><strong>${e.erp_pct.toFixed(2)}%</strong></span>${ctxTag(e.context)}`
+      : dash();
+
+    rows.push([
+      regionName(region), v.name || "", capeCell,
       multCell(v, "pe"), multCell(v, "pb"), multCell(v, "ps"), multCell(v, "ev_ebitda"),
-      v.multiples_as_of || v.cape_as_of || e.as_of || dash(),
-    ];
+      erpCell,
+      v.multiples_as_of || e.as_of || v.cape_as_of || dash(),
+    ]);
+
+    // The Eurozone is blank across the row, and the reason is a scope decision
+    // rather than pending work, so it is stated where it applies instead of
+    // being left to the reader to find in the note below.
+    if (v.cape == null && e.erp_pct == null && !v.multiples) {
+      rows.push(`<tr><td class="commentary" colspan="${COLS}">No bloc-level source: Damodaran publishes member states with no euro-area aggregate, and Germany's figure is not a stand-in for it. Descoped, not pending — see <code>data/DATA-CATALOG.csv</code>.</td></tr>`);
+    }
   });
 
+  const erpCovered = REGION_ORDER.filter((r) => ((DATA.equity_risk_premia || {})[r] || {}).erp_pct != null).length;
+
   document.getElementById("panel-valuation").innerHTML =
-    `<h2>Valuation Scorecard</h2>` +
-    note(`CAPE and equity risk premium across regions, with each reading's percentile against its own history. CAPE is US-only by design — it needs a long cyclically-adjusted earnings history that exists for the S&amp;P 500 and not for the other indices. <strong>${erpCovered} of ${REGION_ORDER.length} regions have an ERP.</strong> The Eurozone is blank on both because Damodaran publishes member states with no bloc aggregate, and Germany's figure is not a stand-in for it.`) +
-    table(["Region", "CAPE", "ERP", ""], scoreRows) +
+    `<h2>Valuation</h2>` +
+    note(`Three different bases sit on this row, and they are not comparable with each other. <strong>CAPE</strong> is cyclically adjusted — price over ten years of inflation-adjusted earnings — and is US-only by design, because it needs a long earnings history that exists for the S&amp;P 500 and not for the other indices. <strong>P/E, P/B, P/S and EV/EBITDA</strong> are Damodaran's country aggregates: the <strong>median</strong> across listed companies in each country, on <strong>trailing</strong> figures, not cyclically adjusted, and only from 2020 on because earlier vintages of the source publish means instead. <strong>ERP</strong> is the implied equity risk premium for that country's risk bucket, so the Aaa sovereigns share a figure. ${erpCovered} of ${REGION_ORDER.length} regions have an ERP. Hover CAPE or ERP for its own as-of date, which differs from the multiples' vintage.`) +
+    tableWithRaw(["Region", "Index", "CAPE", "P/E", "P/B", "P/S", "EV/EBITDA", "ERP", "As of"], rows) +
 
-    `<p class="section-note"><strong>Known gaps on this tab.</strong> CAPE is US-only and will stay that way — it needs a long cyclically-adjusted earnings history that exists for the S&amp;P 500 and not elsewhere. The country multiples below start in 2020, because Damodaran's earlier files publish means rather than medians. Still unsourced: dividend yields, forward (rather than trailing) multiples, and any Eurozone-level figure at all. Filling these is the main outstanding job on this tab — see <code>data/DATA-CATALOG.csv</code>.</p>` +
-
-    `<h2 class="mt">Country Multiples</h2>` +
-    note("Damodaran's country aggregates: the <strong>median</strong> across listed companies in each country, on <strong>trailing</strong> earnings, book, sales and EBITDA. These are not cyclically adjusted, so they are not comparable to the CAPE above — and the median basis only starts in 2020, because the earlier vintages of the source publish means instead.") +
-    table(["Region", "Index", "P/E", "P/B", "P/S", "EV/EBITDA", "As of"], detailRows);
+    `<p class="section-note"><strong>Known gaps on this tab.</strong> CAPE is US-only and will stay that way — it needs a long cyclically-adjusted earnings history that exists for the S&amp;P 500 and not elsewhere. The country multiples start in 2020, because Damodaran's earlier files publish means rather than medians. Still unsourced: dividend yields, forward (rather than trailing) multiples, and any Eurozone-level figure at all. Filling these is the main outstanding job on this tab — see <code>data/DATA-CATALOG.csv</code>.</p>`;
 }
 
 
@@ -922,49 +949,123 @@ function regimeChart(quarterDate) {
     // a lag still plot rather than vanishing.
     const eligible = series.filter((p) => p.date <= quarterDate);
     const p = eligible.length ? eligible[eligible.length - 1] : null;
-    if (p) pts.push({ region: r, ...p, lagged: p.date !== quarterDate,
+    // The quarter before it, where one is stored. A single dot says where a
+    // region is; the pair says which way it is going, which on a map of
+    // CHANGES is the whole point of the chart.
+    const prior = eligible.length > 1 ? eligible[eligible.length - 2] : null;
+    if (p) pts.push({ region: r, ...p, prior, lagged: p.date !== quarterDate,
                       annual: p.delta_basis === "year" });
   });
   if (!pts.length) return `<div class="chart-empty">No regime data.</div>`;
 
-  const W = 720, H = 460, PAD = 54;
-  const xs = pts.map((p) => p.growth_delta), ys = pts.map((p) => p.inflation_delta);
-  const bound = (arr) => {
-    const m = Math.max(0.5, ...arr.map((v) => Math.abs(v)));
-    return m * 1.25;
-  };
-  const bx = bound(xs), by = bound(ys);
-  const X = (v) => PAD + ((v + bx) / (2 * bx)) * (W - 2 * PAD);
-  const Y = (v) => H - PAD - ((v + by) / (2 * by)) * (H - 2 * PAD);
+  // Asymmetric padding: the left and bottom edges carry tick numbers and a
+  // named axis, the other two only need breathing room for a label.
+  const W = 720, H = 470, PL = 78, PR = 26, PT = 30, PB = 66;
+
+  // Bounds must span the prior points too, or a region that moved a long way
+  // has its trail start off the canvas. ONE bound for both axes: they are the
+  // same unit (percentage points), and the arrow's angle is now the main thing
+  // the eye reads -- with separate scales a 45-degree arrow would not mean an
+  // equal move in growth and inflation, which is exactly what it looks like it
+  // means.
+  const all = pts.flatMap((p) => [p.growth_delta, p.inflation_delta]
+    .concat(p.prior ? [p.prior.growth_delta, p.prior.inflation_delta] : []));
+  const bound = Math.max(0.5, ...all.map((v) => Math.abs(v))) * 1.2;
+
+  const X = (v) => PL + ((v + bound) / (2 * bound)) * (W - PL - PR);
+  const Y = (v) => H - PB - ((v + bound) / (2 * bound)) * (H - PT - PB);
+
+  // Ticks every whole step, four or fewer each side of zero. Without a scale
+  // the dots are a picture of nothing in particular -- "further right" has no
+  // size, and a cluster near the origin looks like disagreement rather than
+  // eight regions all moving less than half a point.
+  const step = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5].find((v) => bound / v <= 5) || 10;
+  const dp = step < 1 ? String(step).split(".")[1].length : 0;
+  // Counted out from zero rather than accumulated, so a 0.1 step does not
+  // drift into 0.30000000000000004 by the third tick.
+  const ticks = [];
+  for (let i = -Math.floor(bound / step); i <= Math.floor(bound / step); i++) ticks.push(i * step);
+  const tickText = (v) => (Math.abs(v) < 1e-9 ? "0"
+    : (v > 0 ? "+" : "\u2212") + Math.abs(v).toFixed(dp));
+
+  const grid = ticks.filter((v) => Math.abs(v) > 1e-9).map((v) =>
+    `<line class="grid" x1="${X(v).toFixed(1)}" x2="${X(v).toFixed(1)}" y1="${PT}" y2="${H - PB}"/>` +
+    `<line class="grid" x1="${PL}" x2="${W - PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>`
+  ).join("");
+
+  const tickLabels = ticks.map((v) =>
+    `<text class="tick" x="${X(v).toFixed(1)}" y="${H - PB + 18}" text-anchor="middle">${tickText(v)}</text>` +
+    `<text class="tick" x="${PL - 10}" y="${(Y(v) + 3.5).toFixed(1)}" text-anchor="end">${tickText(v)}</text>`
+  ).join("");
+
+  // Named axes. The old version put one long sentence with an arrow at each
+  // end along the outer edge, which read as a caption rather than as a label
+  // and left the reader with no idea what the two directions were.
+  const axisTitles =
+    `<text class="axis-name" x="${(PL + W - PR) / 2}" y="${H - 16}" text-anchor="middle">GROWTH <tspan class="axis-unit">— change in real GDP YoY, pp per quarter →</tspan></text>` +
+    `<text class="axis-name" transform="translate(20 ${(PT + H - PB) / 2}) rotate(-90)" text-anchor="middle">INFLATION <tspan class="axis-unit">— change in CPI YoY, pp →</tspan></text>`;
 
   const quadLabels = [
-    { x: W - PAD - 6, y: PAD + 14, t: "growth ↑ · inflation ↑", anchor: "end" },
-    { x: PAD + 6, y: PAD + 14, t: "growth ↓ · inflation ↑", anchor: "start" },
-    { x: W - PAD - 6, y: H - PAD - 8, t: "growth ↑ · inflation ↓", anchor: "end" },
-    { x: PAD + 6, y: H - PAD - 8, t: "growth ↓ · inflation ↓", anchor: "start" },
+    { x: W - PR - 8, y: PT + 15, t: "both rising", anchor: "end" },
+    { x: PL + 8, y: PT + 15, t: "stagflationary", anchor: "start" },
+    { x: W - PR - 8, y: H - PB - 9, t: "benign", anchor: "end" },
+    { x: PL + 8, y: H - PB - 9, t: "both cooling", anchor: "start" },
   ].map((q) => `<text class="quad-label" x="${q.x}" y="${q.y}" text-anchor="${q.anchor}">${q.t}</text>`).join("");
+
+  const signed = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}`;
 
   const dots = pts.map((p) => {
     const cx = X(p.growth_delta), cy = Y(p.inflation_delta);
-    const title = `${regionName(p.region)} — ${p.date}\nGrowth ${p.growth_yoy.toFixed(2)}% YoY (${p.growth_delta >= 0 ? "+" : ""}${p.growth_delta.toFixed(2)}pp this quarter)\nInflation ${p.inflation_yoy.toFixed(2)}% YoY (${p.inflation_delta >= 0 ? "+" : ""}${p.inflation_delta.toFixed(2)}pp this quarter)${p.lagged ? "\n(latest available — reports on a lag)" : ""}`;
+    let title = `${regionName(p.region)} — ${p.date}\nGrowth ${p.growth_yoy.toFixed(2)}% YoY (${signed(p.growth_delta)}pp this quarter)\nInflation ${p.inflation_yoy.toFixed(2)}% YoY (${signed(p.inflation_delta)}pp this quarter)${p.lagged ? "\n(latest available — reports on a lag)" : ""}`;
+
+    // The trail: hollow dot where the region sat a quarter ago, arrow into
+    // where it sits now. Drawn before the current dot so the arrowhead tucks
+    // under it rather than over it.
+    let trail = "";
+    if (p.prior) {
+      const px = X(p.prior.growth_delta), py = Y(p.prior.inflation_delta);
+      // Stop the line short of the current dot's radius so the arrowhead
+      // meets the edge of the circle instead of disappearing inside it.
+      const dx = cx - px, dy = cy - py;
+      const len = Math.hypot(dx, dy);
+      const trim = Math.min(len, 9);
+      const ex = len ? cx - (dx / len) * trim : cx;
+      const ey = len ? cy - (dy / len) * trim : cy;
+      if (len > 2) {
+        trail = `<line class="regime-trail" x1="${px.toFixed(1)}" y1="${py.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" marker-end="url(#regime-arrow)"/>`;
+      }
+      trail += `<circle class="regime-prior" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4"/>`;
+      title += `\nA quarter earlier (${p.prior.date}): growth ${signed(p.prior.growth_delta)}pp, inflation ${signed(p.prior.inflation_delta)}pp`;
+    }
+
     return `<g class="regime-pt${p.lagged ? " lagged" : ""}"><title>${title}</title>
+      ${trail}
       <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="6"/>
       <text x="${(cx + 9).toFixed(1)}" y="${(cy + 4).toFixed(1)}">${p.region}${p.lagged ? "*" : ""}${p.annual ? "†" : ""}</text></g>`;
   }).join("");
 
   const anyLagged = pts.some((p) => p.lagged);
   const anyAnnual = pts.some((p) => p.annual);
+  const anyTrail = pts.some((p) => p.prior);
   return `
     <svg class="regime-chart" viewBox="0 0 ${W} ${H}" role="img">
-      <line class="axis-line" x1="${PAD}" x2="${W - PAD}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>
-      <line class="axis-line" x1="${X(0).toFixed(1)}" x2="${X(0).toFixed(1)}" y1="${PAD}" y2="${H - PAD}"/>
+      <defs>
+        <marker id="regime-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path class="regime-arrowhead" d="M 0 0 L 10 5 L 0 10 z"/>
+        </marker>
+      </defs>
+      ${grid}
+      <line class="axis-line" x1="${PL}" x2="${W - PR}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>
+      <line class="axis-line" x1="${X(0).toFixed(1)}" x2="${X(0).toFixed(1)}" y1="${PT}" y2="${H - PB}"/>
+      ${tickLabels}
       ${quadLabels}
-      <text class="axis" x="${W / 2}" y="${H - 14}" text-anchor="middle">← growth slowing   ·   Δ real GDP YoY (pp per quarter)   ·   growth accelerating →</text>
-      <text class="axis" transform="translate(16 ${H / 2}) rotate(-90)" text-anchor="middle">← inflation falling   ·   Δ CPI YoY (pp)   ·   rising →</text>
+      ${axisTitles}
       ${dots}
     </svg>
+    ${anyTrail ? `<p class="section-note">A long arrow is a fast change of direction, not a large economy.</p>` : ""}
     ${anyLagged ? `<p class="section-note">* latest available reading; that region publishes on a lag.</p>` : ""}
-    ${anyAnnual ? `<p class="section-note">† only an annual GDP series exists for this region, so its horizontal move spans a year rather than a quarter and is not comparable with the others on that axis.</p>` : ""}`;
+    ${anyAnnual ? `<p class="section-note">† only an annual GDP series exists for this region, so both its position and its trail span a year rather than a quarter, and neither is comparable with the others on the horizontal axis.</p>` : ""}`;
 }
 
 
@@ -1153,9 +1254,13 @@ function renderSnapshot(region) {
   const macroLines = [
     snapLine("Policy rate", pctPlain(cb.rate_pct), null, cb.name || ""),
     snapLine("CPI YoY", pctPlain(inf.yoy_pct, 1), null,
-             inf.qoq_ann_pct != null ? `Latest quarter annualised ${inf.qoq_ann_pct.toFixed(1)}%` : ""),
+             [inf.period_label, inf.qoq_ann_pct != null
+               ? `latest quarter annualised ${inf.qoq_ann_pct.toFixed(1)}%` : ""]
+               .filter(Boolean).join(" \u00b7 ")),
     snapLine("Real GDP YoY", pctPlain(gdp.yoy_pct, 1), null,
-             gdp.qoq_ann_pct != null ? `Latest quarter annualised ${gdp.qoq_ann_pct.toFixed(1)}%` : "Annual series"),
+             [gdp.period_label, gdp.qoq_ann_pct != null
+               ? `latest quarter annualised ${gdp.qoq_ann_pct.toFixed(1)}%` : "annual series"]
+               .filter(Boolean).join(" \u00b7 ")),
     expKey
       ? snapLine("Implied inflation", pctPlain(expTenors[expKey]), null,
                  `${expKey.replace(/_/g, " ")} · ${exp.basis || ""}`)

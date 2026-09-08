@@ -7,6 +7,9 @@ What these pin down, all of it straight out of SPEC.md:
   - a restated GDP/CPI figure is APPENDED with today's vintage, the first print
     is still there, and latest_observations resolves to the restatement
   - the watermark comes off latest_observations, so a revision does not move it
+  - a revisable series slower than weekly is re-asked in FULL, so a rebasing of
+    its whole history cannot be picked up on only the tail the watermark window
+    happened to reach
 """
 from __future__ import annotations
 
@@ -33,6 +36,40 @@ GDP = registry.Series(
     series_id="test.gdp", category="Test", region="US", description="a revisable level",
     unit="x", cadence="quarterly", source="stub", fetcher="stub", bounded=True,
     revisable=True)
+
+
+WEEKLY_REVISABLE = registry.Series(
+    series_id="test.weekly", category="Test", region="US", description="a weekly revisable",
+    unit="x", cadence="weekly", source="stub", fetcher="stub", bounded=True,
+    revisable=True)
+
+
+class RefetchWindowTest(unittest.TestCase):
+    """
+    Which series may have their request narrowed by the watermark.
+
+    OVERLAP_DAYS is 14, which reaches back through several weekly observations
+    and less than one quarterly one. A source that re-chain-links a quarterly
+    level series therefore had its rebasing seen on only the newest point or
+    two, splicing two bases into one stored history and putting the step
+    straight into the derived growth rate. Narrowing must stay off for these.
+    """
+
+    def test_slow_revisable_series_are_asked_in_full(self):
+        self.assertTrue(ingest.refetch_in_full(GDP))
+
+    def test_weekly_series_keep_the_narrow_window(self):
+        self.assertFalse(ingest.refetch_in_full(WEEKLY_REVISABLE))
+
+    def test_non_revisable_series_keep_the_narrow_window(self):
+        self.assertFalse(ingest.refetch_in_full(PRICE))
+
+    def test_every_gdp_and_cpi_series_is_asked_in_full(self):
+        # These are the series that actually get rebased. If a future edit
+        # narrows their window again, the seam comes back silently.
+        slow = {s.series_id for s in registry.all_series() if ingest.refetch_in_full(s)}
+        for sid in ("gdp.US", "gdp.CH", "gdp.EZ", "gdp.CN", "cpi.CH", "cpi.CH.index"):
+            self.assertIn(sid, slow, f"{sid} must be re-asked in full")
 
 
 class IngestTest(unittest.TestCase):

@@ -359,6 +359,53 @@ Three traps, all silent:
 - **The archives are cut at the end of the previous month**, so bootstrap runs
   a snapshot pass straight after the deep pass to close the seam.
 
+### The rebasing trap — why slow revisable series are re-fetched in full
+
+A source can restate its **whole history at once**. When FRED re-chain-links a
+real-GDP level series it rescales every point by the same factor; the same
+happens when a statistical agency moves a CPI index to a new base year. The
+values change, but nothing about the series looks wrong afterwards.
+
+This defeats an incremental ingest in a way that is worth spelling out, because
+the symptom appears nowhere near the cause. `OVERLAP_DAYS = 14` re-asks for a
+fortnight before the watermark, which is several observations for a weekly
+series and **less than one** for a quarterly one. So a rebasing was seen only
+on the newest point or two — the ones the window happened to reach — and the
+stored history became **part old basis, part new**. Each half is perfectly well
+behaved. There is no outlier, no gap, no staleness. The damage lands one layer
+downstream, in a growth rate computed across the seam, which reports the
+rebasing as economic growth.
+
+It happened on 2026-09-08: FRED rescaled `CLVMNACSCAB1GQCH` by +0.70% and
+Eurostat's `namq_10_gdp` by +0.55%, and only the last two quarters and the last
+quarter respectively were picked up. Swiss GDP published 3.06% YoY against a
+current-vintage 2.63%, and the euro area 4.03% annualised against 2.55%.
+
+Two things now hold the line, and both are needed:
+
+- `db/ingest.FULL_REFETCH_CADENCES` — a **revisable** series that publishes
+  slower than weekly is re-asked in full every run, never narrowed by the
+  watermark. That is the 8 GDP series and the 16 CPI series. They are a few
+  hundred rows each, the request is one call either way, and everything
+  unchanged hits `ON CONFLICT DO NOTHING`. A rebasing then arrives as new
+  vintages across the whole history, and `latest_observations` resolves one
+  consistent basis.
+- `db/quality.check_basis_break` — flags a series whose newest vintage restated
+  only a recent suffix by a **uniform** factor over `BASIS_BREAK_PCT` (0.25%).
+  The tell is the shape, not the size: a genuine national-accounts revision
+  moves consecutive quarters by different amounts, a rebasing moves them all by
+  the same one. Calibrated to fire on the two above and stay silent on the same
+  day's real revisions to DE, JP and NO (all under 0.13%).
+
+Note also that `db/quality.check_outliers` was **structurally unable** to see
+any of this: its window was a flat 30 days, and a quarterly observation is
+dated to the first day of the quarter it describes and published two months
+after that quarter ends, so the newest GDP print is routinely 160 days old and
+could never enter the window at all. The window is now measured in the series'
+own terms — see `outlier_window_days`, which keys off the stored grain
+(`store_weekly`) rather than the staleness threshold, because a policy rate is
+allowed to be 150 days stale but is stored weekly like a price.
+
 ### Dead ends — do not re-attempt without new information
 
 - **Stooq** serves a JavaScript proof-of-work anti-bot page instead of CSV on
