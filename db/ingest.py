@@ -10,7 +10,10 @@ ON CONFLICT DO NOTHING is what makes "ignore" free.
 The watermark drives the request, not the insert. A bounded source is asked for
 `watermark - OVERLAP_DAYS` onward; an unbounded one hands back its whole small
 snapshot either way. Both then go through the identical insert, so correctness
-never depends on the source honouring the window.
+never depends on the source honouring the window. The exception is a revisable
+series slower than weekly, which is re-asked in full so that a rebasing of its
+whole history cannot be picked up on only its last point -- see
+`FULL_REFETCH_CADENCES`.
 
 **Weekly storage.** The dashboard runs on Saturdays and keeps one observation
 per completed week -- the last actual close on or before that week's Friday --
@@ -40,6 +43,30 @@ logger = logging.getLogger("markets_dashboard.db.ingest")
 # backfilled by the next one. Costs nothing: anything unchanged hits
 # ON CONFLICT. Must stay >= one week now that storage is weekly.
 OVERLAP_DAYS = 14
+
+# A restatement is only ever seen if the request window reaches back far enough
+# to re-offer the date it lands on. OVERLAP_DAYS does that for a weekly series.
+# For a QUARTERLY one it reaches back less than a single observation, so when a
+# source re-chain-links its whole level series -- FRED rebased
+# CLVMNACSCAB1GQCH on 2026-09-08, rescaling every point by ~+0.70% -- only the
+# newest point or two is re-compared and picked up. The rest stay on the old
+# base, and the store ends up holding two bases spliced together. Nothing about
+# that looks wrong in the level chart, but the derived growth rate straddles
+# the seam and reports the rebasing as economic growth: Swiss GDP printed
+# 3.06% YoY against a vintage-consistent 2.33%, the euro area 4.03% annualised
+# against 1.78%.
+#
+# So a revisable series that publishes slower than weekly is re-asked in FULL
+# every run. These are a few hundred rows each, the request is one call either
+# way, and everything unchanged hits ON CONFLICT DO NOTHING -- the cost is a
+# slightly larger response, and the gain is that a rebasing lands as new
+# vintages across the whole history instead of on its tail.
+FULL_REFETCH_CADENCES = {"monthly", "monthly_lagged", "quarterly", "annual"}
+
+
+def refetch_in_full(series: registry.Series) -> bool:
+    """True when the watermark must NOT narrow the request. See above."""
+    return series.revisable and series.cadence in FULL_REFETCH_CADENCES
 
 # Two floats parsed from the same CSV text are bit-identical, so this only has
 # to absorb formatting noise (a source switching 2.30 to 2.3000001). Anything
@@ -150,7 +177,7 @@ def rows_to_attach(conn, series: registry.Series, df: pd.DataFrame) -> tuple[lis
 def ingest_series(conn, series: registry.Series, run_id: int,
                   watermark: str | None = None, deep: bool = False) -> SeriesResult:
     start = None
-    if not deep and watermark and series.bounded:
+    if not deep and watermark and series.bounded and not refetch_in_full(series):
         start = (pd.Timestamp(watermark) - timedelta(days=OVERLAP_DAYS)).strftime("%Y-%m-%d")
 
     df = fetch_one(series, start=start, deep=deep)

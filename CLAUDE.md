@@ -37,17 +37,17 @@ checkout is how the Actions runner gets yesterday's data instead of
 re-bootstrapping. `bootstrap.py` is a one-time seed, never on the schedule.
 
 ## Current status
-Last verified live run (2026-08-29): **104/122 `ok`, 7 `partial`, 2 `stale`,
-9 `stubbed`, 0 `failed`.** Database: 143 tracked series, 130,542 observations,
-20.9 MiB (145 series have stored rows — two are retired but keep their
-history). Data quality: 141 fresh, 2 stale, 0 missing; 6 open flags.
-`site/data/latest.json` is 842 KB.
+Last verified live run (2026-09-08): **105/122 `ok`, 7 `partial`, 1 `stale`,
+9 `stubbed`, 0 `failed`.** Database: 143 tracked series. Data quality:
+142 fresh, 1 stale, 0 missing; 6 open flags.
+`site/data/latest.json` is 852 KB.
 
 None of the non-`ok` states is a to-do list:
 
-- **2 stale** — real publication lag: Norway GDP, and Shiller's CAPE file
-  ending 2024-09. Switzerland left this list on 2026-08-29 when its curve moved
-  to a daily source.
+- **1 stale** — Shiller's CAPE file, ending 2024-09. Norway GDP left this list
+  on 2026-09-08 when the full re-fetch pulled its current quarter (its `stale`
+  flag from 2026-08-29 is still open but no longer true). Switzerland left it
+  on 2026-08-29 when its curve moved to a daily source.
 - **9 stubbed** — no free source exists: the China curve, six regions'
   inflation expectations, and the two Eurozone equity panels, which are
   `descoped` rather than pending because Damodaran publishes member states with
@@ -55,9 +55,9 @@ None of the non-`ok` states is a to-do list:
 - **7 partial** — every cost-of-capital stack except the US. All have the
   risk-free and ERP legs; only the US has an IG credit spread. `missing_legs`
   in the payload names what each lacks.
-- **6 open flags** — all genuine: US CPI missing 2025-10 (the release the
-  shutdown delayed), a 34-week hole in the BoE's real and inflation 2y points,
-  and the 2 stale series above.
+- **6 open flags** — US CPI missing 2025-10 (the release the shutdown delayed),
+  a 34-week hole in the BoE's real and inflation 2y points, Shiller's CAPE, and
+  the Norway GDP `stale` flag that is now out of date.
 
 Chasing the stubbed set again is wasted effort unless a new source appears;
 SPEC.md's dead ends list what has been tried.
@@ -68,6 +68,15 @@ trusting them — this section is a snapshot and goes stale on its own.
 ## Working conventions
 - One series/region = one entry in `fetch/universe.py`. Never hardcode a
   ticker or series ID anywhere else.
+- **A revisable series slower than weekly is re-fetched in FULL every run**
+  (`db/ingest.FULL_REFETCH_CADENCES` — the 8 GDP and 16 CPI series). Do not
+  "optimise" this back to the watermark window. A source that re-chain-links a
+  level series rescales its whole history at once; a 14-day window reaches back
+  less than one quarterly observation, so the rebasing lands on the tail only
+  and splices two bases into one stored series. Nothing looks wrong — the
+  damage is in the growth rate computed across the seam. This is not
+  hypothetical: it published Swiss GDP at 3.06% YoY against 2.63%. See SPEC.md,
+  "The rebasing trap". `db/quality.check_basis_break` catches a recurrence.
 - **`observations` is append-only. No UPDATE, no DELETE, ever.** A revised GDP
   or CPI print is a NEW row with a later `vintage_date`; the first print is
   never touched, and `latest_observations` resolves to the newest vintage on
@@ -112,6 +121,12 @@ trusting them — this section is a snapshot and goes stale on its own.
 - Prefer one request per curve over one per tenor, and bound big payloads with
   `startPeriod`. Per-tenor fetching turned a single transient failure into a
   `partial` curve, and unbounded ECB/BIS history hit read timeouts.
+- **A quarterly or monthly figure is labelled by its PERIOD, not by the date it
+  is filed under.** Agencies date an observation to the first day of the period
+  it covers, so Q2 2026 GDP is stored as `2026-04-01` and July's CPI as
+  `2026-07-01`. Showing only that date reads as months-stale data when it is
+  the newest release there is. `db/export._period_label` derives `period_label`
+  beside `as_of`, and the Macroeconomics tables show both.
 - Every displayed number must state its definition — contract and unit for
   commodities, real-vs-nominal and YoY-vs-annualised for GDP, tenor and index
   basis for inflation expectations. An unlabelled number that isn't comparable

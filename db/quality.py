@@ -39,6 +39,32 @@ GAP_WINDOW_DAYS = 730       # two years of cadence gaps
 OUTLIER_WINDOW_DAYS = 30    # only values that arrived recently can still be wrong
 CURVE_WINDOW_DAYS = 30
 
+
+def outlier_window_days(series: registry.Series) -> int:
+    """
+    How far back the outlier check looks, in this series' own terms.
+
+    A flat 30 days is right for weekly storage and silently useless for
+    anything slower: a quarterly observation is dated to the first day of the
+    quarter it describes and published two months after it ends, so the newest
+    GDP print is routinely 160 days old and could never enter a 30-day window
+    at all. The check was not lenient on quarterly series, it was unreachable
+    for them -- a level break of any size was invisible.
+
+    One publication interval plus the usual slack puts the newest observation
+    of every cadence inside the window: 230 days for quarterly, 760 for annual.
+
+    The test is `store_weekly`, not the staleness threshold. A policy rate is
+    allowed to be 150 days old before it counts as stale -- a rate legitimately
+    sits unchanged for months -- but it is STORED weekly like a price, so its
+    observations are 7 days apart and 30 days already covers several of them.
+    What the window has to span is the gap between stored observations, which
+    is what the grain tells you and the staleness threshold does not.
+    """
+    if series.store_weekly:
+        return OUTLIER_WINDOW_DAYS
+    return series.max_age_days + OUTLIER_WINDOW_DAYS
+
 # Storage is weekly, so consecutive observations sit ~7 days apart. Allowing 14
 # tolerates the one case that is not a fault -- a week whose Friday was a market
 # holiday shifts its stored date to the Thursday, which can stretch one interval
@@ -64,6 +90,12 @@ OUTLIER_Z = 12.0
 # threshold is readable on the same scale as an ordinary z-score.
 MAD_TO_SIGMA = 0.6745
 
+# A revision this large, applied uniformly to consecutive observations, is a
+# rebasing rather than a restatement of the underlying estimate. Sits above the
+# genuine quarter-specific GDP revisions seen in the store (max +0.122%) and
+# below the chain-link rescalings that caused the problem (+0.548%, +0.700%).
+BASIS_BREAK_PCT = 0.25
+
 # A real yield curve, including any inversion ever printed, spans well under
 # this between its shortest and longest tenor. Catches a stray 50.0 where 5.0
 # was meant without touching a genuine curve shape.
@@ -73,7 +105,8 @@ MAX_CURVE_SPREAD_PP = 10.0
 def run_all(conn, series: list[registry.Series] | None = None) -> dict:
     """Every check, flags written, and the completeness report returned."""
     series = series if series is not None else registry.all_series()
-    raised = {"stale": 0, "gap": 0, "outlier": 0, "curve_inconsistency": 0}
+    raised = {"stale": 0, "gap": 0, "outlier": 0, "basis_break": 0,
+              "curve_inconsistency": 0}
 
     hist = store.read_all_series(conn)
     for s in series:
@@ -81,6 +114,7 @@ def run_all(conn, series: list[registry.Series] | None = None) -> dict:
         raised["stale"] += check_staleness(conn, s, df)
         raised["gap"] += check_gaps(conn, s, df)
         raised["outlier"] += check_outliers(conn, s, df)
+        raised["basis_break"] += check_basis_break(conn, s)
     raised["curve_inconsistency"] += check_curve_consistency(conn, series, hist)
     conn.commit()
 
@@ -183,7 +217,7 @@ def check_outliers(conn, series: registry.Series, df) -> int:
     if not np.isfinite(mad) or mad <= 0:
         return 0  # a series that barely moves has no scale to judge against
 
-    cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=OUTLIER_WINDOW_DAYS)
+    cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=outlier_window_days(series))
     z = MAD_TO_SIGMA * (changes - median) / mad
     recent = frame[(pd.to_datetime(frame["date"]) >= cutoff) & (z.abs() > OUTLIER_Z)]
     units = "%" if relative else "pp"
@@ -198,6 +232,83 @@ def check_outliers(conn, series: registry.Series, df) -> int:
             f"{min(len(scale_of), OUTLIER_CALIBRATION_OBS)} changes "
             f"(threshold {OUTLIER_Z})"))
     return raised
+
+
+# ---------------------------------------------------------------------------
+# Basis breaks -- a rebasing picked up on only part of a series.
+# ---------------------------------------------------------------------------
+def check_basis_break(conn, series: registry.Series) -> int:
+    """
+    Flag a series whose newest vintage restated only its recent tail by what
+    looks like a uniform rescaling of the whole thing.
+
+    This is the failure `db/ingest.FULL_REFETCH_CADENCES` exists to prevent,
+    and it is worth detecting independently because it is invisible everywhere
+    else. When a source re-chain-links a level series, every point moves by
+    essentially the same factor. If the request window only reached the last
+    point or two, only those are restated, and `latest_observations` then
+    resolves a history that is part old base and part new -- a level series
+    with a step in it that no check on levels would call odd, because each half
+    is perfectly well behaved. The damage lands one layer downstream, in a
+    growth rate computed across the seam.
+
+    The tell is the shape of the revision, not its size: a genuine national-
+    accounts revision moves consecutive quarters by different amounts, while a
+    rebasing moves them by the same one. So the check asks two questions --
+    does the newest vintage stop short of the start of history, and is the
+    median rescaling on the points it did reach bigger than a real revision
+    plausibly is.
+
+    Calibrated against what the store held on 2026-09-08: it fires on CH
+    (+0.700% / +0.711%, the two ratios agreeing to four decimals) and EZ
+    (+0.548%), and stays silent on the same day's genuine revisions to DE
+    (+0.019% / +0.122%), JP (+0.029% / +0.111%) and NO (-0.027% / -0.030%).
+    """
+    if not series.revisable:
+        return 0
+
+    rows = conn.execute(
+        "SELECT date, value, vintage_date FROM observations "
+        "WHERE series_id = ? ORDER BY date, vintage_date", (series.series_id,)).fetchall()
+    if not rows:
+        return 0
+
+    newest_vintage = max(r[2] for r in rows)
+    # Dates the newest vintage touched, and what each was restated FROM.
+    restated = {}
+    original = {}
+    for date, value, vintage in rows:
+        if vintage == newest_vintage:
+            restated[date] = value
+        elif date not in original or vintage > original[date][0]:
+            original[date] = (vintage, value)
+
+    revised = {d: (restated[d], original[d][1]) for d in restated if d in original}
+    if not revised:
+        return 0  # every restated date is a first print, so nothing was rebased
+
+    # Untouched history older than the oldest restated date is what makes this
+    # a seam rather than a clean re-statement of the whole series.
+    oldest_revised = min(revised)
+    untouched = [d for d in original if d < oldest_revised and d not in restated]
+    if not untouched:
+        return 0
+
+    ratios = [new / old for new, old in revised.values() if old]
+    if not ratios:
+        return 0
+    median_ratio = float(np.median(ratios))
+    if abs(median_ratio - 1.0) * 100.0 < BASIS_BREAK_PCT:
+        return 0
+
+    return int(store.raise_flag(
+        conn, series.series_id, oldest_revised, "basis_break",
+        f"vintage {newest_vintage} restated the {len(revised)} most recent "
+        f"observation(s) by a median {(median_ratio - 1) * 100:+.3f}%, but left "
+        f"{len(untouched)} earlier observation(s) back to {min(untouched)} on the "
+        f"previous basis. A uniform rescaling of only part of a series splices two "
+        f"bases together, and any growth rate spanning {oldest_revised} reports the "
+        f"rebasing as change. Re-ingest the full history for this series."))
 
 
 # ---------------------------------------------------------------------------

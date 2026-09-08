@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T12:01:08.926843+00:00",
+  "generated_at": "2026-09-08T12:57:55.038287+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -31938,6 +31938,7 @@
         "yoy_pct": 3.36,
         "qoq_ann_pct": 1.08,
         "as_of": "2026-07-01",
+        "period_label": "Jul 2026",
         "context": {
           "5y": {
             "pct": 51.7,
@@ -31957,12 +31958,33 @@
             "n": 298,
             "since": "2001-09-01"
           }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 18.3,
+            "z": -0.97,
+            "n": 60,
+            "since": "2021-07-01"
+          },
+          "10y": {
+            "pct": 26.7,
+            "z": -0.71,
+            "n": 120,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 34.2,
+            "z": -0.44,
+            "n": 295,
+            "since": "2001-12-01"
+          }
         }
       },
       "UK": {
         "yoy_pct": 2.81,
         "qoq_ann_pct": 2.27,
         "as_of": "2026-07-01",
+        "period_label": "Jul 2026",
         "context": {
           "5y": {
             "pct": 23.0,
@@ -31982,12 +32004,33 @@
             "n": 299,
             "since": "2001-09-01"
           }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 27.9,
+            "z": -0.64,
+            "n": 61,
+            "since": "2021-07-01"
+          },
+          "10y": {
+            "pct": 44.6,
+            "z": -0.35,
+            "n": 121,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 50.0,
+            "z": -0.15,
+            "n": 296,
+            "since": "2001-12-01"
+          }
         }
       },
       "EZ": {
         "yoy_pct": 2.94,
         "qoq_ann_pct": 0.79,
         "as_of": "2026-07-01",
+        "period_label": "Jul 2026",
         "context": {
           "5y": {
             "pct": 54.1,
@@ -32007,12 +32050,33 @@
             "n": 299,
             "since": "2001-09-01"
           }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 18.0,
+            "z": -0.79,
+            "n": 61,
+            "since": "2021-07-01"
+          },
+          "10y": {
+            "pct": 33.9,
+            "z": -0.5,
+            "n": 121,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 37.2,
+            "z": -0.4,
+            "n": 296,
+            "since": "2001-12-01"
+          }
         }
       },
       "DE": {
         "yoy_pct": 2.78,
         "qoq_ann_pct": 1.28,
         "as_of": "2026-07-01",
+        "period_label": "Jul 2026",
         "context": {
           "5y": {
             "pct": 47.5,
@@ -32032,12 +32096,33 @@
             "n": 299,
             "since": "2001-09-01"
           }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 16.4,
+            "z": -0.74,
+            "n": 61,
+            "since": "2021-07-01"
+          },
+          "10y": {
+            "pct": 34.7,
+            "z": -0.43,
+            "n": 121,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 38.9,
+            "z": -0.26,
+            "n": 296,
+            "since": "2001-12-01"
+          }
         }
       },
       "CH": {
         "yoy_pct": 0.35,
         "qoq_ann_pct": 0.13,
         "as_of": "2026-07-01",
+        "period_label": "Jul 2026",
         "context": {
           "5y": {
             "pct": 24.6,
@@ -32057,12 +32142,33 @@
             "n": 299,
             "since": "2001-09-01"
           }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 29.5,
+            "z": -0.55,
+            "n": 61,
+            "since": "2021-07-01"
+          },
+          "10y": {
+            "pct": 45.5,
+            "z": -0.33,
+            "n": 121,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 47.3,
+            "z": -0.18,
+            "n": 296,
+            "since": "2001-12-01"
+          }
         }
       },
       "CN": {
         "yoy_pct": 0.5,
         "qoq_ann_pct": -1.69,
         "as_of": "2026-07-01",
+        "period_label": "Jul 2026",
         "context": {
           "5y": {
             "pct": 50.8,
@@ -32082,12 +32188,33 @@
             "n": 299,
             "since": "2001-09-01"
           }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 14.8,
+            "z": -1.16,
+            "n": 61,
+            "since": "2021-07-01"
+          },
+          "10y": {
+            "pct": 14.0,
+            "z": -0.91,
+            "n": 121,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 17.9,
+            "z": -0.85,
+            "n": 296,
+            "since": "2001-12-01"
+          }
         }
       },
       "JP": {
         "yoy_pct": 1.9,
         "qoq_ann_pct": 4.02,
         "as_of": "2026-07-01",
+        "period_label": "Jul 2026",
         "context": {
           "5y": {
             "pct": 26.2,
@@ -32107,12 +32234,33 @@
             "n": 299,
             "since": "2001-09-01"
           }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 75.4,
+            "z": 0.7,
+            "n": 61,
+            "since": "2021-07-01"
+          },
+          "10y": {
+            "pct": 86.8,
+            "z": 1.17,
+            "n": 121,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 92.2,
+            "z": 1.37,
+            "n": 296,
+            "since": "2001-12-01"
+          }
         }
       },
       "NO": {
         "yoy_pct": 2.98,
         "qoq_ann_pct": 3.95,
         "as_of": "2026-07-01",
+        "period_label": "Jul 2026",
         "context": {
           "5y": {
             "pct": 24.6,
@@ -32132,6 +32280,26 @@
             "n": 299,
             "since": "2001-09-01"
           }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 52.5,
+            "z": -0.11,
+            "n": 61,
+            "since": "2021-07-01"
+          },
+          "10y": {
+            "pct": 66.9,
+            "z": 0.24,
+            "n": 121,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 72.3,
+            "z": 0.43,
+            "n": 296,
+            "since": "2001-12-01"
+          }
         }
       }
     },
@@ -32139,50 +32307,280 @@
       "US": {
         "yoy_pct": 2.1,
         "qoq_ann_pct": 1.48,
+        "context": {
+          "5y": null,
+          "10y": {
+            "pct": 34.1,
+            "z": -0.14,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 29.0,
+            "z": -0.4,
+            "n": 314,
+            "since": "1948-01-01"
+          }
+        },
+        "qoq_ann_context": {
+          "5y": null,
+          "10y": {
+            "pct": 24.4,
+            "z": -0.17,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 28.7,
+            "z": -0.38,
+            "n": 317,
+            "since": "1947-04-01"
+          }
+        },
         "freq": "Q",
-        "as_of": "2026-04-01"
+        "as_of": "2026-04-01",
+        "period_label": "Q2 2026"
       },
       "UK": {
         "yoy_pct": 1.08,
         "qoq_ann_pct": 0.78,
+        "context": {
+          "5y": {
+            "pct": 42.6,
+            "z": -0.43,
+            "n": 61,
+            "since": "2021-06-01"
+          },
+          "10y": {
+            "pct": 37.2,
+            "z": -0.07,
+            "n": 121,
+            "since": "2016-06-01"
+          },
+          "full": {
+            "pct": 24.0,
+            "z": -0.18,
+            "n": 342,
+            "since": "1998-01-01"
+          }
+        },
+        "qoq_ann_context": {
+          "5y": {
+            "pct": 34.4,
+            "z": -0.32,
+            "n": 61,
+            "since": "2021-06-01"
+          },
+          "10y": {
+            "pct": 33.9,
+            "z": -0.12,
+            "n": 121,
+            "since": "2016-06-01"
+          },
+          "full": {
+            "pct": 27.9,
+            "z": -0.14,
+            "n": 351,
+            "since": "1997-04-01"
+          }
+        },
         "freq": "M",
-        "as_of": "2026-06-01"
+        "as_of": "2026-06-01",
+        "period_label": "Jun 2026"
       },
       "EZ": {
-        "yoy_pct": 1.5,
-        "qoq_ann_pct": 4.03,
+        "yoy_pct": 1.16,
+        "qoq_ann_pct": 2.55,
+        "context": {
+          "5y": null,
+          "10y": {
+            "pct": 34.1,
+            "z": -0.08,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 30.3,
+            "z": -0.13,
+            "n": 122,
+            "since": "1996-01-01"
+          }
+        },
+        "qoq_ann_context": {
+          "5y": null,
+          "10y": {
+            "pct": 68.3,
+            "z": 0.06,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 68.0,
+            "z": 0.13,
+            "n": 125,
+            "since": "1995-04-01"
+          }
+        },
         "freq": "Q",
-        "as_of": "2026-04-01"
+        "as_of": "2026-04-01",
+        "period_label": "Q2 2026"
       },
       "DE": {
         "yoy_pct": 1.02,
         "qoq_ann_pct": 1.33,
+        "context": {
+          "5y": null,
+          "10y": {
+            "pct": 58.5,
+            "z": 0.06,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 42.0,
+            "z": -0.09,
+            "n": 138,
+            "since": "1992-01-01"
+          }
+        },
+        "qoq_ann_context": {
+          "5y": null,
+          "10y": {
+            "pct": 61.0,
+            "z": 0.03,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 51.1,
+            "z": 0.0,
+            "n": 141,
+            "since": "1991-04-01"
+          }
+        },
         "freq": "Q",
-        "as_of": "2026-04-01"
+        "as_of": "2026-04-01",
+        "period_label": "Q2 2026"
       },
       "CH": {
-        "yoy_pct": 3.06,
+        "yoy_pct": 2.63,
         "qoq_ann_pct": 7.75,
+        "context": {
+          "5y": null,
+          "10y": {
+            "pct": 75.6,
+            "z": 0.27,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 68.9,
+            "z": 0.35,
+            "n": 122,
+            "since": "1996-01-01"
+          }
+        },
+        "qoq_ann_context": {
+          "5y": null,
+          "10y": {
+            "pct": 92.7,
+            "z": 0.9,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 96.8,
+            "z": 1.39,
+            "n": 125,
+            "since": "1995-04-01"
+          }
+        },
         "freq": "Q",
-        "as_of": "2026-04-01"
+        "as_of": "2026-04-01",
+        "period_label": "Q2 2026"
       },
       "JP": {
-        "yoy_pct": 0.66,
+        "yoy_pct": 0.73,
         "qoq_ann_pct": 1.45,
+        "context": {
+          "5y": null,
+          "10y": {
+            "pct": 53.7,
+            "z": 0.07,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 42.9,
+            "z": -0.04,
+            "n": 126,
+            "since": "1995-01-01"
+          }
+        },
+        "qoq_ann_context": {
+          "5y": null,
+          "10y": {
+            "pct": 58.5,
+            "z": 0.12,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 55.8,
+            "z": 0.12,
+            "n": 129,
+            "since": "1994-04-01"
+          }
+        },
         "freq": "Q",
-        "as_of": "2026-04-01"
+        "as_of": "2026-04-01",
+        "period_label": "Q2 2026"
       },
       "NO": {
-        "yoy_pct": 1.65,
+        "yoy_pct": 1.6,
         "qoq_ann_pct": 2.71,
+        "context": {
+          "5y": null,
+          "10y": {
+            "pct": 53.7,
+            "z": -0.03,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 35.8,
+            "z": -0.42,
+            "n": 190,
+            "since": "1979-01-01"
+          }
+        },
+        "qoq_ann_context": {
+          "5y": null,
+          "10y": {
+            "pct": 63.4,
+            "z": 0.16,
+            "n": 41,
+            "since": "2016-04-01"
+          },
+          "full": {
+            "pct": 56.5,
+            "z": 0.03,
+            "n": 193,
+            "since": "1978-04-01"
+          }
+        },
         "freq": "Q",
-        "as_of": "2026-04-01"
+        "as_of": "2026-04-01",
+        "period_label": "Q2 2026"
       },
       "CN": {
         "yoy_pct": 4.96,
         "qoq_ann_pct": null,
+        "context": null,
+        "qoq_ann_context": null,
         "freq": "A",
-        "as_of": "2025-01-01"
+        "as_of": "2025-01-01",
+        "period_label": "2025"
       }
     },
     "gdp_definition": "Real (chain-linked volume), national currency, not PPP, seasonally adjusted. YoY and annualised QoQ derived from the level series."
@@ -37463,7 +37861,7 @@
     "EZ": {
       "tenors": {
         "2Y": 2.956,
-        "5Y": 3.289,
+        "5Y": 3.266,
         "10Y": 3.768,
         "30Y": 4.355
       },
@@ -37490,21 +37888,21 @@
         },
         "5Y": {
           "5y": {
-            "pct": 97.7,
-            "z": 1.01,
+            "pct": 97.0,
+            "z": 0.98,
             "n": 263,
-            "since": "2021-09-03"
+            "since": "2021-09-10"
           },
           "10y": {
-            "pct": 98.9,
-            "z": 1.57,
-            "n": 523,
+            "pct": 98.5,
+            "z": 1.55,
+            "n": 524,
             "since": "2016-09-09"
           },
           "full": {
-            "pct": 98.1,
-            "z": 1.62,
-            "n": 785,
+            "pct": 97.6,
+            "z": 1.6,
+            "n": 786,
             "since": "2011-09-02"
           }
         },
@@ -38828,6 +39226,10 @@
           [
             "2026-09-03",
             3.2886
+          ],
+          [
+            "2026-09-04",
+            3.2656
           ]
         ],
         "10Y": [
@@ -48289,18 +48691,18 @@
         {
           "date": "2024-09-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.07,
+          "growth_yoy": 1.21,
           "inflation_yoy": 1.75,
-          "growth_delta": 0.37,
+          "growth_delta": 0.36,
           "inflation_delta": -0.76,
           "quadrant": "growth_up_infl_down"
         },
         {
           "date": "2024-12-31",
           "delta_basis": "quarter",
-          "growth_yoy": 1.36,
+          "growth_yoy": 1.53,
           "inflation_yoy": 2.43,
-          "growth_delta": 0.29,
+          "growth_delta": 0.32,
           "inflation_delta": 0.68,
           "quadrant": "growth_up_infl_up"
         },
@@ -48309,52 +48711,52 @@
           "delta_basis": "quarter",
           "growth_yoy": 1.59,
           "inflation_yoy": 2.18,
-          "growth_delta": 0.23,
+          "growth_delta": 0.06,
           "inflation_delta": -0.25,
           "quadrant": "growth_up_infl_down"
         },
         {
           "date": "2025-06-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.36,
+          "growth_yoy": 1.38,
           "inflation_yoy": 1.99,
-          "growth_delta": -0.23,
+          "growth_delta": -0.2,
           "inflation_delta": -0.19,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2025-09-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.17,
+          "growth_yoy": 1.16,
           "inflation_yoy": 2.23,
-          "growth_delta": -0.19,
+          "growth_delta": -0.23,
           "inflation_delta": 0.24,
           "quadrant": "growth_down_infl_up"
         },
         {
           "date": "2025-12-31",
           "delta_basis": "quarter",
-          "growth_yoy": 1.07,
+          "growth_yoy": 1.06,
           "inflation_yoy": 1.96,
-          "growth_delta": -0.1,
+          "growth_delta": -0.09,
           "inflation_delta": -0.26,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2026-03-31",
           "delta_basis": "quarter",
-          "growth_yoy": 0.49,
+          "growth_yoy": 0.55,
           "inflation_yoy": 2.55,
-          "growth_delta": -0.58,
+          "growth_delta": -0.51,
           "inflation_delta": 0.59,
           "quadrant": "growth_down_infl_up"
         },
         {
           "date": "2026-06-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.5,
+          "growth_yoy": 1.16,
           "inflation_yoy": 2.75,
-          "growth_delta": 1.01,
+          "growth_delta": 0.61,
           "inflation_delta": 0.2,
           "quadrant": "growth_up_infl_up"
         }
@@ -48437,72 +48839,72 @@
         {
           "date": "2024-09-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.76,
+          "growth_yoy": 1.95,
           "inflation_yoy": 0.84,
-          "growth_delta": -0.01,
+          "growth_delta": 0.16,
           "inflation_delta": -0.49,
-          "quadrant": "growth_down_infl_down"
+          "quadrant": "growth_up_infl_down"
         },
         {
           "date": "2024-12-31",
           "delta_basis": "quarter",
-          "growth_yoy": 1.62,
+          "growth_yoy": 1.77,
           "inflation_yoy": 0.63,
-          "growth_delta": -0.15,
+          "growth_delta": -0.18,
           "inflation_delta": -0.22,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2025-03-31",
           "delta_basis": "quarter",
-          "growth_yoy": 2.43,
+          "growth_yoy": 2.75,
           "inflation_yoy": 0.34,
-          "growth_delta": 0.82,
+          "growth_delta": 0.98,
           "inflation_delta": -0.28,
           "quadrant": "growth_up_infl_down"
         },
         {
           "date": "2025-06-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.59,
+          "growth_yoy": 1.82,
           "inflation_yoy": 0.08,
-          "growth_delta": -0.84,
+          "growth_delta": -0.93,
           "inflation_delta": -0.26,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2025-09-30",
           "delta_basis": "quarter",
-          "growth_yoy": 0.73,
+          "growth_yoy": 0.89,
           "inflation_yoy": 0.22,
-          "growth_delta": -0.86,
+          "growth_delta": -0.92,
           "inflation_delta": 0.15,
           "quadrant": "growth_down_infl_up"
         },
         {
           "date": "2025-12-31",
           "delta_basis": "quarter",
-          "growth_yoy": 0.74,
+          "growth_yoy": 1.02,
           "inflation_yoy": 0.06,
-          "growth_delta": 0.02,
+          "growth_delta": 0.13,
           "inflation_delta": -0.16,
           "quadrant": "growth_up_infl_down"
         },
         {
           "date": "2026-03-31",
           "delta_basis": "quarter",
-          "growth_yoy": 1.29,
+          "growth_yoy": 0.72,
           "inflation_yoy": 0.31,
-          "growth_delta": 0.55,
+          "growth_delta": -0.31,
           "inflation_delta": 0.25,
-          "quadrant": "growth_up_infl_up"
+          "quadrant": "growth_down_infl_up"
         },
         {
           "date": "2026-06-30",
           "delta_basis": "quarter",
-          "growth_yoy": 3.06,
+          "growth_yoy": 2.63,
           "inflation_yoy": 0.45,
-          "growth_delta": 1.76,
+          "growth_delta": 1.92,
           "inflation_delta": 0.14,
           "quadrant": "growth_up_infl_up"
         }
@@ -48585,61 +48987,61 @@
         {
           "date": "2024-09-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.09,
+          "growth_yoy": 1.1,
           "inflation_yoy": 2.53,
-          "growth_delta": 2.07,
+          "growth_delta": 2.09,
           "inflation_delta": -0.24,
           "quadrant": "growth_up_infl_down"
         },
         {
           "date": "2024-12-31",
           "delta_basis": "quarter",
-          "growth_yoy": 1.03,
+          "growth_yoy": 1.02,
           "inflation_yoy": 3.67,
-          "growth_delta": -0.07,
+          "growth_delta": -0.08,
           "inflation_delta": 1.14,
           "quadrant": "growth_down_infl_up"
         },
         {
           "date": "2025-03-31",
           "delta_basis": "quarter",
-          "growth_yoy": 1.62,
+          "growth_yoy": 1.63,
           "inflation_yoy": 3.55,
-          "growth_delta": 0.59,
+          "growth_delta": 0.6,
           "inflation_delta": -0.12,
           "quadrant": "growth_up_infl_down"
         },
         {
           "date": "2025-06-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.93,
+          "growth_yoy": 1.87,
           "inflation_yoy": 3.42,
-          "growth_delta": 0.32,
+          "growth_delta": 0.24,
           "inflation_delta": -0.13,
           "quadrant": "growth_up_infl_down"
         },
         {
           "date": "2025-09-30",
           "delta_basis": "quarter",
-          "growth_yoy": 0.66,
+          "growth_yoy": 0.65,
           "inflation_yoy": 2.88,
-          "growth_delta": -1.28,
+          "growth_delta": -1.22,
           "inflation_delta": -0.54,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2025-12-31",
           "delta_basis": "quarter",
-          "growth_yoy": 0.5,
+          "growth_yoy": 0.51,
           "inflation_yoy": 2.02,
-          "growth_delta": -0.16,
+          "growth_delta": -0.14,
           "inflation_delta": -0.86,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2026-03-31",
           "delta_basis": "quarter",
-          "growth_yoy": 0.48,
+          "growth_yoy": 0.49,
           "inflation_yoy": 1.41,
           "growth_delta": -0.02,
           "inflation_delta": -0.61,
@@ -48648,9 +49050,9 @@
         {
           "date": "2026-06-30",
           "delta_basis": "quarter",
-          "growth_yoy": 0.66,
+          "growth_yoy": 0.73,
           "inflation_yoy": 1.7,
-          "growth_delta": 0.19,
+          "growth_delta": 0.24,
           "inflation_delta": 0.29,
           "quadrant": "growth_up_infl_up"
         }
@@ -48659,9 +49061,9 @@
         {
           "date": "2024-09-30",
           "delta_basis": "quarter",
-          "growth_yoy": 2.51,
+          "growth_yoy": 2.5,
           "inflation_yoy": 2.97,
-          "growth_delta": 0.03,
+          "growth_delta": 0.0,
           "inflation_delta": 0.33,
           "quadrant": "growth_up_infl_up"
         },
@@ -48670,23 +49072,23 @@
           "delta_basis": "quarter",
           "growth_yoy": 0.12,
           "inflation_yoy": 2.3,
-          "growth_delta": -2.38,
+          "growth_delta": -2.37,
           "inflation_delta": -0.67,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2025-03-31",
           "delta_basis": "quarter",
-          "growth_yoy": 0.31,
+          "growth_yoy": 0.33,
           "inflation_yoy": 2.6,
-          "growth_delta": 0.19,
+          "growth_delta": 0.2,
           "inflation_delta": 0.3,
           "quadrant": "growth_up_infl_up"
         },
         {
           "date": "2025-06-30",
           "delta_basis": "quarter",
-          "growth_yoy": 0.17,
+          "growth_yoy": 0.19,
           "inflation_yoy": 2.98,
           "growth_delta": -0.14,
           "inflation_delta": 0.39,
@@ -48695,36 +49097,36 @@
         {
           "date": "2025-09-30",
           "delta_basis": "quarter",
-          "growth_yoy": 2.27,
+          "growth_yoy": 2.25,
           "inflation_yoy": 3.6,
-          "growth_delta": 2.1,
+          "growth_delta": 2.07,
           "inflation_delta": 0.62,
           "quadrant": "growth_up_infl_up"
         },
         {
           "date": "2025-12-31",
           "delta_basis": "quarter",
-          "growth_yoy": 1.94,
+          "growth_yoy": 1.97,
           "inflation_yoy": 3.17,
-          "growth_delta": -0.33,
+          "growth_delta": -0.29,
           "inflation_delta": -0.44,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2026-03-31",
           "delta_basis": "quarter",
-          "growth_yoy": 1.97,
+          "growth_yoy": 1.91,
           "inflation_yoy": 3.64,
-          "growth_delta": 0.03,
+          "growth_delta": -0.06,
           "inflation_delta": 0.48,
-          "quadrant": "growth_up_infl_up"
+          "quadrant": "growth_down_infl_up"
         },
         {
           "date": "2026-06-30",
           "delta_basis": "quarter",
-          "growth_yoy": 1.65,
+          "growth_yoy": 1.6,
           "inflation_yoy": 2.7,
-          "growth_delta": -0.32,
+          "growth_delta": -0.31,
           "inflation_delta": -0.95,
           "quadrant": "growth_down_infl_down"
         }
@@ -49501,13 +49903,13 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-09-08T12:01:08.490628+00:00",
+    "generated_at": "2026-09-08T12:57:54.530097+00:00",
     "series": 143,
     "fresh": 142,
     "stale": 1,
     "missing": 0,
     "gapped": 4,
-    "observations": 130694,
+    "observations": 131078,
     "flags_raised_this_run": {},
     "open_flags": {
       "gap": 4,

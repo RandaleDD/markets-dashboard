@@ -188,6 +188,10 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 /* --- Region bands in the equity table --- */
+/* The band names the region; the indent is what makes the rows beneath it read
+   as belonging to it rather than as a flat list that happens to be sorted. */
+tr.idx-row td:first-child { padding-left: 22px; }
+
 tr.region-band td {
   background: var(--stub-bg);
   font-size: 11px;
@@ -246,8 +250,28 @@ tr.chart-row > td { padding: 0; background: var(--page-plane); }
 .chart-change.up { color: var(--delta-up); }
 .chart-change.down { color: var(--delta-down); }
 .line-chart { width: 100%; height: auto; max-height: 260px; display: block; }
-.line-chart .grid { stroke: var(--gridline); stroke-width: 1; }
-.line-chart .axis { fill: var(--text-muted); font-size: 10px; }
+
+/* One rule for every chart's furniture. Axis text and gridlines were styled
+   per-chart-class, so the two big chart-panel charts -- which render through
+   chartFrame() and carried no class at all -- fell back to the SVG defaults:
+   black tick labels at the inherited ~16px, and gridlines at stroke:none.
+   font-family is inherited from body rather than restated, which is what keeps
+   the axes on the same typeface as the tables beside them. */
+.line-chart .grid,
+.frame-chart .grid,
+.regime-chart .grid { stroke: var(--gridline); stroke-width: 1; }
+
+.line-chart .axis,
+.frame-chart .axis,
+.regime-chart .axis {
+  fill: var(--text-muted);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.line-chart .axis { font-size: 10px; }
+.frame-chart .axis { font-size: 11px; }
+.frame-chart { width: 100%; height: auto; display: block; }
 .chart-empty { font-size: 12px; opacity: 0.7; padding: 18px 0; }
 
 /* --- Inline annotations --- */
@@ -308,11 +332,29 @@ h2.mt { margin-top: 30px; }
 /* --- Regime quadrant map --- */
 .regime-chart { width: 100%; height: auto; max-height: 480px; display: block; }
 .regime-chart .axis-line { stroke: var(--baseline); stroke-width: 1.5; }
-.regime-chart .axis { fill: var(--text-muted); font-size: 11px; }
-.regime-chart .quad-label { fill: var(--text-muted); font-size: 10px; opacity: 0.8; letter-spacing: 0.04em; }
+.regime-chart .axis { font-size: 11px; }
+/* The scaffold: tick numbers recede, the axis NAME is the thing you should be
+   able to read without looking for it, and the unit trails it in small type
+   so the label is a name first and a definition second. */
+.regime-chart .tick { fill: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.regime-chart .axis-name {
+  fill: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.regime-chart .axis-unit { font-weight: 400; letter-spacing: 0; fill: var(--text-muted); }
+.regime-chart .quad-label { fill: var(--text-muted); font-size: 10px; opacity: 0.62; letter-spacing: 0.04em; font-style: italic; }
 .regime-pt circle { fill: var(--series-1); opacity: 0.85; }
+/* The trail reads as background: the eye should land on the current position
+   first and follow the arrow back only if it asks where the region came from. */
+.regime-trail { stroke: var(--series-1); stroke-width: 1.2; opacity: 0.45; }
+.regime-arrowhead { fill: var(--series-1); opacity: 0.55; }
+.regime-pt circle.regime-prior { fill: none; stroke: var(--series-1); stroke-width: 1.4; opacity: 0.5; }
 .regime-pt text { fill: var(--text-primary); font-size: 11px; font-weight: 600; }
 .regime-pt.lagged circle { fill: var(--text-muted); opacity: 0.55; }
+.regime-pt.lagged circle.regime-prior { fill: none; stroke: var(--text-muted); }
+.regime-pt.lagged .regime-trail { stroke: var(--text-muted); }
 .regime-controls { display: flex; align-items: center; gap: 12px; margin: 6px 0 10px; flex-wrap: wrap; }
 .regime-controls input[type="range"] { flex: 1; min-width: 200px; max-width: 420px; }
 

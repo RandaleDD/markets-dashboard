@@ -75,6 +75,55 @@ def _pct_change(df, lag, annualise=1):
     return round((ratio ** annualise - 1) * 100, 2)
 
 
+def _growth_series(df, lag, annualise=1):
+    """
+    The full history of `_pct_change`, as its own [date, value] frame.
+
+    `_pct_change` answers "what is it now"; this answers "and is that unusual",
+    by handing `_ctx` the same derivation measured at every past point rather
+    than the level series underneath it. The distinction matters: the level of
+    Swiss GDP is at its all-time high every quarter it grows, so a percentile
+    on the LEVEL is always ~100th and says nothing -- the same reason index
+    levels deliberately carry no percentile. The growth RATE is stationary
+    enough for a percentile to mean something.
+    """
+    if df is None or len(df) <= lag:
+        return None
+    out = df.dropna(subset=["value"]).sort_values("date").copy()
+    ratio = out["value"] / out["value"].shift(lag)
+    out["value"] = (ratio.where(ratio > 0) ** annualise - 1.0) * 100.0
+    out = out.dropna(subset=["value"])
+    return out if not out.empty else None
+
+
+# Month abbreviations, spelled out rather than taken from strftime: %b is
+# locale-dependent, and this label is part of the published payload.
+_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _period_label(as_of, freq):
+    """
+    Turn an observation date into the PERIOD it describes.
+
+    Statistical agencies date an observation to the first day of the period it
+    covers, so FRED's Q2 2026 GDP is stored as `2026-04-01` and July's CPI as
+    `2026-07-01`. Showing that raw date reads as "data from early April" --
+    five months stale -- when it is in fact the most recent quarter published,
+    and it invites exactly the wrong conclusion about freshness. The period is
+    what the number measures; `as_of` is kept alongside it for the date the
+    figure is actually filed under.
+    """
+    if not as_of:
+        return None
+    ts = pd.Timestamp(as_of)
+    if freq == "A":
+        return str(ts.year)
+    if freq == "Q":
+        return f"Q{(ts.month - 1) // 3 + 1} {ts.year}"
+    return f"{_MONTH_ABBR[ts.month - 1]} {ts.year}"
+
+
 def _ctx(df, latest_value=None):
     """
     Percentile/z-score context over the full stored history.
@@ -300,7 +349,9 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             # 3 monthly observations = one quarter, compounded to a yearly rate.
             "qoq_ann_pct": _pct_change(idx_df, 3, annualise=4),
             "as_of": as_of,
+            "period_label": _period_label(as_of, "M"),
             "context": _ctx(yoy_df) if yoy_df is not None else None,
+            "qoq_ann_context": _ctx(_growth_series(idx_df, 3, annualise=4)),
         }
 
     # --- Macro: GDP (real, chain-linked, local currency, SA) ---
@@ -311,16 +362,25 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         freq = cfg.get("freq", "Q")
         st, as_of = _series_status(df, cfg.get("cadence", "annual" if freq == "A" else "quarterly"))
         status[f"gdp:{region}"] = st
+        # The short-horizon annualised rate: one quarter for quarterly regions,
+        # the equivalent three months for monthly UK. An annual series has no
+        # such thing, so it stays None.
+        short_lag = 1 if freq == "Q" else 3 if freq == "M" else None
         out["macro"]["gdp"][region] = {
             "yoy_pct": _pct_change(df, PERIODS_PER_YEAR[freq]),
-            # The short-horizon annualised rate: one quarter for quarterly
-            # regions, the equivalent three months for monthly UK. An annual
-            # series has no such thing, so it stays None.
-            "qoq_ann_pct": (_pct_change(df, 1, annualise=4) if freq == "Q"
-                            else _pct_change(df, 3, annualise=4) if freq == "M"
-                            else None),
+            "qoq_ann_pct": (_pct_change(df, short_lag, annualise=4)
+                            if short_lag else None),
+            # GDP was the one figure on the dashboard carrying no percentile,
+            # so an implausible print -- Switzerland's +7.8% annualised in
+            # 2026-Q2 -- read exactly like an ordinary one. Measured against
+            # the region's own derived-growth history, an outlier now says so
+            # on its face.
+            "context": _ctx(_growth_series(df, PERIODS_PER_YEAR[freq])),
+            "qoq_ann_context": (_ctx(_growth_series(df, short_lag, annualise=4))
+                                if short_lag else None),
             "freq": freq,
             "as_of": as_of,
+            "period_label": _period_label(as_of, freq),
         }
     out["macro"]["gdp_definition"] = universe.GDP_DEFINITION
 
