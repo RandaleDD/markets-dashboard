@@ -215,6 +215,32 @@ def raise_flag(conn: sqlite3.Connection, series_id: str, obs_date: str,
     return conn.total_changes > before
 
 
+def open_flag_keys(conn: sqlite3.Connection) -> set[tuple[str, str, str]]:
+    """(series_id, flag_type, date) for every flag currently open."""
+    return {(r[0], r[1], r[2]) for r in conn.execute(
+        "SELECT series_id, flag_type, date FROM data_quality_flags WHERE resolved = 0")}
+
+
+def resolve_flag(conn: sqlite3.Connection, series_id: str, obs_date: str,
+                 flag_type: str) -> bool:
+    """
+    Close one open flag: its condition was re-checked and is no longer true.
+
+    This is an UPDATE, and it is deliberately not on `observations` -- the
+    append-only rule governs the measurement log, while `resolved` is a column
+    that exists precisely to be flipped. The row and its `raised_at` survive,
+    so what was once wrong stays readable; only its open/closed state moves.
+
+    Returns True when a flag was actually closed.
+    """
+    before = conn.total_changes
+    conn.execute(
+        "UPDATE data_quality_flags SET resolved = 1 "
+        "WHERE series_id = ? AND date = ? AND flag_type = ? AND resolved = 0",
+        (series_id, _iso(obs_date), flag_type))
+    return conn.total_changes > before
+
+
 def open_flag_tally(conn: sqlite3.Connection) -> dict[str, int]:
     return {r[0]: r[1] for r in conn.execute(
         "SELECT flag_type, COUNT(*) FROM data_quality_flags WHERE resolved = 0 "

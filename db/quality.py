@@ -30,6 +30,8 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
+from typing import NamedTuple
+
 from db import registry, store
 
 logger = logging.getLogger("markets_dashboard.db.quality")
@@ -102,69 +104,143 @@ BASIS_BREAK_PCT = 0.25
 MAX_CURVE_SPREAD_PP = 10.0
 
 
+class Findings(NamedTuple):
+    """
+    What one check concluded about one series.
+
+    `raised` is how many flags this run newly opened -- what the run log
+    reports. `found` is every observation date the condition is currently true
+    for, whether or not a flag already existed. The two differ, and resolution
+    needs the second: a flag re-detected today must stay open even though it
+    raised nothing, and an open flag the check did NOT find is a condition that
+    has gone away.
+
+    `evaluated` and `since` are what stop resolution from closing a finding the
+    check never actually looked at:
+
+      - A check that bailed out -- no data, too few observations to calibrate a
+        scale, a periodicity it does not judge -- returns `evaluated=False`,
+        and nothing of its type is closed. Silence is not evidence.
+      - A windowed check returns the oldest date it examined in `since`, so a
+        gap that has aged past GAP_WINDOW_DAYS keeps its flag instead of being
+        declared fixed by a check that simply stopped looking at it.
+      - `since=None` with `evaluated=True` means the whole series was examined,
+        so every open flag of that type is fair game.
+    """
+    raised: int = 0
+    found: frozenset = frozenset()
+    evaluated: bool = False
+    since: str | None = None
+
+
+NOT_EVALUATED = Findings()
+
+
+def _reconcile(conn, open_keys, series_id: str, flag_type: str, f: Findings) -> int:
+    """Close the open flags of one type whose condition this run did not find."""
+    if not f.evaluated:
+        return 0
+    closed = 0
+    for sid, ftype, date in open_keys:
+        if sid != series_id or ftype != flag_type or date in f.found:
+            continue
+        if f.since is not None and date < f.since:
+            continue  # older than the window this check examined
+        closed += int(store.resolve_flag(conn, sid, date, ftype))
+    return closed
+
+
 def run_all(conn, series: list[registry.Series] | None = None) -> dict:
     """Every check, flags written, and the completeness report returned."""
     series = series if series is not None else registry.all_series()
     raised = {"stale": 0, "gap": 0, "outlier": 0, "basis_break": 0,
               "curve_inconsistency": 0}
 
+    resolved = dict.fromkeys(raised, 0)
+
     hist = store.read_all_series(conn)
+    # Snapshot the open set before anything is raised, so a flag opened by this
+    # very run is never a candidate for closure by it.
+    open_keys = store.open_flag_keys(conn)
+
     for s in series:
         df = hist.get(s.series_id)
-        raised["stale"] += check_staleness(conn, s, df)
-        raised["gap"] += check_gaps(conn, s, df)
-        raised["outlier"] += check_outliers(conn, s, df)
-        raised["basis_break"] += check_basis_break(conn, s)
-    raised["curve_inconsistency"] += check_curve_consistency(conn, series, hist)
+        for kind, findings in (("stale", check_staleness(conn, s, df)),
+                               ("gap", check_gaps(conn, s, df)),
+                               ("outlier", check_outliers(conn, s, df)),
+                               ("basis_break", check_basis_break(conn, s))):
+            raised[kind] += findings.raised
+            resolved[kind] += _reconcile(conn, open_keys, s.series_id, kind, findings)
+
+    curve = check_curve_consistency(conn, series, hist)
+    for series_id, findings in curve.items():
+        raised["curve_inconsistency"] += findings.raised
+        resolved["curve_inconsistency"] += _reconcile(
+            conn, open_keys, series_id, "curve_inconsistency", findings)
     conn.commit()
 
     report = completeness(conn, series, hist)
     report["flags_raised_this_run"] = {k: v for k, v in raised.items() if v}
+    report["flags_resolved_this_run"] = {k: v for k, v in resolved.items() if v}
     report["open_flags"] = store.open_flag_tally(conn)
     logger.info("Quality: %d fresh, %d stale, %d missing of %d series; "
-                "flags raised this run: %s; open flags: %s",
+                "flags raised this run: %s; resolved: %s; open flags: %s",
                 report["fresh"], report["stale"], report["missing"], report["series"],
-                report["flags_raised_this_run"] or "none", report["open_flags"] or "none")
+                report["flags_raised_this_run"] or "none",
+                report["flags_resolved_this_run"] or "none",
+                report["open_flags"] or "none")
     return report
 
 
 # ---------------------------------------------------------------------------
 # Staleness -- cadence-aware, using each series' own max_age_days.
 # ---------------------------------------------------------------------------
-def check_staleness(conn, series: registry.Series, df) -> int:
+def check_staleness(conn, series: registry.Series, df) -> Findings:
+    """
+    Staleness is a statement about the series as a whole, not about one
+    observation, so it is examined without a date window: `since=None`. That
+    also closes the flag when a series goes stale, then catches up on a LATER
+    date -- the old flag names a date the series has moved past, and only the
+    current one can still be true.
+    """
     if df is None or df.empty:
-        return 0
+        return NOT_EVALUATED  # nothing arrived, so nothing is proven either way
     last = pd.Timestamp(df.iloc[-1]["date"])
     age = (pd.Timestamp.now().normalize() - last.normalize()).days
     if age <= series.max_age_days:
-        return 0
-    return int(store.raise_flag(
-        conn, series.series_id, last.strftime("%Y-%m-%d"), "stale",
+        return Findings(evaluated=True)
+    date = last.strftime("%Y-%m-%d")
+    raised = int(store.raise_flag(
+        conn, series.series_id, date, "stale",
         f"{age}d since the last observation, threshold {series.max_age_days}d "
         f"for a {series.cadence} series"))
+    return Findings(raised=raised, found=frozenset({date}), evaluated=True)
 
 
 # ---------------------------------------------------------------------------
 # Gaps -- business-day-aware for daily series, calendar-aware for the rest.
 # ---------------------------------------------------------------------------
-def check_gaps(conn, series: registry.Series, df) -> int:
+def check_gaps(conn, series: registry.Series, df) -> Findings:
     periodicity = series.periodicity
     if periodicity == "irregular" or df is None or len(df) < 2:
         # A policy rate genuinely has no cadence: BIS stops emitting
         # observations between decisions, so every quiet stretch would flag.
-        return 0
+        return NOT_EVALUATED
 
     cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=GAP_WINDOW_DAYS)
+    since = cutoff.strftime("%Y-%m-%d")
     dates = pd.to_datetime(df["date"])
     recent = dates[dates >= cutoff]
     if len(recent) < 2:
-        return 0
+        return NOT_EVALUATED
 
+    found = set()
     raised = 0
     if periodicity == "weekly":
         for previous, current in zip(recent[:-1], recent[1:]):
             span = (current - previous).days
             if span > MAX_WEEK_GAP_DAYS:
+                found.add(current.strftime("%Y-%m-%d"))
                 raised += int(store.raise_flag(
                     conn, series.series_id, current.strftime("%Y-%m-%d"), "gap",
                     f"{span - 7} days beyond the expected weekly step between "
@@ -177,17 +253,18 @@ def check_gaps(conn, series: registry.Series, df) -> int:
                 zip(periods[:-1], recent[:-1]), zip(periods[1:], recent[1:])):
             missed = (cur_p - prev_p) // step - 1
             if missed >= 1:
+                found.add(cur_d.strftime("%Y-%m-%d"))
                 raised += int(store.raise_flag(
                     conn, series.series_id, cur_d.strftime("%Y-%m-%d"), "gap",
                     f"{missed} expected {periodicity} period(s) missing between "
                     f"{prev_d:%Y-%m-%d} and {cur_d:%Y-%m-%d}"))
-    return raised
+    return Findings(raised=raised, found=frozenset(found), evaluated=True, since=since)
 
 
 # ---------------------------------------------------------------------------
 # Outliers -- self-calibrating against the series' own change distribution.
 # ---------------------------------------------------------------------------
-def check_outliers(conn, series: registry.Series, df) -> int:
+def check_outliers(conn, series: registry.Series, df) -> Findings:
     """
     Flag a value whose step from the previous observation is wildly out of
     scale for this series' own recent behaviour.
@@ -206,7 +283,7 @@ def check_outliers(conn, series: registry.Series, df) -> int:
         threshold mean the same thing in 1974 and 2026.
     """
     if df is None or len(df) < OUTLIER_MIN_OBS:
-        return 0
+        return NOT_EVALUATED
     frame = df.dropna(subset=["value"]).sort_values("date").reset_index(drop=True)
     relative = bool((frame["value"] > 0).all())
     changes = frame["value"].pct_change() if relative else frame["value"].diff()
@@ -215,12 +292,15 @@ def check_outliers(conn, series: registry.Series, df) -> int:
     median = float(scale_of.median(skipna=True))
     mad = float((scale_of - median).abs().median(skipna=True))
     if not np.isfinite(mad) or mad <= 0:
-        return 0  # a series that barely moves has no scale to judge against
+        # A series that barely moves has no scale to judge against -- and no
+        # standing to close a flag raised when it did have one.
+        return NOT_EVALUATED
 
     cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=outlier_window_days(series))
     z = MAD_TO_SIGMA * (changes - median) / mad
     recent = frame[(pd.to_datetime(frame["date"]) >= cutoff) & (z.abs() > OUTLIER_Z)]
     units = "%" if relative else "pp"
+    found = frozenset(pd.Timestamp(d).strftime("%Y-%m-%d") for d in recent["date"])
     raised = 0
     for i, row in recent.iterrows():
         step = changes.loc[i] * (100.0 if relative else 1.0)
@@ -231,13 +311,14 @@ def check_outliers(conn, series: registry.Series, df) -> int:
             f"observation; modified z={z.loc[i]:+.1f} against this series' own last "
             f"{min(len(scale_of), OUTLIER_CALIBRATION_OBS)} changes "
             f"(threshold {OUTLIER_Z})"))
-    return raised
+    return Findings(raised=raised, found=found, evaluated=True,
+                    since=cutoff.strftime("%Y-%m-%d"))
 
 
 # ---------------------------------------------------------------------------
 # Basis breaks -- a rebasing picked up on only part of a series.
 # ---------------------------------------------------------------------------
-def check_basis_break(conn, series: registry.Series) -> int:
+def check_basis_break(conn, series: registry.Series) -> Findings:
     """
     Flag a series whose newest vintage restated only its recent tail by what
     looks like a uniform rescaling of the whole thing.
@@ -265,13 +346,13 @@ def check_basis_break(conn, series: registry.Series) -> int:
     (+0.019% / +0.122%), JP (+0.029% / +0.111%) and NO (-0.027% / -0.030%).
     """
     if not series.revisable:
-        return 0
+        return NOT_EVALUATED
 
     rows = conn.execute(
         "SELECT date, value, vintage_date FROM observations "
         "WHERE series_id = ? ORDER BY date, vintage_date", (series.series_id,)).fetchall()
     if not rows:
-        return 0
+        return NOT_EVALUATED  # nothing stored yet says nothing about the basis
 
     newest_vintage = max(r[2] for r in rows)
     # Dates the newest vintage touched, and what each was restated FROM.
@@ -284,24 +365,28 @@ def check_basis_break(conn, series: registry.Series) -> int:
             original[date] = (vintage, value)
 
     revised = {d: (restated[d], original[d][1]) for d in restated if d in original}
+    # Everything below examines the whole series, so `since` stays None and a
+    # break that has been repaired -- by the full re-fetch putting every point
+    # on one basis -- closes its own flag on the next run.
+    whole = Findings(evaluated=True)
     if not revised:
-        return 0  # every restated date is a first print, so nothing was rebased
+        return whole  # every restated date is a first print, nothing was rebased
 
     # Untouched history older than the oldest restated date is what makes this
     # a seam rather than a clean re-statement of the whole series.
     oldest_revised = min(revised)
     untouched = [d for d in original if d < oldest_revised and d not in restated]
     if not untouched:
-        return 0
+        return whole
 
     ratios = [new / old for new, old in revised.values() if old]
     if not ratios:
-        return 0
+        return whole
     median_ratio = float(np.median(ratios))
     if abs(median_ratio - 1.0) * 100.0 < BASIS_BREAK_PCT:
-        return 0
+        return whole
 
-    return int(store.raise_flag(
+    raised = int(store.raise_flag(
         conn, series.series_id, oldest_revised, "basis_break",
         f"vintage {newest_vintage} restated the {len(revised)} most recent "
         f"observation(s) by a median {(median_ratio - 1) * 100:+.3f}%, but left "
@@ -309,16 +394,23 @@ def check_basis_break(conn, series: registry.Series) -> int:
         f"previous basis. A uniform rescaling of only part of a series splices two "
         f"bases together, and any growth rate spanning {oldest_revised} reports the "
         f"rebasing as change. Re-ingest the full history for this series."))
+    return Findings(raised=raised, found=frozenset({oldest_revised}), evaluated=True)
 
 
 # ---------------------------------------------------------------------------
 # Curve consistency -- one snapshot of one curve has to hang together.
 # ---------------------------------------------------------------------------
-def check_curve_consistency(conn, series: list[registry.Series], hist: dict) -> int:
+def check_curve_consistency(conn, series: list[registry.Series], hist: dict) -> dict:
     """
     Within one date's yield curve, flag a tenor that sits an implausible
     distance from its curve-mates. Real curve shapes, inversions included, stay
     well inside MAX_CURVE_SPREAD_PP; a parsing slip does not.
+
+    Returns Findings per series_id rather than a count, because a flag here is
+    filed against the OFFENDING TENOR rather than the curve, so resolution has
+    to be reckoned per tenor too. Every tenor of a family that was examined
+    gets an entry, including the ones that came out clean -- those are exactly
+    the ones whose old flags should now close.
     """
     families: dict[str, list[str]] = {}
     for s in series:
@@ -327,11 +419,17 @@ def check_curve_consistency(conn, series: list[registry.Series], hist: dict) -> 
             families.setdefault(f"{prefix}.{region}", []).append(s.series_id)
 
     cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=CURVE_WINDOW_DAYS)
-    raised = 0
+    since = cutoff.strftime("%Y-%m-%d")
+    out: dict[str, Findings] = {}
+    raised: dict[str, int] = {}
+    found: dict[str, set] = {}
     for family, ids in families.items():
         frames = {sid: hist[sid] for sid in ids if hist.get(sid) is not None}
         if len(frames) < 3:
             continue  # a two-point "curve" has no mates to be inconsistent with
+        for sid in frames:
+            raised.setdefault(sid, 0)
+            found.setdefault(sid, set())
         wide = pd.concat(
             [f.set_index("date")["value"].rename(sid) for sid, f in frames.items()],
             axis=1).dropna(how="any")
@@ -341,13 +439,17 @@ def check_curve_consistency(conn, series: list[registry.Series], hist: dict) -> 
                 continue
             median = float(row.median())
             worst = (row - median).abs().idxmax()
-            raised += int(store.raise_flag(
+            found[worst].add(pd.Timestamp(obs_date).strftime("%Y-%m-%d"))
+            raised[worst] += int(store.raise_flag(
                 conn, worst, pd.Timestamp(obs_date).strftime("%Y-%m-%d"),
                 "curve_inconsistency",
                 f"{worst}={row[worst]:.4g} sits {abs(row[worst] - median):.4g}pp from "
                 f"the {family} curve median ({median:.4g}); curve spans "
                 f"{float(row.max() - row.min()):.4g}pp, threshold {MAX_CURVE_SPREAD_PP}pp"))
-    return raised
+    for sid, n in raised.items():
+        out[sid] = Findings(raised=n, found=frozenset(found[sid]),
+                            evaluated=True, since=since)
+    return out
 
 
 # ---------------------------------------------------------------------------

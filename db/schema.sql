@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS data_quality_flags (
     flag_id   INTEGER PRIMARY KEY AUTOINCREMENT,
     series_id TEXT NOT NULL REFERENCES series_catalog(series_id),
     date      TEXT NOT NULL,
-    flag_type TEXT NOT NULL,                -- 'gap'|'outlier'|'implausible_level'|'stale'|'curve_inconsistency'
+    flag_type TEXT NOT NULL,                -- 'gap'|'outlier'|'implausible_level'|'stale'|'curve_inconsistency'|'basis_break'
     detail    TEXT,
     raised_at TEXT NOT NULL,
     resolved  INTEGER NOT NULL DEFAULT 0
@@ -63,5 +63,10 @@ CREATE INDEX IF NOT EXISTS idx_flags_open ON data_quality_flags(resolved) WHERE 
 
 -- One open flag per (series, date, type). Re-detecting the same condition on a
 -- later run must not pile up duplicate rows.
+--
+-- `resolved` is set by db/quality when a re-check no longer finds the
+-- condition. The row is kept, not deleted: what was once wrong stays readable,
+-- and the same condition recurring later opens a NEW flag rather than
+-- reopening the old one -- which is why `resolved` is part of this index.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_flags_unique
     ON data_quality_flags(series_id, date, flag_type, resolved);

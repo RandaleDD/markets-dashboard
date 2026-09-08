@@ -359,6 +359,32 @@ Three traps, all silent:
 - **The archives are cut at the end of the previous month**, so bootstrap runs
   a snapshot pass straight after the deep pass to close the seam.
 
+### Flags close themselves
+
+`data_quality_flags` is a log of findings, not a list of chores, so an entry
+has to mean "currently true". Every check re-runs each pipeline run and any
+open flag it no longer finds is marked `resolved`; the row and its `raised_at`
+survive, and the same condition recurring later opens a new flag rather than
+reopening the old one.
+
+The care is all in what must NOT be closed, because both mistakes look like
+success:
+
+- **A check that did not run proves nothing.** No data arrived, a series is too
+  short to calibrate an outlier scale against, a policy rate has no cadence to
+  judge — each returns `evaluated=False` and closes nothing. Silence is not
+  evidence that a condition cleared.
+- **A windowed check has no opinion outside its window.** The gap check looks
+  back `GAP_WINDOW_DAYS`; without a bound, a real unfixed gap would be closed
+  the day it aged out, by a check that had merely stopped looking at it. Each
+  check reports the oldest date it examined, and resolution ignores anything
+  older.
+
+`transform`-level findings carry the same shape: `Findings(raised, found,
+evaluated, since)` in `db/quality.py`, where `raised` is what the run log
+reports and `found` is every date the condition currently holds — a flag
+re-detected today raises nothing but must stay open.
+
 ### The rebasing trap — why slow revisable series are re-fetched in full
 
 A source can restate its **whole history at once**. When FRED re-chain-links a
