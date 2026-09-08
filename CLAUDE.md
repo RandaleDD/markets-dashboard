@@ -113,6 +113,15 @@ trusting them — this section is a snapshot and goes stale on its own.
 - A failed fetch must degrade to `None`, never a partial or malformed value —
   the frontend's "not yet wired" label is driven by `None` in the JSON, not by
   `source_status`.
+- **A quality flag closes itself when its condition clears.** `db/quality`
+  re-checks every run and resolves any open flag it no longer finds; the row is
+  kept with its original `raised_at`, so the history stays readable. Two things
+  it must never do, both held by `tests/test_flag_resolution.py`: a check that
+  did not run (no data, too few observations to calibrate) closes nothing, and
+  a windowed check never closes a finding OLDER than the window it examined —
+  otherwise a gap that simply aged past `GAP_WINDOW_DAYS` would be declared
+  fixed by a check that had stopped looking at it. A permanently-red indicator
+  is one you learn to scroll past, so **an open flag means currently true**.
 - HTTP 200 is not the same as current. Every series is age-checked against
   `MAX_AGE_DAYS` and marked `stale` if it is behind its publication cadence.
   **`stale` is a failure, not a pass.** Give any new fetcher the right cadence.

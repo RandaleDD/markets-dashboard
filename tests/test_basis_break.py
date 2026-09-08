@@ -64,7 +64,7 @@ class BasisBreakTest(unittest.TestCase):
     def test_partial_rescaling_is_flagged(self):
         """The failure itself: a uniform +0.70% applied to the tail only."""
         self.restate(DATES[-2:], 1.00700)
-        self.assertEqual(quality.check_basis_break(self.conn, GDP), 1)
+        self.assertEqual(quality.check_basis_break(self.conn, GDP).raised, 1)
         flag = self.flags()[0]
         self.assertEqual(flag["date"], "2026-01-01", "flag belongs on the oldest revised point")
         self.assertIn("+0.700%", flag["detail"])
@@ -73,7 +73,7 @@ class BasisBreakTest(unittest.TestCase):
     def test_a_single_rescaled_point_is_flagged(self):
         """The euro area only had one point restated, and still needed catching."""
         self.restate(DATES[-1:], 1.00548)
-        self.assertEqual(quality.check_basis_break(self.conn, GDP), 1)
+        self.assertEqual(quality.check_basis_break(self.conn, GDP).raised, 1)
 
     def test_ordinary_revisions_are_not_flagged(self):
         """
@@ -85,22 +85,22 @@ class BasisBreakTest(unittest.TestCase):
             with self.subTest(factor=factor):
                 self.setUp()
                 self.restate(DATES[-2:], factor)
-                self.assertEqual(quality.check_basis_break(self.conn, GDP), 0)
+                self.assertEqual(quality.check_basis_break(self.conn, GDP).raised, 0)
 
     def test_a_rescaling_of_the_whole_history_is_not_a_break(self):
         """No seam, nothing spliced -- this is the fixed ingest doing its job."""
         self.restate(DATES, 1.00700)
-        self.assertEqual(quality.check_basis_break(self.conn, GDP), 0)
+        self.assertEqual(quality.check_basis_break(self.conn, GDP).raised, 0)
 
     def test_new_dates_alone_are_not_a_break(self):
         """An ordinary run appends a new quarter and restates nothing."""
         store.insert_observations(self.conn, [(GDP.series_id, "2026-07-01", "2026-07-01", 106.0)])
-        self.assertEqual(quality.check_basis_break(self.conn, GDP), 0)
+        self.assertEqual(quality.check_basis_break(self.conn, GDP).raised, 0)
 
     def test_non_revisable_series_are_skipped(self):
         store.insert_observations(self.conn, [
             (PRICE.series_id, d, d, v) for d, v in zip(DATES, BASE)])
-        self.assertEqual(quality.check_basis_break(self.conn, PRICE), 0)
+        self.assertEqual(quality.check_basis_break(self.conn, PRICE).raised, 0)
 
 
 class OutlierWindowTest(unittest.TestCase):

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T12:57:55.038287+00:00",
+  "generated_at": "2026-09-08T13:39:52.454318+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -49903,7 +49903,7 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-09-08T12:57:54.530097+00:00",
+    "generated_at": "2026-09-08T13:39:51.968076+00:00",
     "series": 143,
     "fresh": 142,
     "stale": 1,
@@ -49911,9 +49911,12 @@
     "gapped": 4,
     "observations": 131078,
     "flags_raised_this_run": {},
+    "flags_resolved_this_run": {
+      "stale": 1
+    },
     "open_flags": {
       "gap": 4,
-      "stale": 2
+      "stale": 1
     },
     "open_flag_examples": [
       {
@@ -49936,13 +49939,6 @@
         "flag_type": "gap",
         "detail": "242 days beyond the expected weekly step between 2024-11-18 and 2025-07-25 (~34 week(s) with no observation)",
         "raised_at": "2026-08-29T05:57:20.630992+00:00"
-      },
-      {
-        "series_id": "gdp.NO",
-        "date": "2026-01-01",
-        "flag_type": "stale",
-        "detail": "240d since the last observation, threshold 200d for a quarterly series",
-        "raised_at": "2026-08-29T05:57:20.420414+00:00"
       },
       {
         "series_id": "cpi.US.index",
