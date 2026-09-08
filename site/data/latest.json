@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T11:48:46.769547+00:00",
+  "generated_at": "2026-09-08T12:01:08.926843+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -49501,7 +49501,7 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-09-08T11:48:46.272074+00:00",
+    "generated_at": "2026-09-08T12:01:08.490628+00:00",
     "series": 143,
     "fresh": 142,
     "stale": 1,
