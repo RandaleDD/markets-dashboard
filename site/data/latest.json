@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-12T06:21:38.174787+00:00",
+  "generated_at": "2026-09-12T12:31:07.904673+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -49844,14 +49844,14 @@
     "cbrate:CN": "ok",
     "cbrate:JP": "ok",
     "cbrate:NO": "ok",
-    "cpi:US": "stale",
-    "cpi:UK": "stale",
-    "cpi:EZ": "stale",
-    "cpi:DE": "stale",
-    "cpi:CH": "stale",
-    "cpi:CN": "stale",
-    "cpi:JP": "stale",
-    "cpi:NO": "stale",
+    "cpi:US": "ok",
+    "cpi:UK": "ok",
+    "cpi:EZ": "ok",
+    "cpi:DE": "ok",
+    "cpi:CH": "ok",
+    "cpi:CN": "ok",
+    "cpi:JP": "ok",
+    "cpi:NO": "ok",
     "gdp:US": "ok",
     "gdp:UK": "ok",
     "gdp:EZ": "ok",
@@ -49931,134 +49931,20 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-09-12T06:21:37.701207+00:00",
+    "generated_at": "2026-09-12T12:31:07.408435+00:00",
     "series": 143,
-    "fresh": 126,
-    "stale": 17,
+    "fresh": 142,
+    "stale": 1,
     "missing": 0,
     "gapped": 4,
     "observations": 131184,
-    "flags_raised_this_run": {
-      "stale": 16
-    },
+    "flags_raised_this_run": {},
     "flags_resolved_this_run": {},
     "open_flags": {
       "gap": 4,
-      "stale": 17
+      "stale": 1
     },
     "open_flag_examples": [
-      {
-        "series_id": "cpi.NO.index",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.362227+00:00"
-      },
-      {
-        "series_id": "cpi.NO",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.358473+00:00"
-      },
-      {
-        "series_id": "cpi.JP.index",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.354662+00:00"
-      },
-      {
-        "series_id": "cpi.JP",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.350612+00:00"
-      },
-      {
-        "series_id": "cpi.CN.index",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.346571+00:00"
-      },
-      {
-        "series_id": "cpi.CN",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.342824+00:00"
-      },
-      {
-        "series_id": "cpi.CH.index",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.339003+00:00"
-      },
-      {
-        "series_id": "cpi.CH",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.335252+00:00"
-      },
-      {
-        "series_id": "cpi.DE.index",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.331429+00:00"
-      },
-      {
-        "series_id": "cpi.DE",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.327704+00:00"
-      },
-      {
-        "series_id": "cpi.EZ.index",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.323897+00:00"
-      },
-      {
-        "series_id": "cpi.EZ",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.320152+00:00"
-      },
-      {
-        "series_id": "cpi.UK.index",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.316250+00:00"
-      },
-      {
-        "series_id": "cpi.UK",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.312468+00:00"
-      },
-      {
-        "series_id": "cpi.US.index",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.308576+00:00"
-      },
-      {
-        "series_id": "cpi.US",
-        "date": "2026-07-01",
-        "flag_type": "stale",
-        "detail": "73d since the last observation, threshold 70d for a monthly series",
-        "raised_at": "2026-09-12T06:21:37.304174+00:00"
-      },
       {
         "series_id": "valuation.US.cape",
         "date": "2024-09-01",
