@@ -30,24 +30,27 @@ Live: https://randaledd.github.io/markets-dashboard/
     db/quality.py       staleness / gaps / outliers / curve consistency -> flags
     db/export.py        latest_observations -> site/data/latest.json
     db/catalog_sync.py  writes what IS stored back into DATA-CATALOG.csv
-    pipeline.py         ingest -> quality -> export -> sync, in that order
+    publish.py          commits the generated artefacts, pushes, and waits for
+                        Pages to actually serve them
+    pipeline.py         sync -> ingest -> quality -> export -> catalog sync ->
+                        publish, in that order
 
 `data/markets.db` **is committed** — it is the accumulated history, and the
 checkout is how the Actions runner gets yesterday's data instead of
 re-bootstrapping. `bootstrap.py` is a one-time seed, never on the schedule.
 
 ## Current status
-Last verified live run (2026-09-08): **105/122 `ok`, 7 `partial`, 1 `stale`,
+Last verified live run (2026-09-12): **105/122 `ok`, 7 `partial`, 1 `stale`,
 9 `stubbed`, 0 `failed`.** Database: 143 tracked series. Data quality:
-142 fresh, 1 stale, 0 missing; 6 open flags.
+142 fresh, 1 stale, 0 missing; 5 open flags.
 `site/data/latest.json` is 852 KB.
 
 None of the non-`ok` states is a to-do list:
 
 - **1 stale** — Shiller's CAPE file, ending 2024-09. Norway GDP left this list
-  on 2026-09-08 when the full re-fetch pulled its current quarter (its `stale`
-  flag from 2026-08-29 is still open but no longer true). Switzerland left it
-  on 2026-08-29 when its curve moved to a daily source.
+  on 2026-09-08 when the full re-fetch pulled its current quarter, and its old
+  `stale` flag has since closed itself. Switzerland left it on 2026-08-29 when
+  its curve moved to a daily source.
 - **9 stubbed** — no free source exists: the China curve, six regions'
   inflation expectations, and the two Eurozone equity panels, which are
   `descoped` rather than pending because Damodaran publishes member states with
@@ -55,9 +58,16 @@ None of the non-`ok` states is a to-do list:
 - **7 partial** — every cost-of-capital stack except the US. All have the
   risk-free and ERP legs; only the US has an IG credit spread. `missing_legs`
   in the payload names what each lacks.
-- **6 open flags** — US CPI missing 2025-10 (the release the shutdown delayed),
-  a 34-week hole in the BoE's real and inflation 2y points, Shiller's CAPE, and
-  the Norway GDP `stale` flag that is now out of date.
+- **5 open flags** — US CPI missing 2025-10 (the release the shutdown delayed,
+  on both `cpi.US` and `cpi.US.index`), a 34-week hole in the BoE's real and
+  inflation 2y points, and Shiller's CAPE. The Norway GDP flag closed itself on
+  2026-09-08 once resolution went in.
+
+The Saturday 2026-09-12 run briefly showed 9 `stale` and 17 stale series: all
+16 BIS CPI series crossed a 70-day threshold that was simply too tight for a
+source released in the last week of each month. The cadence is now
+`monthly_month_end` (100d) — see SPEC.md's appendix row for BIS CPI. Nothing
+was wrong with the data.
 
 Chasing the stubbed set again is wasted effort unless a new source appears;
 SPEC.md's dead ends list what has been tried.
@@ -104,10 +114,27 @@ trusting them — this section is a snapshot and goes stale on its own.
   numbers never reach the real **store**.
 - **`--mode` defaults to `sample`, and every mode writes the same
   `site/data/latest.json`.** A bare `--export-only` therefore overwrites the
-  published payload with synthetic numbers: the separate database protects the
+  local payload with synthetic numbers: the separate database protects the
   store, not the JSON. Always write `--mode live --export-only`. Re-running
   `--mode live` repairs it, and `latest.json` carries `is_sample` to tell you
-  which is on disk.
+  which is on disk. Sample numbers cannot reach the *live site* — `publish.py`
+  refuses any mode but `live`, and `publish.py --check` refuses a payload
+  carrying `is_sample` — but they can and do overwrite the local file.
+- **A live run publishes itself.** `pipeline.py --mode live` fast-forwards onto
+  `origin/main` before fetching, and after writing the JSON it commits the
+  generated artefacts, pushes, and polls the live URL until it serves the same
+  `generated_at`. The file on disk and the file on the site are the same file
+  at two points in time, so a run that stops locally leaves two dashboards
+  disagreeing. `--no-publish` opts out; `--no-verify` pushes without waiting.
+  `python3 publish.py --check` answers "is the live site current?" on its own,
+  and exits non-zero when it is not.
+- **Publishing commits the generated artefacts and nothing else.** Never
+  `git add -A` there: `publish.GENERATED` is the whole list, plus
+  `site/index.html` and *only* when the asset stamp is the one thing that
+  changed in it. Code is committed deliberately, not swept into a data
+  refresh, and `tests/test_publish.py` holds that line against a real
+  throwaway checkout. It also stands down inside GitHub Actions, where
+  `weekly.yml` does its own commit — two committers would race.
 - `--mode live` is the real thing. To preview, serve over http
   (`cd site && python3 -m http.server 8000`) — `file://` breaks the JSON fetch.
 - A failed fetch must degrade to `None`, never a partial or malformed value —
@@ -157,12 +184,17 @@ trusting them — this section is a snapshot and goes stale on its own.
   and `stale`; it must never touch the prose columns or a scope decision
   (`planned (v2)`, `no source found`, `exists, not free`, `descoped`).
   `tests/test_catalog_sync.py` holds that line.
-- **Pushing to `main` does not publish the site.** Pages is set to build from
-  a workflow, so `.github/workflows/pages.yml` is what deploys `site/`. It
-  triggers on push *and* on `weekly.yml` completing — the weekly job commits
-  with `GITHUB_TOKEN`, and a token-authored push cannot start another workflow,
-  so the push trigger alone would never fire for the Saturday run. After a
-  push, confirm the live URL changed rather than assuming it did.
+- **Pushing to `main` does not publish the site by itself.** Pages is set to
+  build from a workflow, so `.github/workflows/pages.yml` is what deploys
+  `site/`. It triggers on push *and* on `weekly.yml` completing — the weekly
+  job commits with `GITHUB_TOKEN`, and a token-authored push cannot start
+  another workflow, so the push trigger alone would never fire for the Saturday
+  run. The push trigger is also filtered to `site/**`: a commit that changes
+  only the pipeline deploys nothing, which is why `publish.py` always has
+  `site/data/latest.json` in the push (its `generated_at` changes every run).
+  Confirming, not assuming, is `publish.verify()`'s job — it polls the live
+  payload, with a cache-busting query string because Pages serves
+  `max-age=600` and an edge cache will happily answer with the old file.
 - Switzerland's curve is the **one unofficial source** here (TradingEconomics,
   scraped, 2y and 10y only). The SNB retired its own curve in July 2025 with no
   successor. It returns today's value only, so history builds forward one run
