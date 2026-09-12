@@ -47,6 +47,10 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }} # optional — fredgraph.csv path doesn't need it
         run: python pipeline.py --mode live
 
+      # pipeline.py publishes itself when it is run on the Mac, but NOT here:
+      # publish.py stands down inside Actions (GITHUB_ACTIONS is set) precisely
+      # so this step and that one cannot race. The file list below is the same
+      # one as publish.GENERATED -- change both together.
       - name: Commit refreshed data
         run: |
           git config user.name "markets-dashboard-bot"

@@ -329,7 +329,7 @@ wrong fails *silently*.
 | Source | Trap |
 |---|---|
 | Yahoo (yfinance) | The latest bar often carries a **NaN close while a session is open** (^GDAXI, ^SSMI, ^HSI, ^N225) — must `dropna`, or a raw `NaN` lands in the JSON and breaks the frontend. Yahoo also emits a **Saturday bar for FX pairs**, which belongs to the following week's bin. The library does Yahoo's cookie+crumb handshake; a bare request returns 429 |
-| BIS CPI | One response mixes two unit codes: **`771` = YoY %, `628` = index level**. Filtering on `unit_measure` is mandatory, or the two get silently interleaved |
+| BIS CPI | One response mixes two unit codes: **`771` = YoY %, `628` = index level**. Filtering on `unit_measure` is mandatory, or the two get silently interleaved. **Released once a month, in the last week** (verified against BIS's calendar 2026-09-12: 27 Aug brought July, 24 Sep brings August), and each print is dated to the first of the month it describes — so the newest one is ~57 days old on arrival and ~85 the day before the next release. Hence cadence `monthly_month_end` (100d), not `monthly` (70d), which turned all 16 CPI series red in the back half of every month |
 | BIS policy rates | **Needs `startPeriod`** — unbounded history is 57MB for Japan and blows the timeout |
 | Bundesbank | ~9-line metadata preamble before `date,value,flag`; `.` for missing. **Accepts `startPeriod` and ignores it** — measured, it returns the identical 10,620-row history either way |
 | MOF Japan | **Shift-JIS (cp932), not UTF-8**, and line 1 is a title row. The current-month file must be stitched with `historical/jgbcme_all.csv` for history back to 1974 |

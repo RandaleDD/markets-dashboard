@@ -18,6 +18,7 @@ without anything here knowing that revisions exist.
 """
 from __future__ import annotations
 
+import functools
 import logging
 from datetime import datetime, timezone
 
@@ -49,6 +50,17 @@ PERIODS_PER_YEAR = {"M": 12, "Q": 4, "A": 1}
 # Small helpers over a [date, value] frame. Identical semantics to the ones the
 # pre-database pipeline used; the only change is where the frame comes from.
 # ---------------------------------------------------------------------------
+@functools.lru_cache(maxsize=1)
+def _registry_cadences() -> dict[str, str]:
+    """series_id -> cadence, so the payload's badge cannot drift from the
+    staleness flag `db/quality` raises against the same series."""
+    return {s.series_id: s.cadence for s in registry.all_series()}
+
+
+def _cadence_of(series_id: str, default: str = "weekly") -> str:
+    return _registry_cadences().get(series_id, default)
+
+
 def _series_status(df, cadence="weekly"):
     """(status, as_of) for one series, against its own publication cadence."""
     if df is None or df.empty:
@@ -342,7 +354,7 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         yoy_df = hist.get(f"cpi.{region}")
         idx_df = hist.get(f"cpi.{region}.index")
         cpi_frames[region] = yoy_df
-        st, as_of = _series_status(yoy_df, "monthly")
+        st, as_of = _series_status(yoy_df, _cadence_of(f"cpi.{region}", "monthly"))
         status[f"cpi:{region}"] = st
         out["macro"]["inflation"][region] = {
             "yoy_pct": round(_latest(yoy_df), 2) if _latest(yoy_df) is not None else None,

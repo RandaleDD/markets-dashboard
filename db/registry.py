@@ -41,19 +41,32 @@ from fetch import universe
 # Lives here rather than in pipeline.py because it is now a per-series column
 # in `series_catalog` -- the database, the staleness check and the JSON export
 # all read the same numbers.
-# `monthly_lagged` exists for ONS's monthly GDP specifically: it dates an
-# observation to the FIRST of the month it describes and publishes ~6 weeks
-# after that month ends, so the newest figure is permanently 72-105 days old
-# even when the release is bang on time. Under the plain `monthly` threshold it
-# would read stale forever, which is precisely the kind of permanently-red
-# indicator that trains you to ignore the staleness check.
+# Two of the monthly keys exist because a monthly series is dated by the PERIOD
+# it describes, not by the day it is published, so its age is the publication
+# lag plus the time until the next release -- and under the plain `monthly`
+# threshold both of these would read stale on a schedule, which is precisely
+# the kind of permanently-red indicator that trains you to ignore the check.
+#
+# `monthly_lagged` is ONS's monthly GDP: dated to the FIRST of the month it
+# describes and published ~6 weeks after that month ends, so the newest figure
+# is permanently 72-105 days old even when the release is bang on time.
+#
+# `monthly_month_end` is BIS WS_LONG_CPI, the single dataflow behind all 16 CPI
+# series. Verified against BIS's own release calendar 2026-09-12: it is updated
+# once a month "in the last week of each month" -- 27 Aug 2026 brought the July
+# print, 24 Sep 2026 brings August. So the newest print is ~57 days old the day
+# it lands and peaks at ~85 the day before the next release. At the plain 70 it
+# went stale in the back half of every month; 100 clears that peak with room to
+# spare while still catching a skipped release, which lands at ~115 days.
 MAX_AGE_DAYS = {"weekly": 14, "monthly": 70, "monthly_lagged": 120,
+                "monthly_month_end": 100,
                 "quarterly": 200, "policy": 150, "annual": 730}
 
 # Expected spacing between observations, for gap detection. "irregular" opts a
 # series out: a policy rate genuinely has no cadence between decisions.
 PERIODICITY_OF_CADENCE = {"weekly": "weekly", "monthly": "monthly",
-                          "monthly_lagged": "monthly", "quarterly": "quarterly",
+                          "monthly_lagged": "monthly",
+                          "monthly_month_end": "monthly", "quarterly": "quarterly",
                           "annual": "annual", "policy": "irregular"}
 
 # Sources that publish more often than the dashboard stores. Their fetched
@@ -240,7 +253,8 @@ def all_series() -> list[Series]:
         out.append(Series(
             series_id=f"cpi.{region}", category="CPI", region=region,
             description=f"{region} headline CPI, year-on-year", unit="% YoY",
-            cadence="monthly", source=f"BIS WS_LONG_CPI, M.{cfg['ref_area']}",
+            cadence="monthly_month_end",
+            source=f"BIS WS_LONG_CPI, M.{cfg['ref_area']}",
             fetcher="fetch_bis_cpi",
             fetch_kwargs={"ref_area": cfg["ref_area"], "unit": CPI_UNIT_YOY},
             bounded=True, revisable=True))
@@ -250,7 +264,7 @@ def all_series() -> list[Series]:
             series_id=f"cpi.{region}.index", category="CPI", region=region,
             description=f"{region} headline CPI, index level "
                         f"(same BIS response as cpi.{region}, unit_measure 628)",
-            unit="index level", cadence="monthly",
+            unit="index level", cadence="monthly_month_end",
             source=f"BIS WS_LONG_CPI, M.{cfg['ref_area']}", fetcher="fetch_bis_cpi",
             fetch_kwargs={"ref_area": cfg["ref_area"], "unit": CPI_UNIT_INDEX},
             bounded=True, revisable=True))

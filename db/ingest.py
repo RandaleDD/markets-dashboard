@@ -61,7 +61,8 @@ OVERLAP_DAYS = 14
 # way, and everything unchanged hits ON CONFLICT DO NOTHING -- the cost is a
 # slightly larger response, and the gain is that a rebasing lands as new
 # vintages across the whole history instead of on its tail.
-FULL_REFETCH_CADENCES = {"monthly", "monthly_lagged", "quarterly", "annual"}
+FULL_REFETCH_CADENCES = {"monthly", "monthly_lagged", "monthly_month_end",
+                         "quarterly", "annual"}
 
 
 def refetch_in_full(series: registry.Series) -> bool:
