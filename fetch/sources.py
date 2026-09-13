@@ -672,64 +672,162 @@ def _eurostat_period(label: str):
 
 
 # ---------------------------------------------------------------------------
-# TradingEconomics — government bond yields, scraped from the country page.
+# Swiss National Bank data portal — cube CSV, plus the interest-rate RSS feed.
 #
-# THIS IS THE PROJECT'S ONLY UNOFFICIAL SOURCE, and it exists because there is
-# no official free alternative for Switzerland: the SNB's own daily curve
-# (rendoblid, 1y-30y) froze at 2025-07-31 and has no successor cube -- seven
-# candidate ids were tried on 2026-08-29 and all 404. Every other route was
-# checked the same day and rejected: FRED carries only the OECD monthly 10y
-# (~2 months behind), Yahoo has no Swiss sovereign ticker, worldgovernmentbonds
-# and FT render their tables in JavaScript, and MarketWatch sits behind a
-# DataDome captcha. See SPEC.md's dead ends.
+# This REPLACES the TradingEconomics scrape, which was the project's only
+# unofficial source. SPEC.md recorded the SNB curve as retired in July 2025
+# with no successor; that was wrong. The curve did not die, it MOVED cubes:
+# `rendoblid` stopped on 2025-07-31 and `rendeiduebd` carries it forward, with
+# continuous daily data right through the Aug-Sep 2025 window where the old
+# cube ended. The two overlap and then one takes over. Verified 2026-09-13.
 #
-# Consequences of it being a scrape, all of which the caller must live with:
-#   - It returns ONE observation, today's. There is no history endpoint, so a
-#     series sourced here grows one point per weekly run and starts empty.
-#   - Only the tenors TradingEconomics chooses to publish exist. For
-#     Switzerland that is 2Y and 10Y; there is no 5Y or 30Y.
-#   - It is a secondary source quoting "over-the-counter interbank yield
-#     quotes", not an institution publishing its own curve. Label it as such.
-#   - The page is HTML, so this breaks silently when they restyle. It returns
-#     None on any surprise, and the staleness check is what surfaces that.
+# What the move buys: 12 tenors (1J-10J, 20J, 30J) where the scrape had two,
+# and history to 1988-01-04 where the scrape started at its first run.
+#
+# Traps, all measured on 2026-09-13:
+#   - The CSV has TWO metadata lines and a blank line before the header, and a
+#     UTF-8 BOM. Semicolon-delimited, long format: Date;D0;D1;Value.
+#   - A query with NO fromDate returns only the LAST MONTH, not the full
+#     history. The deep backfill must pass fromDate explicitly.
+#   - The cube publishes in a MONTHLY BATCH (PublishingDate 2026-09-01 for data
+#     ending 2026-08-31), so a query into the current month returns headers
+#     only. That is why it gets a monthly cadence and why the RSS feed exists.
+#   - Holidays appear as rows with an empty Value; _frame drops them.
+#   - Plain requests with the default User-Agent works. Do not send a browser
+#     UA; it is not needed here.
 # ---------------------------------------------------------------------------
-_TE_URL = "https://tradingeconomics.com/{country}/government-bond-yield"
+_SNB_CUBE_URL = "https://data.snb.ch/api/cube/{cube}/data/csv/en"
+_SNB_RSS_URL = "https://www.snb.ch/public/rss/en/interestRates"
+# The one cube tenor that gets topped up from the RSS feed (see fetch_snb_curve).
+_SNB_RSS_TENOR = "10J"
 
 
-def fetch_tradingeconomics_bond(country: str, tenor: str) -> pd.DataFrame | None:
+def _snb_cube_rows(cube: str, dim_sel: str | None, start: str | None):
     """
-    One tenor of one country's government curve, as of today.
-
-    country is the TradingEconomics slug ('switzerland'); tenor is their own
-    label ('10Y', '2Y'). Matching is on the exact "<Country> <tenor>" cell in
-    the bonds table, so a 10Y lookup can never fall through to the 2Y row.
+    Parse an SNB cube CSV into a DataFrame, or None. Shared by the curve and
+    the CPI cube, which differ only in which dimension columns they carry.
     """
-    resp = _get(_TE_URL.format(country=country), headers=BROWSER_HEADERS)
+    params = {}
+    if dim_sel:
+        params["dimSel"] = dim_sel
+    if start:
+        params["fromDate"] = str(start)[:10]
+    resp = _get(_SNB_CUBE_URL.format(cube=cube), params=params)
+    if resp is None or not resp.content:
+        return None
+    try:
+        text = resp.content.decode("utf-8-sig", errors="replace")
+        lines = text.split("\n")
+        header = next((i for i, ln in enumerate(lines) if ln.lstrip('"').startswith("Date")), None)
+        if header is None:
+            logger.warning("SNB %s: no header row after the cube preamble", cube)
+            return None
+        df = pd.read_csv(io.StringIO("\n".join(lines[header:])), delimiter=";")
+        return df if not df.empty else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("SNB cube parse failed for %s: %s", cube, exc)
+        return None
+
+
+def fetch_snb_curve(tenor: str, start: str | None = None) -> pd.DataFrame | None:
+    """
+    One tenor of the Swiss Confederation spot curve from cube `rendeiduebd`.
+
+    `tenor` is the SNB's own D1 label in years-German ('10J'), not '10Y'.
+    dimSel D0(CHF) isolates Swiss Confederation bond issues; without it the
+    cube also carries foreign-currency issues.
+    """
+    if not tenor:
+        return None
+    df = _snb_cube_rows("rendeiduebd", "D0(CHF)", start)
+    out = None
+    if df is not None and "D1" in df.columns:
+        try:
+            rows = df[df["D1"].astype(str).str.strip() == tenor]
+            if rows.empty:
+                logger.warning("SNB rendeiduebd: no rows for tenor %s", tenor)
+            else:
+                out = _frame(rows["Date"], rows["Value"])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("SNB curve parse failed for %s: %s", tenor, exc)
+    if tenor != _SNB_RSS_TENOR:
+        return out
+    # The 10y, and only the 10y, is topped up from the RSS feed. The cube
+    # publishes monthly, so between batches its newest point is up to five
+    # weeks old; R10 is the same Confederation spot rate from the same
+    # publisher, quoted daily. Same source and same curve, so this is a
+    # refresh of one series rather than a splice of two.
+    live = fetch_snb_rss_rate("R10")
+    if live is None:
+        return out
+    if out is None:
+        return live
+    merged = pd.concat([out, live]).drop_duplicates(subset=["date"], keep="last")
+    return merged.sort_values("date").reset_index(drop=True)
+
+
+def fetch_snb_cpi(measure: str, start: str | None = None) -> pd.DataFrame | None:
+    """
+    Swiss CPI (LIK) from cube `plkopr`. `measure` is the D0 code:
+    'LD2010100' is the index (Dec 2010 = 100) and 'VVP' the annual rate.
+
+    VVP is already in percent and needs no scaling: measured 2026-09-13, its
+    2026-07 value of 0.354234 is bit-identical to what the BIS series stores
+    for the same month, which is a useful confirmation that the two are the
+    same underlying print. It is empty for the first 12 months of the series,
+    because there is no year-earlier base to compare against.
+    """
+    if not measure:
+        return None
+    df = _snb_cube_rows("plkopr", None, start)
+    if df is None or "D0" not in df.columns:
+        return None
+    try:
+        rows = df[df["D0"].astype(str).str.strip() == measure]
+        if rows.empty:
+            logger.warning("SNB plkopr: no rows for measure %s", measure)
+            return None
+        return _frame(rows["Date"], rows["Value"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("SNB CPI parse failed for %s: %s", measure, exc)
+        return None
+
+
+def fetch_snb_rss_rate(rate_name: str) -> pd.DataFrame | None:
+    """
+    One rate from the SNB's interest-rate RSS feed, which carries the last
+    five or six business days. 'R10' is the 10y Confederation spot rate -- the
+    same series as the cube's 10J, published daily instead of monthly.
+
+    This is RSS-CB 1.2, the cbwiki central-bank standard, so the values live in
+    structured <cb:rateName>/<cb:value>/<cb:period> elements rather than in a
+    styled table. It exists to cover the gap between the cube's monthly
+    batches; a missed week loses nothing permanently, because the next batch
+    backfills the whole month.
+    """
+    if not rate_name:
+        return None
+    resp = _get(_SNB_RSS_URL)
     if resp is None or not resp.text:
         return None
     try:
-        text = re.sub(r"<script[\s\S]*?</script>", " ", resp.text)
-        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text))
-        label = f"{country.replace('-', ' ').title()} {tenor.upper()}"
-        # "<Country> <tenor>" then the yield, then the dd/Mmm date at the end
-        # of that row. Both are captured so the observation carries the
-        # source's own date rather than today's clock.
-        m = re.search(rf"{re.escape(label)}\s+(-?\d+\.\d+).{{0,120}}?([A-Z][a-z]{{2}}/\d{{1,2}})", text)
-        if m is None:
-            logger.warning("TradingEconomics: no %s row found", label)
+        dates, values = [], []
+        for item in re.findall(r"<item>([\s\S]*?)</item>", resp.text):
+            name = re.search(r"<cb:rateName>\s*(.*?)\s*</cb:rateName>", item)
+            if name is None or name.group(1) != rate_name:
+                continue
+            value = re.search(r"<cb:value[^>]*>\s*(.*?)\s*</cb:value>", item)
+            period = re.search(r"<cb:period>\s*(.*?)\s*</cb:period>", item)
+            if value is None or period is None:
+                continue
+            dates.append(period.group(1))
+            values.append(value.group(1))
+        if not dates:
+            logger.warning("SNB RSS: no %s items found", rate_name)
             return None
-        value = float(m.group(1))
-        # Their date is "Aug/28" with no year. Assume the most recent such date
-        # that is not in the future, so a January run reads December correctly.
-        today = pd.Timestamp.now().normalize()
-        stamp = pd.to_datetime(f"{m.group(2)}/{today.year}", format="%b/%d/%Y", errors="coerce")
-        if stamp is None or pd.isna(stamp):
-            return None
-        if stamp > today:
-            stamp = stamp - pd.DateOffset(years=1)
-        return _frame([stamp], [value])
+        return _frame(dates, values)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("TradingEconomics parse failed for %s %s: %s", country, tenor, exc)
+        logger.warning("SNB RSS parse failed for %s: %s", rate_name, exc)
         return None
 
 
