@@ -62,7 +62,7 @@ OVERLAP_DAYS = 14
 # slightly larger response, and the gain is that a rebasing lands as new
 # vintages across the whole history instead of on its tail.
 FULL_REFETCH_CADENCES = {"monthly", "monthly_lagged", "monthly_month_end",
-                         "quarterly", "annual"}
+                         "monthly_national", "quarterly", "annual"}
 
 
 def refetch_in_full(series: registry.Series) -> bool:

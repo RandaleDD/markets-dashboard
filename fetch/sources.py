@@ -558,26 +558,44 @@ def fetch_norges_curve(tenor: str, start: str | None = None) -> pd.DataFrame | N
 # History starts 1997-01; FRED's quarterly series went back to 1955, so this
 # trades ~40 years of low-frequency history for frequency and freshness.
 # ---------------------------------------------------------------------------
-ONS_BASE = "https://www.ons.gov.uk/economy/grossdomesticproductgdp/timeseries"
+ONS_BASE = "https://www.ons.gov.uk/economy/{section}/timeseries"
+# ONS files a series under a topic section, and the section is part of the URL:
+# GDP series live under grossdomesticproductgdp, CPI under
+# inflationandpriceindices. Note api.ons.gov.uk is DEAD (404 on every path);
+# www.ons.gov.uk is the working host. Verified 2026-09-13.
+ONS_GDP_SECTION = "grossdomesticproductgdp"
+ONS_PRICES_SECTION = "inflationandpriceindices"
 
 _ONS_MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
                "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
 
 
-def fetch_ons_timeseries(series_code: str, dataset: str,
-                         start: str | None = None) -> pd.DataFrame | None:
+def fetch_ons_timeseries(series_code: str, dataset: str, start: str | None = None,
+                         section: str = ONS_GDP_SECTION,
+                         frequency: str = "months") -> pd.DataFrame | None:
     """
     One ONS time series, e.g. series_code='ecy2', dataset='mgdp'.
 
     `start` is accepted and ignored: the endpoint has no windowing parameter
     and the whole series is a ~70KB JSON document.
 
-    Returns the monthly observations. ONS dates read "1997 JAN", so they are
-    parsed against an explicit month map rather than a locale-dependent format.
+    `frequency` picks which array to read -- 'months' or 'quarters'. One
+    response carries months, quarters AND years for the same series, and they
+    are DIFFERENT aggregations of it, so the caller has to say which grain it
+    wants rather than the fetcher guessing. The unwanted arrays are ignored.
+
+    Dates read "2026 JUL" or "2026 Q2", not ISO, and values are STRINGS, so
+    both are parsed explicitly -- the month map avoids a locale-dependent
+    format, and _frame coerces the strings.
+
+    The `dataset` suffix, not the series code, controls the VINTAGE: measured
+    2026-09-13, abmi/pn2 returned 2026 Q2 while abmi/qna returned 2026 Q1 for
+    the identical series. Getting this wrong costs a full quarter, silently.
     """
-    if not series_code or not dataset:
+    if not series_code or not dataset or frequency not in ("months", "quarters"):
         return None
-    resp = _get(f"{ONS_BASE}/{series_code.lower()}/{dataset.lower()}/data",
+    base = ONS_BASE.format(section=section)
+    resp = _get(f"{base}/{series_code.lower()}/{dataset.lower()}/data",
                 headers={**BROWSER_HEADERS, "Accept": "application/json"})
     if resp is None or not resp.content:
         return None
@@ -586,19 +604,32 @@ def fetch_ons_timeseries(series_code: str, dataset: str,
     except Exception as exc:  # noqa: BLE001
         logger.warning("ONS %s/%s: response was not JSON: %s", series_code, dataset, exc)
         return None
-    months = payload.get("months") or []
-    if not months:
-        logger.warning("ONS %s/%s: no monthly observations in response", series_code, dataset)
+    rows = payload.get(frequency) or []
+    if not rows:
+        logger.warning("ONS %s/%s: no %s observations in response",
+                       series_code, dataset, frequency)
         return None
     dates, values = [], []
-    for row in months:
+    for row in rows:
         parts = str(row.get("date", "")).split()
-        if len(parts) != 2 or parts[1].upper() not in _ONS_MONTHS:
+        if len(parts) != 2:
             continue
+        label = parts[1].upper()
         try:
-            dates.append(pd.Timestamp(year=int(parts[0]), month=_ONS_MONTHS[parts[1].upper()], day=1))
+            if frequency == "months":
+                if label not in _ONS_MONTHS:
+                    continue
+                stamp = pd.Timestamp(year=int(parts[0]), month=_ONS_MONTHS[label], day=1)
+            else:
+                if not re.fullmatch(r"Q[1-4]", label):
+                    continue
+                # Dated to the first day of the quarter it describes, the same
+                # convention every other period series here uses.
+                stamp = pd.Timestamp(year=int(parts[0]),
+                                     month=(int(label[1]) - 1) * 3 + 1, day=1)
         except (TypeError, ValueError):
             continue
+        dates.append(stamp)
         values.append(row.get("value"))
     return _frame(dates, values)
 
@@ -828,6 +859,91 @@ def fetch_snb_rss_rate(rate_name: str) -> pd.DataFrame | None:
         return _frame(dates, values)
     except Exception as exc:  # noqa: BLE001
         logger.warning("SNB RSS parse failed for %s: %s", rate_name, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Statistics Norway (SSB) PxWebApi — the headline consumer price index.
+#
+# Two corrections to what the sourcing research proposed, both measured
+# 2026-09-13:
+#
+#   - The v2-beta host (data.ssb.no/api/pxwebapi/v2-beta) returns HTTP 503.
+#     The v1 host works: metadata on GET, data on POST. PxWeb v1 data retrieval
+#     is POST-only, which is why this is the only fetcher here that posts.
+#   - Table 14702 is NOT the headline CPI. It is "CPI by DELIVERY SECTOR", and
+#     its Leveringssektor=B1 ("Consumer goods") is a subaggregate: against the
+#     closed table's TOTAL it printed 7.7 vs 6.5 in 2023M03 and -0.3 vs 1.4 in
+#     2020M06. Using it would have published the wrong number for Norway.
+#
+# Table 14710 is the headline index: one series, no consumption-group
+# dimension to pick wrongly, base 2025=100, and history to 1920M03 -- deeper
+# than the BIS series it replaces. It publishes the INDEX only, so the annual
+# rate is derived from it downstream, which is what this project does anyway.
+#
+# Dates are "2026M08", not ISO, and are dated to the first of the month they
+# describe, matching every other period series here.
+# ---------------------------------------------------------------------------
+_SSB_URL = "https://data.ssb.no/api/v0/en/table/{table}"
+_SSB_PERIOD_RE = re.compile(r"^(\d{4})M(\d{2})$")
+
+
+def fetch_ssb(table: str, contents: str, start: str | None = None,
+              filters: dict | None = None) -> pd.DataFrame | None:
+    """
+    One monthly SSB series. `table` is the numeric table id ('14710') and
+    `contents` the ContentsCode ('KpiIndMnd').
+
+    `filters` supplies any further dimension selections the table requires,
+    as {dimension_code: value}. 14710 needs none.
+
+    The default selection returns only the LATEST period, so Tid is always
+    requested explicitly -- 'top(N)' rather than a date range, because PxWeb
+    has no since-period filter.
+    """
+    if not table or not contents:
+        return None
+    months = 1400  # comfortably more than table 14710's 1278 periods
+    if start:
+        parsed = pd.to_datetime(start, errors="coerce")
+        if parsed is not None and not pd.isna(parsed):
+            span = (pd.Timestamp.now() - parsed).days // 30
+            months = max(24, min(months, span + 6))
+    query = [{"code": code, "selection": {"filter": "item", "values": [value]}}
+             for code, value in (filters or {}).items()]
+    query.append({"code": "ContentsCode",
+                  "selection": {"filter": "item", "values": [contents]}})
+    query.append({"code": "Tid", "selection": {"filter": "top", "values": [str(months)]}})
+    try:
+        resp = requests.post(_SSB_URL.format(table=table),
+                             json={"query": query, "response": {"format": "json-stat2"}},
+                             timeout=TIMEOUT)
+        resp.raise_for_status()
+        payload = resp.json()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("SSB table %s (%s) failed: %s", table, contents, exc)
+        return None
+    try:
+        periods = list(payload["dimension"]["Tid"]["category"]["index"])
+        values = payload["value"]
+        if len(periods) != len(values):
+            # Every other dimension was pinned to one value, so the value array
+            # must line up with Tid one-for-one. If it does not, the selection
+            # was wider than intended and positional reads would be wrong.
+            logger.warning("SSB table %s: %d periods but %d values -- refusing",
+                           table, len(periods), len(values))
+            return None
+        dates, out = [], []
+        for period, value in zip(periods, values):
+            match = _SSB_PERIOD_RE.match(str(period))
+            if match is None or value is None:
+                continue
+            dates.append(pd.Timestamp(year=int(match.group(1)),
+                                      month=int(match.group(2)), day=1))
+            out.append(value)
+        return _frame(dates, out)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("SSB parse failed for table %s (%s): %s", table, contents, exc)
         return None
 
 

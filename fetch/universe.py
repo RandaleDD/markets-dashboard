@@ -274,19 +274,77 @@ EUROZONE_SPREAD_PANEL = [
 ]
 
 # ---------------------------------------------------------------------------
-# 6. Inflation — BIS WS_LONG_CPI. One dataflow covers every region and returns
-# both the YoY rate (unit 771) and the index level (unit 628) in one response,
-# so annualised QoQ is derived from the same fetch.
+# 6. Inflation — the national headline print, from each country's own
+# statistics office wherever one is reachable keylessly.
+#
+# This moved off a single BIS dataflow on 2026-09-13. BIS releases WS_LONG_CPI
+# once a month in the last week, and each print is dated to the first of the
+# month it describes, so its newest observation is between 27 and 57 days old.
+# Going direct to the publisher cuts that by 6-17 days per region, and because
+# the dashboard polls weekly the gain is in AVERAGE staleness, not just in the
+# arrival lag.
+#
+# ON COMPARABILITY, which is the real constraint here: there is no single
+# methodology that covers all eight. HICP does not exist for the US, China or
+# Japan. So each region stores its own headline national print -- the number
+# its market actually trades -- and every entry carries an explicit `basis`
+# saying which. Do NOT "harmonise" the UK onto CPIH: it adds owner-occupier
+# housing costs and stops being comparable to the rest.
+#
+# Two regions stay on BIS deliberately:
+#   - China, because data.stats.gov.cn returns HTTP 403 to non-browser clients
+#     from outside the mainland, which is a GitHub Actions runner exactly.
+#   - Japan, because e-Stat would buy only 9 days and is the one switch here
+#     that costs an Actions secret.
+#
+# Where a source publishes only the index, the annual rate is derived from it
+# downstream. That is the direction this project prefers anyway: store what is
+# published, derive the growth.
 # ---------------------------------------------------------------------------
 INFLATION_CPI = {
-    "US": {"source": "bis", "ref_area": "US"},
-    "UK": {"source": "bis", "ref_area": "GB"},
-    "EZ": {"source": "bis", "ref_area": "XM"},
-    "DE": {"source": "bis", "ref_area": "DE"},
-    "CH": {"source": "bis", "ref_area": "CH"},
-    "CN": {"source": "bis", "ref_area": "CN"},
-    "JP": {"source": "bis", "ref_area": "JP"},
-    "NO": {"source": "bis", "ref_area": "NO"},
+    # FRED serves CPIAUCNS (NSA) as a level only -- there is no published YoY
+    # series, and the "_PC1" graph suffix is silently ignored, returning the
+    # level under the base id. So the rate is derived. History to 1913-01.
+    "US": {"source": "fred", "basis": "CPI-U", "cadence": "monthly_national",
+           "index": "CPIAUCNS",
+           "definition": "US CPI-U, all urban consumers, not seasonally "
+                         "adjusted — the basis every other region here is on."},
+    # api.ons.gov.uk is DEAD (404 on every path); www.ons.gov.uk is the host.
+    # ONS publishes both legs, so neither is derived.
+    "UK": {"source": "ons", "basis": "CPI", "cadence": "monthly_national",
+           "ons_dataset": "mm23", "index": "d7bt", "yoy": "d7g7",
+           "definition": "UK CPI (not CPIH: CPIH adds owner-occupier housing "
+                         "costs and is not comparable to the others)."},
+    # Eurostat retired prc_hicp_manr and prc_hicp_midx on 2026-02-04 for the
+    # ECOICOP ver.2 changeover -- both sit frozen at 2025-12 while returning
+    # HTTP 200. The ECB discontinued its mirror ICP dataset the same day. The
+    # successor is prc_hicp_minr, whose item dimension is coicop18=TOTAL (not
+    # coicop=CP00) and whose index unit is I25 (2025=100, not 2015=100).
+    "EZ": {"source": "eurostat", "basis": "HICP", "cadence": "monthly_national",
+           "eurostat_dataset": "prc_hicp_minr", "geo": "EA",
+           "definition": "Euro area HICP, all-items."},
+    # Germany moves from BIS's national VPI to HICP. A real methodology
+    # switch: they printed identically at +2.9% in Aug 2026 and typically
+    # differ by <=0.3pp, but it is a different index and is recorded as such.
+    "DE": {"source": "eurostat", "basis": "HICP", "cadence": "monthly_national",
+           "eurostat_dataset": "prc_hicp_minr", "geo": "DE",
+           "definition": "German HICP, all-items — NOT the national VPI that "
+                         "the BIS series carried."},
+    "CH": {"source": "snb", "basis": "LIK", "cadence": "monthly_national",
+           "index": "LD2010100", "yoy": "VVP",
+           "definition": "Swiss LIK (Landesindex der Konsumentenpreise)."},
+    # Table 14710, NOT 14702. 14702 is CPI by DELIVERY SECTOR and its "consumer
+    # goods" aggregate is not the headline: measured 2026-09-13 it printed 7.7
+    # against the headline's 6.5 in 2023M03. 14710 is the headline index, base
+    # 2025=100, back to 1920M03 -- deeper than the BIS series it replaces.
+    "NO": {"source": "ssb", "basis": "KPI", "cadence": "monthly_national",
+           "table": "14710", "index": "KpiIndMnd",
+           "definition": "Norwegian KPI, all-items."},
+    "CN": {"source": "bis", "basis": "CPI", "ref_area": "CN",
+           "definition": "China headline CPI (BIS: the NBS refuses "
+                         "non-browser clients from outside the mainland)."},
+    "JP": {"source": "bis", "basis": "CPI", "ref_area": "JP",
+           "definition": "Japan headline CPI."},
 }
 
 # Inflation expectations. Every entry states its tenor and its index basis,

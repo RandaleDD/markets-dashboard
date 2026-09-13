@@ -54,12 +54,40 @@ class CadenceKeys(unittest.TestCase):
         """BIS updates WS_LONG_CPI in the last week of each month, and dates
         each print to the first of the month it describes, so the newest one is
         ~85 days old the day before the next release. The threshold has to clear
-        that, or all 16 CPI series go red in the back half of every month."""
-        for series_id in ("cpi.US", "cpi.CH.index"):
-            series = registry.by_id()[series_id]
-            with self.subTest(series=series_id):
+        that, or every series still on BIS goes red in the back half of every
+        month.
+
+        Only China and Japan are left on BIS -- the rest moved to their national
+        statistics offices on 2026-09-13 -- so this asks the registry which
+        those are rather than naming ids that a later source switch would
+        silently retire. That is how this test broke when cpi.US stopped
+        existing, which is a failure mode worth not repeating.
+        """
+        bis = [s for s in registry.all_series()
+               if s.series_id.startswith("cpi.") and "WS_LONG_CPI" in s.source]
+        self.assertTrue(bis, "no CPI series on BIS -- has the source moved?")
+        for series in bis:
+            with self.subTest(series=series.series_id):
                 self.assertGreater(series.max_age_days, 88)
                 # ...and still catch a release BIS actually skipped (~115 days).
+                self.assertLess(series.max_age_days, 115)
+
+    def test_national_cpi_outlasts_a_first_of_month_publication_lag(self):
+        """A national statistics office publishes month M during month M+1, and
+        dates the print to the FIRST of M. So the newest figure's age is the
+        publication lag plus a whole month, peaking just before the next
+        release: ~71 days for the US at T+11, ~81 for Switzerland at T+21.
+
+        Plain `monthly` at 70 would therefore read stale for the last days of
+        every month even when every release is on time -- and `stale` is a
+        failure here, not a pass.
+        """
+        national = [s for s in registry.all_series()
+                    if s.cadence == "monthly_national"]
+        self.assertTrue(national, "no series on the monthly_national cadence")
+        for series in national:
+            with self.subTest(series=series.series_id):
+                self.assertGreater(series.max_age_days, 85)
                 self.assertLess(series.max_age_days, 115)
 
 

@@ -350,11 +350,22 @@ def build_payload(conn, is_sample: bool = False) -> dict:
 
     # --- Macro: inflation (YoY series, annualised QoQ from the index series) ---
     cpi_frames = {}
-    for region in universe.INFLATION_CPI:
+    for region, cpi_cfg in universe.INFLATION_CPI.items():
         yoy_df = hist.get(f"cpi.{region}")
         idx_df = hist.get(f"cpi.{region}.index")
+        # Not every statistics office publishes an annual rate. FRED serves the
+        # US index as a level only, and SSB's headline Norwegian table carries
+        # the index alone, so for those the rate is derived here -- 12 monthly
+        # observations -- rather than stored. Deriving is the direction this
+        # project prefers anyway, and it keeps both figures on one vintage of
+        # one source. Where a rate IS published it is used as published, so
+        # nobody has to reconcile our arithmetic against the press release.
+        derived_yoy = yoy_df is None
+        if derived_yoy:
+            yoy_df = _growth_series(idx_df, 12)
         cpi_frames[region] = yoy_df
-        st, as_of = _series_status(yoy_df, _cadence_of(f"cpi.{region}", "monthly"))
+        age_id = f"cpi.{region}.index" if derived_yoy else f"cpi.{region}"
+        st, as_of = _series_status(yoy_df, _cadence_of(age_id, "monthly"))
         status[f"cpi:{region}"] = st
         out["macro"]["inflation"][region] = {
             "yoy_pct": round(_latest(yoy_df), 2) if _latest(yoy_df) is not None else None,
@@ -362,6 +373,11 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "qoq_ann_pct": _pct_change(idx_df, 3, annualise=4),
             "as_of": as_of,
             "period_label": _period_label(as_of, "M"),
+            # Which index this region's number actually is. These are NOT one
+            # methodology -- HICP does not exist for the US, China or Japan --
+            # so the basis travels with the figure rather than being implied.
+            "basis": cpi_cfg.get("basis"),
+            "yoy_is_derived": derived_yoy,
             "context": _ctx(yoy_df) if yoy_df is not None else None,
             "qoq_ann_context": _ctx(_growth_series(idx_df, 3, annualise=4)),
         }

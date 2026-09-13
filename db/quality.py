@@ -177,6 +177,24 @@ def run_all(conn, series: list[registry.Series] | None = None) -> dict:
         raised["curve_inconsistency"] += findings.raised
         resolved["curve_inconsistency"] += _reconcile(
             conn, open_keys, series_id, "curve_inconsistency", findings)
+
+    # Flags against series the registry no longer knows about. A series id
+    # disappears when a source switch retires it -- cpi.US lost its stored YoY
+    # leg on 2026-09-13 when the US moved to FRED, which publishes the index
+    # only and leaves the rate to be derived. No check will ever run against
+    # that id again, so its open flags could never close on their own, and a
+    # flag that cannot close is precisely the permanently-red indicator this
+    # module exists to avoid. This is NOT the "a check did not run, so close
+    # nothing" case that tests/test_flag_resolution.py guards: there is no
+    # check to run, because there is no series.
+    live_ids = {s.series_id for s in series}
+    for series_id, kind, obs_date in sorted(open_keys):
+        if series_id in live_ids:
+            continue
+        store.resolve_flag(conn, series_id, obs_date, kind)
+        resolved[kind] = resolved.get(kind, 0) + 1
+        logger.info("Resolved %s flag on %s: the series is no longer in the "
+                    "registry", kind, series_id)
     conn.commit()
 
     report = completeness(conn, series, hist)
