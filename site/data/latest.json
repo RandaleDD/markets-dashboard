@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T12:04:52.267246+00:00",
+  "generated_at": "2026-09-13T12:14:42.821050+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -52733,9 +52733,61 @@
       }
     },
     "EZ": {
-      "kind": "unavailable",
-      "note": "The practitioner standard is the EUR HICPx zero-coupon inflation swap, which has no free feed. The ECB FM dataflow carries no ILS series.",
-      "tenors": {}
+      "kind": "survey",
+      "basis": "HICP",
+      "note": "ECB Survey of Professional Forecasters \u2014 a survey mean, not a market breakeven, so it is not comparable with the US and UK figures above. 1y and 2y are constant horizons built from SPF's calendar-year forecasts. The 5y column holds SPF's longer-term mean, whose horizon is 5 calendar years ahead in Q3/Q4 rounds but 4 in Q1/Q2 \u2014 a moving tenor, shown here because it is the only long-horizon euro-area figure published free. The euro-area inflation swap, which would be the market-implied equivalent, is still not available free.",
+      "tenors": {
+        "1y": 2.17,
+        "2y": 2.0,
+        "5y": 2.04
+      },
+      "context": {
+        "1y": {
+          "5y": null,
+          "10y": {
+            "pct": 82.9,
+            "z": 0.35,
+            "n": 41,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 92.8,
+            "z": 0.73,
+            "n": 111,
+            "since": "1999-01-01"
+          }
+        },
+        "2y": {
+          "5y": null,
+          "10y": {
+            "pct": 78.0,
+            "z": 0.75,
+            "n": 41,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 87.7,
+            "z": 1.0,
+            "n": 81,
+            "since": "2000-07-01"
+          }
+        },
+        "5y": {
+          "5y": null,
+          "10y": {
+            "pct": 78.0,
+            "z": 0.8,
+            "n": 41,
+            "since": "2016-07-01"
+          },
+          "full": {
+            "pct": 91.4,
+            "z": 1.18,
+            "n": 105,
+            "since": "1999-01-01"
+          }
+        }
+      }
     },
     "DE": {
       "kind": "unavailable",
@@ -54326,7 +54378,7 @@
     "realyield:UK": "ok",
     "inflexp:US": "ok",
     "inflexp:UK": "ok",
-    "inflexp:EZ": "stubbed",
+    "inflexp:EZ": "ok",
     "inflexp:DE": "stubbed",
     "inflexp:CH": "stubbed",
     "inflexp:CN": "stubbed",
@@ -54379,13 +54431,13 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-09-13T12:04:51.681764+00:00",
-    "series": 150,
-    "fresh": 149,
+    "generated_at": "2026-09-13T12:14:42.261696+00:00",
+    "series": 153,
+    "fresh": 152,
     "stale": 1,
     "missing": 0,
     "gapped": 3,
-    "observations": 150459,
+    "observations": 150756,
     "flags_raised_this_run": {},
     "flags_resolved_this_run": {},
     "open_flags": {

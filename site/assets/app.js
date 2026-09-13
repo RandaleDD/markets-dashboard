@@ -563,6 +563,14 @@ const CURVE_TENORS = ["2Y", "5Y", "10Y", "30Y"];
 // Inflation tenors, kept as their own column set so the table lines up
 // column-for-column with the curve tables above it.
 const INFL_TENORS = [["1y", "1Y"], ["2y", "2Y"], ["5y", "5Y"], ["10y", "10Y"], ["5y5y_fwd", "5y5y fwd"]];
+
+// What kind of quantity each row is. A survey mean and a market breakeven are
+// different measurements with different biases, so the badge says which rather
+// than letting them read as one series.
+const KIND_LABELS = { market: "market-implied", model: "model-implied", survey: "survey-based" };
+function kindLabel(kind) {
+  return KIND_LABELS[kind] || `${kind}-implied`;
+}
 let curveSel = { regions: ["US"], date: null };
 
 /** Tenor values for one region as they stood on (or before) `dateISO`. */
@@ -664,7 +672,7 @@ function inflationRows(colCount) {
       rows.push(`<tr><td class="commentary" colspan="${colCount}">${e.note || "No free market-implied source."}</td></tr>`);
       return;
     }
-    push(regionName(region), `<span class="badge badge-${e.kind}">${e.kind}-implied</span>`,
+    push(regionName(region), `<span class="badge badge-${e.kind}">${kindLabel(e.kind)}</span>`,
          e.basis, e.tenors || {}, e.context || {}, e.note);
     // Only the 1y model point is kept: there is no 1-year TIPS breakeven, so a
     // model is the only way to show it. The model's 5y and 10y are dropped as

@@ -407,7 +407,7 @@ def all_series() -> list[Series]:
     for region, cfg in universe.INFLATION_EXPECTATIONS.items():
         if cfg.get("kind") == "unavailable" or not cfg.get("source"):
             continue
-        for block, sub in (("market", cfg), ("model", cfg.get("model"))):
+        for block, sub in ((cfg.get("kind", "market"), cfg), ("model", cfg.get("model"))):
             if not sub:
                 continue
             # US distinguishes market from model in its identifier; the UK has
@@ -417,6 +417,10 @@ def all_series() -> list[Series]:
                 if sub["source"] == "fred":
                     fetcher, kwargs, bounded = "fetch_fred", {"series_id": key}, True
                     source, cadence = f"FRED, {key}", ("weekly" if block == "market" else "monthly")
+                elif sub["source"] == "ecb_spf":
+                    fetcher, kwargs, bounded = "fetch_ecb_spf", {"horizon": key}, False
+                    source = f"ECB SPF, HICP point forecast ({key})"
+                    cadence = cfg.get("cadence", "quarterly")
                 else:
                     fetcher = "fetch_boe_glc"
                     kwargs = {"which": cfg.get("glc_file", "inflation"), "tenor_years": key}

@@ -366,10 +366,32 @@ INFLATION_EXPECTATIONS = {
                 "RPI), typically ~0.8-1.0pp above the equivalent CPI rate.",
         "tenors": {"2y": "2", "5y": "5", "10y": "10"},
     },
-    "EZ": {"source": None, "kind": "unavailable",
-           "note": "The practitioner standard is the EUR HICPx zero-coupon "
-                   "inflation swap, which has no free feed. The ECB FM dataflow "
-                   "carries no ILS series."},
+    # A SURVEY, not a breakeven, and badged as such. The practitioner standard
+    # for the euro area remains the EUR HICPx zero-coupon inflation swap, which
+    # still has no free feed (the ECB FM dataflow's "ILS" codes turned out to be
+    # Israeli shekel), so this does not close that gap -- it measures a
+    # different thing. A survey mean and a market-implied rate have different
+    # biases and must never be averaged or compared as like for like.
+    #
+    # TENOR NOTE, which the table must carry: SPF publishes no rolling-horizon
+    # series. The 1y and 2y here are CONSTRUCTED from its calendar-year point
+    # forecasts and are genuinely constant horizons. The "5y" slot holds SPF's
+    # published longer-term mean, whose horizon MOVES -- 5 calendar years ahead
+    # in the Q3/Q4 rounds, 4 in Q1/Q2 -- so it is not the same tenor as a 5y
+    # breakeven and says so in its note.
+    "EZ": {"source": "ecb_spf", "basis": "HICP", "kind": "survey",
+           "cadence": "quarterly",
+           "note": "ECB Survey of Professional Forecasters — a survey mean, "
+                   "not a market breakeven, so it is not comparable with the "
+                   "US and UK figures above. 1y and 2y are constant horizons "
+                   "built from SPF's calendar-year forecasts. The 5y column "
+                   "holds SPF's longer-term mean, whose horizon is 5 calendar "
+                   "years ahead in Q3/Q4 rounds but 4 in Q1/Q2 — a moving "
+                   "tenor, shown here because it is the only long-horizon "
+                   "euro-area figure published free. The euro-area inflation "
+                   "swap, which would be the market-implied equivalent, is "
+                   "still not available free.",
+           "tenors": {"1y": "1", "2y": "2", "5y": "lt"}},
     "DE": {"source": None, "kind": "unavailable", "note": "See Eurozone — no free euro-area ILS feed."},
     "CH": {"source": None, "kind": "unavailable", "note": "No CHF inflation-linked bond market of usable size."},
     "CN": {"source": None, "kind": "unavailable", "note": "No accessible CNY inflation-linked market data."},

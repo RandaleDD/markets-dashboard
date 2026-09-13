@@ -691,14 +691,20 @@ def _inflation_expectations(region, cfg, hist, status):
     infix = ".market" if region == "US" else ""
     tenors, sts, context = {}, [], {}
     for label in cfg["tenors"]:
-        df = hist.get(f"inflexp.{region}{infix}.{label}")
+        series_id = f"inflexp.{region}{infix}.{label}"
+        df = hist.get(series_id)
         v = _latest(df)
         tenors[label] = round(v, 2) if v is not None else None
         if df is not None:
             c = _ctx(df)
             if c:
                 context[label] = c
-        sts.append(_series_status(df)[0])
+        # Read the cadence from the registry rather than defaulting to weekly:
+        # the ECB SPF is quarterly, and judging it weekly badged a perfectly
+        # current series `stale` in the payload while db/quality -- which does
+        # use the registry cadence -- correctly called it fresh. The badge and
+        # the flag must not be able to disagree.
+        sts.append(_series_status(df, _cadence_of(series_id, "weekly"))[0])
 
     out = {"kind": cfg.get("kind", "market"), "basis": cfg.get("basis"),
            "note": cfg.get("note"), "tenors": tenors, "context": context or None}
