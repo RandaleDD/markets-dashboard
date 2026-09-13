@@ -66,7 +66,20 @@ FULL_REFETCH_CADENCES = {"monthly", "monthly_lagged", "monthly_month_end",
 
 
 def refetch_in_full(series: registry.Series) -> bool:
-    """True when the watermark must NOT narrow the request. See above."""
+    """
+    True when the watermark must NOT narrow the request. See above.
+
+    Why a cheaper guard will not do, since one is tempting: "did the base year
+    change?" is insufficient. A pure REBASE rescales every point by the same
+    constant, so it leaves every growth rate untouched and needs no special
+    handling at all. What broke Swiss GDP was a re-CHAIN-LINKING, which moves
+    the growth rates themselves and announces nothing. There is no cheap signal
+    to test for, which is why the whole history is simply re-asked -- and why
+    every recommended source was checked to serve its full history in one
+    request of a few hundred rows (Eurostat ~194, FRED ~318, ONS ~286, World
+    Bank GEM ~142). There is no cost argument for an incremental window
+    anywhere in this set.
+    """
     return series.revisable and series.cadence in FULL_REFETCH_CADENCES
 
 # Two floats parsed from the same CSV text are bit-identical, so this only has

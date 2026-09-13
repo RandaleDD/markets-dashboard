@@ -384,15 +384,21 @@ INFLATION_EXPECTATIONS = {
 # ---------------------------------------------------------------------------
 GDP_GROWTH = {
     "US": {"source": "fred", "series": "GDPC1", "freq": "Q"},
-    # ONS's own monthly index, not FRED's quarterly mirror. Measured 2026-08-29:
-    # monthly rather than quarterly, and two quarters fresher (2026-06 against
-    # FRED's 2026-Q1). ONS publishes UK monthly GDP as a GVA index because it
-    # is estimated on the output approach, so the definition below says GVA.
-    "UK": {"source": "ons", "ons_series": "ecy2", "ons_dataset": "mgdp", "freq": "M",
-           "cadence": "monthly_lagged",
-           "definition": "ONS monthly GVA index (the output-approach measure "
-                         "published as UK monthly GDP), chain-linked volume, "
-                         "seasonally adjusted. Index, 2022 = 100."},
+    # ONS quarterly chained volume, the same grain and definition as the other
+    # seven. The monthly GVA index that used to sit here is kept as a UK-only
+    # supplementary nowcast (UK_GDP_NOWCAST below) rather than as THE UK GDP
+    # series: it is GVA-based, and mixing an output-approach index into a YoY
+    # comparison against seven quarterly chain-linked series is exactly the
+    # definitional seam that produces a wrong headline.
+    #
+    # The DATASET SUFFIX, not the series code, controls the vintage. Measured
+    # 2026-09-13, abmi/pn2 returned 2026 Q2 while abmi/qna returned 2026 Q1 for
+    # the identical series id -- a full quarter staler, silently. Do not
+    # "simplify" this to qna.
+    "UK": {"source": "ons", "ons_series": "abmi", "ons_dataset": "pn2", "freq": "Q",
+           "ons_frequency": "quarters",
+           "definition": "ONS quarterly GDP, chained volume measure, "
+                         "seasonally adjusted (£m, 2022 = 100 chained)."},
     # Eurostat's own quarterly national accounts. NOT the catalog's teina011,
     # which carries only percentage changes over a rolling 12 quarters — the
     # pipeline needs LEVELS to derive growth on one common definition. Also
@@ -401,9 +407,25 @@ GDP_GROWTH = {
            "eurostat_filters": {"geo": "EA20", "unit": "CLV15_MEUR",
                                 "s_adj": "SCA", "na_item": "B1GQ", "freq": "Q"}},
     "DE": {"source": "fred", "series": "CLVMNACSCAB1GQDE", "freq": "Q"},
-    "CH": {"source": "fred", "series": "CLVMNACSCAB1GQCH", "freq": "Q"},
+    # CH and NO went direct to Eurostat on 2026-09-13. The lag gain is about
+    # zero; the reason is that CLVMNACSCAB1GQCH self-reports "Source: Eurostat"
+    # with units "Millions of Chained 2010 Euros" -- Swiss GDP was never
+    # Swiss-sourced. It was Eurostat data passed through FRED with a euro FX
+    # conversion layer on top, and it is the exact series that produced the
+    # 2026-09-08 rebasing incident. Going direct removes the intermediary AND
+    # the currency conversion, and puts CH/NO on the same code path as EA/DE.
+    #
+    # CLV_I15 rather than EA/DE's CLV15_MEUR deliberately: it is a pure index
+    # with no currency in it at all, which is the whole point for two countries
+    # that do not use the euro. Both are chain-linked volume levels, so the
+    # growth rates derived from them are on identical definitions.
+    "CH": {"source": "eurostat", "eurostat_dataset": "namq_10_gdp", "freq": "Q",
+           "eurostat_filters": {"geo": "CH", "unit": "CLV_I15",
+                                "s_adj": "SCA", "na_item": "B1GQ", "freq": "Q"}},
     "JP": {"source": "fred", "series": "JPNRGDPEXP", "freq": "Q"},
-    "NO": {"source": "fred", "series": "CLVMNACSCAB1GQNO", "freq": "Q"},
+    "NO": {"source": "eurostat", "eurostat_dataset": "namq_10_gdp", "freq": "Q",
+           "eurostat_filters": {"geo": "NO", "unit": "CLV_I15",
+                                "s_adj": "SCA", "na_item": "B1GQ", "freq": "Q"}},
     # Quarterly at last. FRED has no free quarterly real GDP for China (its
     # candidates all 404, and the OECD series that used to carry it died in
     # 2023Q3), and the NBS returns HTTP 403 to non-browser clients from outside
@@ -414,6 +436,19 @@ GDP_GROWTH = {
     "CN": {"source": "worldbank_gem", "country": "CHN",
            "indicator": "NYGDPMKTPSAKN", "freq": "Q"},
 }
+# The UK monthly GVA index, demoted from the GDP row above. It is more current
+# in information terms (July data on 11 September) and a genuinely useful
+# nowcast, but it is a different measure on a different grain, so it is
+# published as its own labelled series rather than mixed into the comparison.
+UK_GDP_NOWCAST = {
+    "region": "UK", "series_id": "gdp.UK.monthly_nowcast",
+    "ons_series": "ecy2", "ons_dataset": "mgdp", "cadence": "monthly_lagged",
+    "definition": "ONS monthly GVA index (the output-approach measure published "
+                  "as UK monthly GDP), chain-linked volume, seasonally "
+                  "adjusted. Index, 2022 = 100. A nowcast, not comparable to "
+                  "the quarterly chain-linked series in the GDP table.",
+}
+
 GDP_DEFINITION = ("Real (chain-linked volume), national currency, not PPP, "
                   "seasonally adjusted. YoY and annualised QoQ derived from the level series.")
 
