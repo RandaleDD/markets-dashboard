@@ -359,7 +359,8 @@ def all_series() -> list[Series]:
         cadence = cfg.get("cadence", "annual" if cfg.get("freq") == "A" else "quarterly")
         if cfg["source"] == "ons":
             fetcher, kwargs, bounded = "fetch_ons_timeseries", {
-                "series_code": cfg["ons_series"], "dataset": cfg["ons_dataset"]}, False
+                "series_code": cfg["ons_series"], "dataset": cfg["ons_dataset"],
+                "frequency": cfg.get("ons_frequency", "months")}, False
             source = f"ONS, {cfg['ons_dataset'].upper()}/{cfg['ons_series'].upper()}"
         elif cfg["source"] == "worldbank_gem":
             fetcher, kwargs, bounded = "fetch_worldbank_gem", {
@@ -381,6 +382,20 @@ def all_series() -> list[Series]:
             unit="index/level (national currency, chain-linked)", cadence=cadence,
             source=source, fetcher=fetcher, fetch_kwargs=kwargs, bounded=bounded,
             revisable=True))
+
+    # The UK monthly nowcast, stored beside the quarterly series rather than in
+    # place of it. Different measure, different grain, so a different id.
+    nowcast = universe.UK_GDP_NOWCAST
+    out.append(Series(
+        series_id=nowcast["series_id"], category="GDP growth",
+        region=nowcast["region"], description=nowcast["definition"],
+        unit="index/level (national currency, chain-linked)",
+        cadence=nowcast["cadence"],
+        source=f"ONS, {nowcast['ons_dataset'].upper()}/{nowcast['ons_series'].upper()}",
+        fetcher="fetch_ons_timeseries",
+        fetch_kwargs={"series_code": nowcast["ons_series"],
+                      "dataset": nowcast["ons_dataset"], "frequency": "months"},
+        bounded=False, revisable=True))
 
     # --- Yield curves, nominal and real -------------------------------------
     out += _curve_series("curve", "Yield curve (nominal)", universe.YIELD_CURVES,
