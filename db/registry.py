@@ -59,6 +59,15 @@ from fetch import universe
 # went stale in the back half of every month; 100 clears that peak with room to
 # spare while still catching a skipped release, which lands at ~115 days.
 #
+# `monthly_national` is a national statistics office publishing month M during
+# month M+1 -- the US at T+11, Norway T+10, the UK T+16, the euro area T+17,
+# Switzerland T+21. The print is dated to the FIRST of the month it describes,
+# so its age is the publication lag plus a whole month, and it peaks just
+# before the next release: ~71 days for the US, ~81 for Switzerland. Plain
+# `monthly` at 70 would therefore read stale for the last days of every month
+# even when every release is on time. 95 clears the worst of them with room,
+# and still catches a skipped release, which lands at ~111.
+#
 # `monthly_batch` is the SNB's rendeiduebd curve cube: DAILY observations
 # delivered once a month in one batch (measured 2026-09-13, PublishingDate
 # 2026-09-01 for data ending 2026-08-31), so a query into the current month
@@ -69,6 +78,7 @@ from fetch import universe
 # that and still catches a skipped batch, which lands at ~63 days.
 MAX_AGE_DAYS = {"weekly": 14, "monthly": 70, "monthly_lagged": 120,
                 "monthly_month_end": 100, "monthly_batch": 45,
+                "monthly_national": 95,
                 "quarterly": 200, "policy": 150, "annual": 730}
 
 # Expected spacing between observations, for gap detection. "irregular" opts a
@@ -76,6 +86,7 @@ MAX_AGE_DAYS = {"weekly": 14, "monthly": 70, "monthly_lagged": 120,
 PERIODICITY_OF_CADENCE = {"weekly": "weekly", "monthly": "monthly",
                           "monthly_lagged": "monthly",
                           "monthly_batch": "weekly",
+                          "monthly_national": "monthly",
                           "monthly_month_end": "monthly", "quarterly": "quarterly",
                           "annual": "annual", "policy": "irregular"}
 
@@ -276,27 +287,72 @@ def all_series() -> list[Series]:
             fetch_kwargs={"ref_area": cb["bis_ref_area"]}, bounded=True,
             native_periodicity="irregular"))
 
-    # --- CPI: one response, two unit codes, therefore two series ------------
-    from fetch.sources import CPI_UNIT_INDEX, CPI_UNIT_YOY
+    # --- CPI: the national headline print, one source per region -----------
+    # Two series per region where the publisher gives both the index and the
+    # rate; index only where it does not, with the rate derived at export.
+    from fetch.sources import (CPI_UNIT_INDEX, CPI_UNIT_YOY,
+                               ONS_PRICES_SECTION)
     for region, cfg in universe.INFLATION_CPI.items():
-        out.append(Series(
-            series_id=f"cpi.{region}", category="CPI", region=region,
-            description=f"{region} headline CPI, year-on-year", unit="% YoY",
-            cadence="monthly_month_end",
-            source=f"BIS WS_LONG_CPI, M.{cfg['ref_area']}",
-            fetcher="fetch_bis_cpi",
-            fetch_kwargs={"ref_area": cfg["ref_area"], "unit": CPI_UNIT_YOY},
-            bounded=True, revisable=True))
-        # The index level, from the same response under unit_measure 628. The
-        # annualised QoQ figure is derived from it, so it has to be stored.
+        src = cfg["source"]
+        cadence = cfg.get("cadence", "monthly_month_end")
+        if src == "bis":
+            legs = {
+                "index": ("fetch_bis_cpi",
+                          {"ref_area": cfg["ref_area"], "unit": CPI_UNIT_INDEX},
+                          True, f"BIS WS_LONG_CPI, M.{cfg['ref_area']}"),
+                "yoy": ("fetch_bis_cpi",
+                        {"ref_area": cfg["ref_area"], "unit": CPI_UNIT_YOY},
+                        True, f"BIS WS_LONG_CPI, M.{cfg['ref_area']}"),
+            }
+        elif src == "fred":
+            legs = {"index": ("fetch_fred", {"series_id": cfg["index"]}, True,
+                              f"FRED, {cfg['index']}")}
+        elif src == "ons":
+            legs = {}
+            for leg in ("index", "yoy"):
+                if not cfg.get(leg):
+                    continue
+                legs[leg] = ("fetch_ons_timeseries",
+                             {"series_code": cfg[leg], "dataset": cfg["ons_dataset"],
+                              "section": ONS_PRICES_SECTION}, False,
+                             f"ONS, {cfg['ons_dataset'].upper()}/{cfg[leg].upper()}")
+        elif src == "eurostat":
+            legs = {}
+            # RCH_A is the annual rate; I25 the index on the 2025=100 base that
+            # the ECOICOP ver.2 changeover introduced.
+            for leg, unit in (("index", "I25"), ("yoy", "RCH_A")):
+                legs[leg] = ("fetch_eurostat",
+                             {"dataset": cfg["eurostat_dataset"],
+                              "filters": {"geo": cfg["geo"], "coicop18": "TOTAL",
+                                          "unit": unit, "freq": "M"}}, True,
+                             f"Eurostat, {cfg['eurostat_dataset']} ({cfg['geo']}, {unit})")
+        elif src == "snb":
+            legs = {leg: ("fetch_snb_cpi", {"measure": cfg[leg]}, True,
+                          f"SNB cube plkopr ({cfg[leg]})")
+                    for leg in ("index", "yoy") if cfg.get(leg)}
+        elif src == "ssb":
+            legs = {"index": ("fetch_ssb",
+                              {"table": cfg["table"], "contents": cfg["index"]},
+                              True, f"SSB, table {cfg['table']}")}
+        else:
+            raise ValueError(f"Unknown CPI source {src!r} for {region}")
+
+        basis = cfg.get("basis", "CPI")
+        if "yoy" in legs:
+            fetcher, kwargs, bounded, source = legs["yoy"]
+            out.append(Series(
+                series_id=f"cpi.{region}", category="CPI", region=region,
+                description=f"{region} headline CPI ({basis}), year-on-year",
+                unit="% YoY", cadence=cadence, source=source, fetcher=fetcher,
+                fetch_kwargs=kwargs, bounded=bounded, revisable=True))
+        # The index level. Annualised QoQ is derived from it, and so is the
+        # annual rate for the publishers that print no rate of their own.
+        fetcher, kwargs, bounded, source = legs["index"]
         out.append(Series(
             series_id=f"cpi.{region}.index", category="CPI", region=region,
-            description=f"{region} headline CPI, index level "
-                        f"(same BIS response as cpi.{region}, unit_measure 628)",
-            unit="index level", cadence="monthly_month_end",
-            source=f"BIS WS_LONG_CPI, M.{cfg['ref_area']}", fetcher="fetch_bis_cpi",
-            fetch_kwargs={"ref_area": cfg["ref_area"], "unit": CPI_UNIT_INDEX},
-            bounded=True, revisable=True))
+            description=f"{region} headline CPI ({basis}), index level",
+            unit="index level", cadence=cadence, source=source, fetcher=fetcher,
+            fetch_kwargs=kwargs, bounded=bounded, revisable=True))
 
     # --- GDP levels ---------------------------------------------------------
     for region, cfg in universe.GDP_GROWTH.items():

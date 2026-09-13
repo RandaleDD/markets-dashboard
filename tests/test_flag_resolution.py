@@ -174,5 +174,40 @@ class FlagResolution(unittest.TestCase):
         self.assertEqual(report["open_flags"], {"stale": 1})
 
 
+    # -- retired series ------------------------------------------------------
+    def test_a_flag_on_a_series_the_registry_dropped_is_closed(self):
+        """A source switch can retire a series id outright: cpi.US lost its
+        stored YoY leg on 2026-09-13 when the US moved to FRED, which publishes
+        the index only. No check will ever run against that id again, so an
+        open flag on it could never close itself -- and a flag that cannot
+        close is the permanently-red indicator this whole module exists to
+        avoid."""
+        # The catalog row survives a retirement -- that is what leaves the
+        # flag strandable in the first place, and what the foreign key needs.
+        store.upsert_catalog(self.conn, [{
+            "series_id": "cpi.retired", "category": "CPI", "region": "US",
+            "description": "a series a source switch retired", "unit": "% YoY",
+            "periodicity": "monthly", "source": "stub", "max_age_days": 95,
+            "status": "ok", "notes": None}])
+        old = (pd.Timestamp.now().normalize() - timedelta(days=400)).strftime("%Y-%m-%d")
+        store.raise_flag(self.conn, "cpi.retired", old, "gap", "a gap in a dead series")
+        fresh = (pd.Timestamp.now().normalize() - timedelta(days=30)).strftime("%Y-%m-%d")
+        store.insert_observations(self.conn, [(QUARTERLY.series_id, fresh, fresh, 1.0)])
+        report = quality.run_all(self.conn, [QUARTERLY])
+        self.assertEqual(report["flags_resolved_this_run"], {"gap": 1})
+        self.assertEqual(report["open_flags"], {})
+
+    def test_a_flag_on_a_live_series_is_not_closed_as_retired(self):
+        """The retirement rule must key on the registry, not on whether this
+        run happened to check the series. A live series whose condition is
+        still true keeps its flag."""
+        very_old = (pd.Timestamp.now().normalize() - timedelta(days=900)).strftime("%Y-%m-%d")
+        store.insert_observations(self.conn, [(QUARTERLY.series_id, very_old, very_old, 1.0)])
+        quality.run_all(self.conn, [QUARTERLY])
+        report = quality.run_all(self.conn, [QUARTERLY])
+        self.assertEqual(report.get("flags_resolved_this_run"), {})
+        self.assertEqual(report["open_flags"], {"stale": 1})
+
+
 if __name__ == "__main__":
     unittest.main()
