@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T12:00:47.932012+00:00",
+  "generated_at": "2026-09-13T12:04:52.267246+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -52927,6 +52927,36 @@
       }
     }
   ],
+  "corporate_spreads_to_govt": [
+    {
+      "region": "US",
+      "name": "US investment grade, spread to government",
+      "spread_bp": 73,
+      "corporate_yield_pct": 5.68,
+      "government_yield_pct": 4.95,
+      "basis": "Corporate yield less government yield. NOT option-adjusted and NOT duration-matched, so this is a different measure from the option-adjusted spreads above and the two must not be compared directly.",
+      "note": "ICE BofA US Corporate effective yield less the 10y Treasury. Not option-adjusted and not duration-matched \u2014 a deliberately plainer measure than credit.US.ig_oas, computed so this column has a consistent basis across regions.",
+      "as_of": "2026-09-10"
+    },
+    {
+      "region": "DE",
+      "name": "German corporate, spread to government",
+      "spread_bp": 93,
+      "corporate_yield_pct": 4.38,
+      "government_yield_pct": 3.45,
+      "basis": "Corporate yield less government yield. NOT option-adjusted and NOT duration-matched, so this is a different measure from the option-adjusted spreads above and the two must not be compared directly.",
+      "note": "Bundesbank yields on outstanding debt securities: corporate less general government. One publisher, one methodology, one vintage, so no cross-publisher gap enters the spread.",
+      "as_of": "2026-09-10"
+    }
+  ],
+  "corporate_spread_unavailable": {
+    "UK": "No free sterling corporate bond index exists on any basis. The benchmark is iBoxx/ICE, licensed. BoE effective lending rates are bank loan rates to largely unrated borrowers, not bond spreads, and are explicitly rejected as a proxy.",
+    "EZ": "No free euro INVESTMENT-GRADE series exists (FRED release 209 enumerated in full: euro coverage is four high-yield series). ECB MIR is bank lending rates, not bond spreads; ECB STEP is a real credit spread but at overnight-to-91-day maturities and was last updated 2026-05-12. Both rejected.",
+    "CH": "The SNB's rendoblid rating buckets would have been exactly right and died with the same 2025 cut that moved the curve.",
+    "CN": "No free onshore corporate curve beyond ChinaBond's AAA financial and CP&Note curves, which are not a broad IG corporate index.",
+    "JP": "JSDA publishes an OTC reference-price rating matrix (average compound yield per rating, all maturities) but no spread, and no government leg computed the same way \u2014 the sibling file is per-bond, so the government side would have to be constructed by hand, which is a different computation from the corporate side. Its URLs also encode one business day each, so history would cost ~6,000 requests, and the host returned connect timeouts when polled on 2026-09-13. Closed as not comparable rather than as merely expensive.",
+    "NO": "No free Norwegian corporate bond index. Nordic Bond Pricing is commercial."
+  },
   "liquidity": [],
   "fx_hedging": [
     {
@@ -53766,7 +53796,10 @@
       "total_pct": 9.98,
       "complete": true,
       "missing_legs": [],
-      "missing_labels": []
+      "missing_labels": [],
+      "supplementary": {
+        "credit_spread_to_govt": 0.73
+      }
     },
     "UK": {
       "legs": {
@@ -53781,7 +53814,10 @@
       ],
       "missing_labels": [
         "IG credit spread"
-      ]
+      ],
+      "supplementary": {
+        "credit_spread_to_govt": null
+      }
     },
     "EZ": {
       "legs": {
@@ -53798,7 +53834,10 @@
       "missing_labels": [
         "IG credit spread",
         "Equity risk premium"
-      ]
+      ],
+      "supplementary": {
+        "credit_spread_to_govt": null
+      }
     },
     "DE": {
       "legs": {
@@ -53813,7 +53852,10 @@
       ],
       "missing_labels": [
         "IG credit spread"
-      ]
+      ],
+      "supplementary": {
+        "credit_spread_to_govt": 0.93
+      }
     },
     "CH": {
       "legs": {
@@ -53828,7 +53870,10 @@
       ],
       "missing_labels": [
         "IG credit spread"
-      ]
+      ],
+      "supplementary": {
+        "credit_spread_to_govt": null
+      }
     },
     "CN": {
       "legs": {
@@ -53843,7 +53888,10 @@
       ],
       "missing_labels": [
         "IG credit spread"
-      ]
+      ],
+      "supplementary": {
+        "credit_spread_to_govt": null
+      }
     },
     "JP": {
       "legs": {
@@ -53858,7 +53906,10 @@
       ],
       "missing_labels": [
         "IG credit spread"
-      ]
+      ],
+      "supplementary": {
+        "credit_spread_to_govt": null
+      }
     },
     "NO": {
       "legs": {
@@ -53873,7 +53924,10 @@
       ],
       "missing_labels": [
         "IG credit spread"
-      ]
+      ],
+      "supplementary": {
+        "credit_spread_to_govt": null
+      }
     }
   },
   "cost_of_capital_note": "Real risk-free (10y inflation-linked) + investment-grade credit spread + equity risk premium. A real discount rate, because the risk-free leg is real \u2014 do not compare it with a nominal yield. Legs are summed only where each is sourced for that region; a partial stack shows what it has and says which legs are missing.",
@@ -54301,6 +54355,8 @@
     "credit:us_hy": "ok",
     "credit:eu_hy": "ok",
     "credit:em_corp": "ok",
+    "credit_to_govt:US": "ok",
+    "credit_to_govt:DE": "ok",
     "crossasset:eq_us": "ok",
     "crossasset:eq_eu": "ok",
     "crossasset:eq_jp": "ok",
@@ -54323,13 +54379,13 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-09-13T12:00:47.041114+00:00",
-    "series": 147,
-    "fresh": 146,
+    "generated_at": "2026-09-13T12:04:51.681764+00:00",
+    "series": 150,
+    "fresh": 149,
     "stale": 1,
     "missing": 0,
     "gapped": 3,
-    "observations": 145276,
+    "observations": 150459,
     "flags_raised_this_run": {},
     "flags_resolved_this_run": {},
     "open_flags": {

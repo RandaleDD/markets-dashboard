@@ -480,6 +480,98 @@ CREDIT_SPREADS = [
      "series_id": "credit.EM.corp_oas"},
 ]
 
+# ---------------------------------------------------------------------------
+# 7c. Corporate spread to government, NOT option-adjusted.
+#
+# WHY A SECOND, SEPARATELY LABELLED MEASURE RATHER THAN MORE ROWS ABOVE: the
+# ICE series above are option-adjusted spreads, and OAS is not free for any
+# currency but the dollar. FRED release rid=209 was enumerated in full -- 192
+# series -- and euro coverage is exactly four, all high yield. There is no euro
+# IG, no sterling series of any kind, no yen, no developed-Asia IG. That is
+# structural, not an oversight: the euro, sterling and yen IG benchmarks ARE
+# the ICE, iBoxx and Bloomberg indices, and ICE licenses only its US series to
+# FRED for free redistribution. The ECB licenses them rather than publishing
+# them. Two near-misses are traps and must not be substituted:
+# BAMLEMEBCRPIEOAS is EUR-denominated but EM issuers, and BAMLEMIBHGCRPIOAS is
+# IG-rated but EM issuers. Neither is a euro area proxy.
+#
+# What IS available free is the plainer measure: a corporate yield minus a
+# government yield, no option adjustment and no duration matching. That is a
+# DIFFERENT QUANTITY from an OAS -- it does not strip out issuers' call rights,
+# and it compares portfolios of unequal duration -- so under this project's own
+# rule (every figure states its definition; a number not comparable to the ones
+# beside it is a reporting error) it cannot sit in the OAS column. It gets its
+# own labelled column, and the US is additionally computed on this basis so
+# that the column is internally consistent rather than a US OAS beside
+# non-US approximations.
+#
+# Each entry names the two legs and both come from ONE publisher at one
+# vintage, so the methodology gap between publishers never enters the spread.
+# ---------------------------------------------------------------------------
+CORPORATE_SPREADS_TO_GOVT = [
+    {
+        "region": "US",
+        "name": "US investment grade, spread to government",
+        # ICE BofA US Corporate index EFFECTIVE YIELD, not the OAS series.
+        "corporate": {"source": "fred", "series": "BAMLC0A0CMEY",
+                      "series_id": "credit.US.ig_yield"},
+        # The 10y Treasury already stored for the curve panel, reused rather
+        # than fetched twice, so the leg subtracted here is the same number the
+        # cost-of-capital table shows as its risk-free leg.
+        "government": {"source": "stored", "series_id": "curve.US.10Y"},
+        "note": "ICE BofA US Corporate effective yield less the 10y Treasury. "
+                "Not option-adjusted and not duration-matched — a deliberately "
+                "plainer measure than credit.US.ig_oas, computed so this column "
+                "has a consistent basis across regions.",
+    },
+    {
+        "region": "DE",
+        "name": "German corporate, spread to government",
+        # Both legs are Bundesbank BBSIS daily yields on debt securities
+        # outstanding, computed the same way on the same universe basis, back
+        # to 1979. The daily corporate series is not listed on the Bundesbank
+        # web page; the API serves it anyway.
+        "corporate": {"source": "bundesbank",
+                      "series": "D.I.UMR.RD.EUR.X2000.B.A.A.R.A.A._Z._Z.A",
+                      "series_id": "credit.DE.corp_yield"},
+        "government": {"source": "bundesbank",
+                       "series": "D.I.UMR.RD.EUR.S13.B.A.A.R.A.A._Z._Z.A",
+                       "series_id": "credit.DE.govt_yield"},
+        "note": "Bundesbank yields on outstanding debt securities: corporate "
+                "less general government. One publisher, one methodology, one "
+                "vintage, so no cross-publisher gap enters the spread.",
+    },
+]
+
+# Regions with no free corporate spread on ANY basis, and why. These read as
+# unavailable rather than pending: each was checked and closed, not skipped.
+CORPORATE_SPREAD_UNAVAILABLE = {
+    "UK": "No free sterling corporate bond index exists on any basis. The "
+          "benchmark is iBoxx/ICE, licensed. BoE effective lending rates are "
+          "bank loan rates to largely unrated borrowers, not bond spreads, and "
+          "are explicitly rejected as a proxy.",
+    "EZ": "No free euro INVESTMENT-GRADE series exists (FRED release 209 "
+          "enumerated in full: euro coverage is four high-yield series). ECB "
+          "MIR is bank lending rates, not bond spreads; ECB STEP is a real "
+          "credit spread but at overnight-to-91-day maturities and was last "
+          "updated 2026-05-12. Both rejected.",
+    "CH": "The SNB's rendoblid rating buckets would have been exactly right "
+          "and died with the same 2025 cut that moved the curve.",
+    "CN": "No free onshore corporate curve beyond ChinaBond's AAA financial "
+          "and CP&Note curves, which are not a broad IG corporate index.",
+    "JP": "JSDA publishes an OTC reference-price rating matrix (average "
+          "compound yield per rating, all maturities) but no spread, and no "
+          "government leg computed the same way — the sibling file is "
+          "per-bond, so the government side would have to be constructed by "
+          "hand, which is a different computation from the corporate side. "
+          "Its URLs also encode one business day each, so history would cost "
+          "~6,000 requests, and the host returned connect timeouts when "
+          "polled on 2026-09-13. Closed as not comparable rather than as "
+          "merely expensive.",
+    "NO": "No free Norwegian corporate bond index. Nordic Bond Pricing is "
+          "commercial.",
+}
+
 COST_OF_CAPITAL_NOTE = (
     "Real risk-free (10y inflation-linked) + investment-grade credit spread + "
     "equity risk premium. A real discount rate, because the risk-free leg is "

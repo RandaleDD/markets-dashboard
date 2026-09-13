@@ -22,7 +22,9 @@ TOP_LEVEL = {
     "generated_at", "is_sample", "regions", "region_names", "chart_periods",
     "equity_indices", "currencies", "commodities", "macro", "yield_curves",
     "real_yield_curves", "inflation_expectations", "eurozone_spreads",
-    "credit_spreads", "liquidity", "fx_hedging", "regime", "correlation",
+    "credit_spreads", "corporate_spreads_to_govt",
+    "corporate_spread_unavailable", "liquidity", "fx_hedging", "regime",
+    "correlation",
     "cost_of_capital", "cost_of_capital_note", "valuation",
     "equity_risk_premia", "source_status", "data_quality",
 }

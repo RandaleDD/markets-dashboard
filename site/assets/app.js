@@ -709,7 +709,7 @@ function renderYields() {
     tableWithRaw(inflHeaders, inflationRows(inflHeaders.length)) +
 
     `<h2 class="mt">Credit Spreads</h2>` +
-    note("What the market charges for corporate credit risk, in basis points over government bonds. These are option-adjusted spreads — adjusted for issuers' rights to call bonds early. FRED serves them on a rolling three-year window under an ICE licensing limit, so percentile context can only be measured against that window.") +
+    note("What the market charges for corporate credit risk, in basis points over government bonds. Every row here is an option-adjusted spread — adjusted for issuers' rights to call bonds early. FRED serves them on a rolling three-year window under an ICE licensing limit, so percentile context can only be measured against that window. OAS is not published free for any currency but the dollar, which is why the euro row is high yield and why the non-OAS column in Cost of Capital exists.") +
     table(["Region", "Index", "Grade", "Spread", "As of"],
       (DATA.credit_spreads || []).map((c) => [
         c.region === "EM" ? "Emerging Markets" : regionName(c.region),
@@ -719,12 +719,17 @@ function renderYields() {
       ])) +
 
     `<h2 class="mt">Cost of Capital</h2>` +
-    note("The nominal building blocks of a discount rate, laid out leg by leg. The risk-free leg is the nominal 10y government yield, not a real yield: the equity risk premium beside it is itself measured against a nominal government yield, so pairing it with a real rate would remove inflation twice.") +
-    table(["Region", "Risk-free (nominal 10y)", "Credit spread", "Equity risk premium", "Total", "Coverage"],
+    note("The nominal building blocks of a discount rate, laid out leg by leg. The risk-free leg is the nominal 10y government yield, not a real yield: the equity risk premium beside it is itself measured against a nominal government yield, so pairing it with a real rate would remove inflation twice. Option-adjusted credit spreads are only published free for the dollar, so a second, plainer spread — corporate yield less government yield — is shown separately for the regions where both legs exist.") +
+    table(["Region", "Risk-free (nominal 10y)", "IG credit spread (OAS)",
+           "Corporate spread to govt (non-OAS)", "Equity risk premium", "Total", "Coverage"],
       REGION_ORDER.map((region) => {
         const s2 = (DATA.cost_of_capital || {})[region];
         if (!s2) return null;
         const L = s2.legs || {};
+        // The non-OAS spread is a second measurement of the credit layer on a
+        // different definition, so it sits in its own column and is never
+        // summed into the total or counted toward coverage.
+        const supp = (s2.supplementary || {}).credit_spread_to_govt;
         const cov = s2.complete
           ? '<span class="badge badge-market">all 3 legs</span>'
           : (s2.total_pct != null
@@ -732,14 +737,14 @@ function renderYields() {
               : `<span class="stub">no legs sourced</span>`);
         return [
           regionName(region), pctPlain(L.risk_free), pctPlain(L.credit_spread),
-          pctPlain(L.erp),
+          pctPlain(supp), pctPlain(L.erp),
           s2.total_pct != null
             ? `<strong>${s2.total_pct.toFixed(2)}%</strong>${s2.complete ? "" : "*"}`
             : dash(),
           cov,
         ];
       }).filter(Boolean)) +
-    `<p class="section-note">* A partial total sums only the legs that are sourced, so it is not comparable with a complete stack.</p>`;
+    `<p class="section-note">* A partial total sums only the legs that are sourced, so it is not comparable with a complete stack. The non-OAS column is corporate yield less government yield — not option-adjusted and not duration-matched — so it is a different measure from the OAS column beside it, is never added into the total, and does not count toward coverage. Only the US has both, where they read 80bp and 73bp.</p>`;
 
   wireCurveControls();
 }
