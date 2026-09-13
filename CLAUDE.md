@@ -40,37 +40,41 @@ checkout is how the Actions runner gets yesterday's data instead of
 re-bootstrapping. `bootstrap.py` is a one-time seed, never on the schedule.
 
 ## Current status
-Last verified live run (2026-09-12): **105/122 `ok`, 7 `partial`, 1 `stale`,
-9 `stubbed`, 0 `failed`.** Database: 143 tracked series. Data quality:
-142 fresh, 1 stale, 0 missing; 5 open flags.
-`site/data/latest.json` is 852 KB.
+Last verified live run (2026-09-13): **109/124 `ok`, 7 `partial`, 1 `stale`,
+7 `stubbed`, 0 `failed`.** Database: 153 tracked series. Data quality:
+152 fresh, 1 stale, 0 missing; 4 open flags.
+`site/data/latest.json` is 932 KB.
+
+The 2026-09-13 re-sourcing pass closed three long-standing gaps and corrected
+two wrong entries in SPEC.md's dead-ends list. The Swiss curve moved to the SNB
+(`rendeiduebd` — the curve was never retired, it moved cubes), which **removed
+the project's only unofficial source**; the China curve came online from
+ChinaBond's server-rendered endpoints; China GDP went annual to quarterly; CPI
+moved off one BIS dataflow onto each country's own statistics office; CH and NO
+GDP left FRED for Eurostat; a non-OAS corporate spread column arrived for US and
+DE; and the euro area gained a survey-based inflation expectation from the ECB
+SPF.
 
 None of the non-`ok` states is a to-do list:
 
-- **1 stale** — Shiller's CAPE file, ending 2024-09. Norway GDP left this list
-  on 2026-09-08 when the full re-fetch pulled its current quarter, and its old
-  `stale` flag has since closed itself. Switzerland left it on 2026-08-29 when
-  its curve moved to a daily source.
-- **9 stubbed** — no free source exists: the China curve, six regions'
-  inflation expectations, and the two Eurozone equity panels, which are
-  `descoped` rather than pending because Damodaran publishes member states with
-  no bloc aggregate.
-- **7 partial** — every cost-of-capital stack except the US. All have the
-  risk-free and ERP legs; only the US has an IG credit spread. `missing_legs`
-  in the payload names what each lacks.
-- **5 open flags** — US CPI missing 2025-10 (the release the shutdown delayed,
-  on both `cpi.US` and `cpi.US.index`), a 34-week hole in the BoE's real and
-  inflation 2y points, and Shiller's CAPE. The Norway GDP flag closed itself on
-  2026-09-08 once resolution went in.
+- **1 stale** — Shiller's CAPE file, ending 2024-09.
+- **7 stubbed** — five regions' inflation expectations (CH and NO permanently:
+  neither government issues inflation-linked debt; CN refused on definition, the
+  only measure being a diffusion index rather than a percentage; DE reads the EZ
+  figure) and the two Eurozone equity panels, which are `descoped` because
+  Damodaran publishes member states with no bloc aggregate.
+- **7 partial** — every cost-of-capital stack except the US still lacks its IG
+  credit leg. That gap is now **closed as unfixable rather than pending**: OAS is
+  not published free for any currency but the dollar, and the reason is
+  structural (SPEC.md, dead ends). Germany has a non-OAS spread instead, in its
+  own labelled column, which deliberately does not count toward `complete`.
+- **4 open flags** — US CPI missing 2025-10 (the release the shutdown delayed;
+  FRED is missing it too), a 34-week hole in the BoE's real and inflation 2y
+  points, and Shiller's CAPE.
 
-The Saturday 2026-09-12 run briefly showed 9 `stale` and 17 stale series: all
-16 BIS CPI series crossed a 70-day threshold that was simply too tight for a
-source released in the last week of each month. The cadence is now
-`monthly_month_end` (100d) — see SPEC.md's appendix row for BIS CPI. Nothing
-was wrong with the data.
-
-Chasing the stubbed set again is wasted effort unless a new source appears;
-SPEC.md's dead ends list what has been tried.
+The China curve is the **only remaining scrape**. Chasing the stubbed set again
+is wasted effort unless a new source appears; SPEC.md's dead ends list what has
+been tried, including the several things this pass proved were wrong.
 
 Re-run `python3 pipeline.py --mode live` to refresh these numbers before
 trusting them — this section is a snapshot and goes stale on its own.
@@ -79,7 +83,7 @@ trusting them — this section is a snapshot and goes stale on its own.
 - One series/region = one entry in `fetch/universe.py`. Never hardcode a
   ticker or series ID anywhere else.
 - **A revisable series slower than weekly is re-fetched in FULL every run**
-  (`db/ingest.FULL_REFETCH_CADENCES` — the 8 GDP and 16 CPI series). Do not
+  (`db/ingest.FULL_REFETCH_CADENCES` — the 9 GDP and 14 CPI series). Do not
   "optimise" this back to the watermark window. A source that re-chain-links a
   level series rescales its whole history at once; a 14-day window reaches back
   less than one quarterly observation, so the rebasing lands on the tail only
@@ -149,6 +153,15 @@ trusting them — this section is a snapshot and goes stale on its own.
   otherwise a gap that simply aged past `GAP_WINDOW_DAYS` would be declared
   fixed by a check that had stopped looking at it. A permanently-red indicator
   is one you learn to scroll past, so **an open flag means currently true**.
+- **HTTP 200 does not mean the dataflow still exists.** Eurostat's
+  `prc_hicp_manr` and the ECB's `ICP` dataset were both discontinued on
+  2026-02-04 and both still answer every query normally, frozen at 2025-12.
+  Their successors need different dimension codes, not just a different id
+  (`coicop18=TOTAL` not `coicop=CP00`; `DATA_PROVIDER=4D0` not `4`). When a
+  series stops moving, check whether the dataflow was retired before assuming
+  the data is late — and when a series appears to vanish from an enumerable
+  API, ENUMERATE rather than guessing ids. Guessing missed the SNB's successor
+  cube seven times; listing the topic found it immediately.
 - HTTP 200 is not the same as current. Every series is age-checked against
   `MAX_AGE_DAYS` and marked `stale` if it is behind its publication cadence.
   **`stale` is a failure, not a pass.** Give any new fetcher the right cadence.
@@ -195,11 +208,26 @@ trusting them — this section is a snapshot and goes stale on its own.
   Confirming, not assuming, is `publish.verify()`'s job — it polls the live
   payload, with a cache-busting query string because Pages serves
   `max-age=600` and an edge cache will happily answer with the old file.
-- Switzerland's curve is the **one unofficial source** here (TradingEconomics,
-  scraped, 2y and 10y only). The SNB retired its own curve in July 2025 with no
-  successor. It returns today's value only, so history builds forward one run
-  at a time, and `curve.CH.10Y` holds OECD monthly prints before the switch —
-  which is why it is marked `irregular` and opts out of gap detection.
+- **The China curve is the one scrape here** (ChinaBond, 5y/10y/30y, no 2y).
+  Parse it by matching the header row by NAME and the government curve by its
+  name string — the response carries three curves and matching on position
+  would silently return a corporate one. A query wider than 365 days returns
+  HTTP 200 with a headers-only page, so zero rows means failure, and the
+  backfill walks one calendar year per request.
+- **Switzerland's curve is official again.** The SNB never retired it; it moved
+  to cube `rendeiduebd` (`dimSel=D0(CHF)`, tenors in years-German — `10J`, not
+  `10Y`), which retired the TradingEconomics scrape on 2026-09-13. The cube
+  publishes daily data in a MONTHLY BATCH, so it carries the `monthly_batch`
+  cadence and the 10y alone is topped up from the SNB's RSS feed (`R10`) to
+  stay current between batches. `curve.CH.*` is no longer `irregular` and gap
+  detection applies normally.
+- **A source switch that changes what a series MEANS cannot be fixed by
+  appending**, and `tools/purge_series.py` is the hand-run repair for it. New
+  rows only displace old ones on dates they share, so differing grids
+  interleave; where they do share a date they usually share a `vintage_date`
+  too, and ON CONFLICT DO NOTHING then keeps the OLD value. Purge and reseed
+  when the quantity, frequency or index base changes — never for a revision,
+  which is what the append-only rule exists to protect.
 - `Update Dashboard.command` is Marco's double-click entry point: sync, fetch,
   publish, preview. Keep it working and keep its output in plain English — it
   is the one file here meant to be used without reading any code.

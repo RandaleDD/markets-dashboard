@@ -99,8 +99,8 @@ actually uses today.
 |---|---|---|
 | Prices / FX / commodities | Yahoo Finance via `yfinance` | Live — 12 indices, VIX, 8 FX pairs, 8 commodities (Brent and WTI both, named so neither reads as plain "oil"), 2 bond-return proxies (US and euro governments). Gold/copper is derived from two of these rather than sourced again |
 | Central bank policy rates | BIS Data Portal `CBPOL`, all 7 regions on one endpoint | Live. Norway consolidated off Norges Bank onto `D.NO` 2026-08-29; Germany mirrors the ECB rate |
-| CPI, all 8 regions | BIS Data Portal `WS_LONG_CPI` | Live. Returns YoY and the index level in one response under different unit codes, so both are stored and annualised QoQ is derived |
-| GDP growth | FRED real-GDP *level* series for US/DE/CH/JP/NO/CN; **ONS** monthly index for the UK; **Eurostat `namq_10_gdp`** for the euro area | Live. YoY and annualised QoQ derived in the pipeline so every region shares one definition. China is annual-only |
+| CPI, all 8 regions | **Each country's own statistics office** — FRED (US), ONS (UK), Eurostat `prc_hicp_minr` (EZ/DE), SNB `plkopr` (CH), SSB table 14710 (NO); BIS `WS_LONG_CPI` for CN and JP only | Live. Moved off the single BIS dataflow 2026-09-13: BIS releases in the last week of each month and dates each print to the first of that month, so its newest figure ran 27–57 days old. Each region carries an explicit `basis` (US CPI-U, UK CPI, EA/DE HICP, CH LIK, CN CPI, JP CPI, NO KPI) because these cannot be put on one methodology — HICP does not exist for the US, China or Japan. Where a publisher prints only an index (US, NO) the annual rate is derived. China stays on BIS because the NBS returns 403 to non-browser clients from outside the mainland; Japan because e-Stat would buy 9 days for the price of an Actions secret |
+| GDP growth | FRED level series for US/DE/JP; **Eurostat `namq_10_gdp`** for EZ/DE-adjacent, CH and NO; **ONS `abmi`/`pn2`** quarterly for the UK; **World Bank GEM** for China | Live, and all eight regions are now quarterly chain-linked on one definition. CH and NO left FRED 2026-09-13 because `CLVMNACSCAB1GQ*` self-reports "Source: Eurostat" with a euro FX conversion layer on top — it was never nationally sourced, and it is the series that caused the rebasing incident. The UK moved off its monthly GVA index, which is kept as `gdp.UK.monthly_nowcast`. China moved from annual to quarterly |
 | US yield curve, real yields, breakevens | FRED (`fredgraph.csv`, no API key) | Live — nominal `DGS*`, real `DFII5/10/30`, breakevens `T5YIE`/`T10YIE`/`T5YIFR` |
 | US 1y inflation expectation | Cleveland Fed `EXPINF*` via FRED | Live, badged **model**-implied — no 1y TIPS breakeven is published |
 | UK curve, real yields, implied inflation | Bank of England GLC workbooks | Live, all four tenors, **history back to 1979** from the one-time archive pull |
@@ -109,16 +109,18 @@ actually uses today.
 | Germany curve | Deutsche Bundesbank daily Bund term structure | Live, all four tenors |
 | Japan curve | Japan MOF JGB CSV, current month stitched with the 1974 archive | Live, all four tenors |
 | Norway curve | Norges Bank `GOVT_ZEROCOUPON` | Live to 10y — **no 30y is published**, so that cell stays blank |
-| Switzerland curve | TradingEconomics, scraped | **The one unofficial source here**, taken deliberately: the SNB retired its own daily curve in July 2025 with no successor, and every official free alternative was checked and rejected (see dead ends). Daily, 2y and 10y only, current value only — so history builds forward from 2026-08-29, and the OECD monthly prints before it stay in the same series |
-| China curve | — | **No free source.** ChinaBond is JS-rendered and CFETS rejects all programmatic access |
-| Euro-area / CH / CN / JP / NO inflation expectations | — | **No free source.** The practitioner standard is the zero-coupon inflation swap, which is not published free. CH and NO are permanent: neither government issues inflation-linked debt at all |
-| Credit spreads | ICE BofA OAS via FRED (US IG/HY, Euro HY, EM corporate) | Live. Capped at a rolling ~3 years by ICE licensing, so only the `full` percentile window resolves |
+| Switzerland curve | **SNB cube `rendeiduebd`** (`dimSel=D0(CHF)`), plus the SNB interest-rate RSS feed for the live 10y | Live, all four tenors, **history to 1988-01-04**. The SNB never retired this curve — it moved cubes, and the earlier conclusion was wrong (see dead ends). Replaced the TradingEconomics scrape 2026-09-13, which **removes the project's only unofficial source**. The cube publishes daily observations in a monthly BATCH, hence the `monthly_batch` cadence; `R10` from the RSS feed keeps the 10y current between batches |
+| China curve | **ChinaBond `cbweb-pbc-web/pbc/historyQuery`**, scraped | Live at 5y/10y/30y, history to 2006-03-01. Server-rendered and answers a plain cold GET — the earlier "JS-rendered" finding was about the front-end path, not the host. **Labelled a scrape**: official CCDC/PBoC-affiliated and parsed by header and curve name rather than position, but a restyle still breaks it. There is **no 2y** on this curve and 3Y is deliberately not interpolated into that slot. Validated against OECD `CHN.M.IRLT` |
+| Euro-area inflation expectations | **ECB Survey of Professional Forecasters**, quarterly from 1999Q1 | Live, badged **survey**-based, never stacked with the market-implied rows. Not a substitute for the market measure: the EUR HICPx zero-coupon swap is still unpublished free. SPF has no rolling-horizon series, so the 1y and 2y are constructed from its calendar-year forecasts; the 5y slot holds its longer-term mean, whose tenor **moves between 4 and 5 years** by round and says so |
+| CH / CN / JP / NO inflation expectations | — | **No free source**, and CH and NO are permanent: neither government issues inflation-linked debt at all. China is refused on definition — the only measure is a PBoC diffusion index of respondents expecting higher prices, not a percentage |
+| Credit spreads (OAS) | ICE BofA OAS via FRED (US IG/HY, Euro HY, EM corporate) | Live. Capped at a rolling ~3 years by ICE licensing, so only the `full` percentile window resolves. **OAS is not free for any currency but the dollar**, and that is structural — see dead ends |
+| Corporate spread to government (non-OAS) | FRED `BAMLC0A0CMEY` less the stored US 10y; **Bundesbank BBSIS** corporate less general government | Live for US and DE only, in its own labelled Cost of Capital column. A **different quantity** from an OAS — not option-adjusted, not duration-matched — so it is never summed into the stack or counted toward coverage. The US is computed on both bases so the column is internally consistent (80bp OAS against 73bp non-OAS on 2026-09-10). UK/EZ/CH/CN/JP/NO read unavailable, each with a recorded reason |
 | Liquidity / lending | — | **Dropped 2026-08-29.** The Fed's SLOOS was the only region with a keyless feed, and a single-country lending panel was not being used |
 | US equity valuation | Shiller CAPE (`ie_data.xls`); Damodaran implied ERP (FCFE) | Live. Shiller's file currently ends 2024-09, so it reports `stale` |
 | Non-US equity risk premia | Damodaran `ctryprem.xlsx` (rating-based country risk premium) | Live for UK/DE/CH/CN/JP/NO, annual, back to 2000 from the year-stamped archives. Stores the **country** premium, which is 0.00 for every Aaa sovereign; `db/export.py` adds the mature-market base (`erp.US`) back on for display. No Eurozone aggregate exists, so `erp.EZ` is descoped |
 | Non-US equity valuation | Damodaran `countrystats.xls` (median trailing P/E, P/B, P/S, EV/EBITDA) | Live for the same six regions, annual, **2020 onward only** — the 2012-2019 archives publish means rather than medians, and splicing the two would put a methodology break mid-series. Not cyclically adjusted, so not comparable to the US CAPE. `valuation.EZ` is descoped |
 
-Twelve institutions and one scraped aggregator, and still gaps. No single source covers this, free or
+Fifteen institutions and two acknowledged scrapes (ChinaBond, and nothing else since the TradingEconomics retirement), and still gaps. No single source covers this, free or
 paid short of a full commercial terminal — the spread of sources is by design.
 
 ## Architecture
@@ -258,35 +260,52 @@ other series is touched.
 
 Three strands, roughly in order of value. None is started.
 
-8. **Fill the data gaps.** In descending order of what they would unlock:
-   - **Non-US investment-grade credit spreads.** This is the single highest-value
-     gap: it is the only leg missing from seven of the eight cost-of-capital
-     stacks, so one source would turn seven `partial` panels into `ok`.
-   - **A real Swiss source.** The scraped fallback works but is the only
-     unofficial input here, gives 2y and 10y only, and has no history before
-     2026-08-29. Worth re-checking the SNB portal periodically for a successor
-     cube.
+8. **Fill the data gaps.** Largely addressed 2026-09-13; what remains is
+   genuinely blocked rather than pending.
+   - ~~**Non-US investment-grade credit spreads.**~~ **Closed, with a partial
+     answer.** This was recorded as the single highest-value gap on the
+     assumption that one source would turn seven `partial` stacks into `ok`.
+     That source does not exist free, and the reason is structural: the euro,
+     sterling and yen IG benchmarks *are* the ICE, iBoxx and Bloomberg indices,
+     and ICE licenses only its US series to FRED. What was available instead is
+     the plainer corporate-minus-government spread, now live for the US and
+     Germany in its own labelled column. Five regions read **unavailable**,
+     each with a recorded reason. See dead ends before re-opening this.
+   - ~~**A real Swiss source.**~~ **Done.** SNB cube `rendeiduebd`: four tenors,
+     38 years, official. The scrape is retired.
+   - ~~**China curve.**~~ **Done.** ChinaBond `historyQuery`, 5y/10y/30y back to
+     2006. Still a scrape, and labelled as one.
+   - ~~**Euro-area inflation expectations.**~~ **Partly done.** The ECB SPF is
+     live as a clearly-badged *survey*. The market-implied measure — the EUR
+     HICPx zero-coupon swap — is still unpublished free, so the gap it was
+     meant to fill is narrowed, not closed.
    - **Non-US dividend yields and forward multiples**, which would make the
-     Valuation tab more than trailing multiples and a risk premium.
-   - **China curve** and **euro-area / CH / CN / JP / NO inflation
-     expectations** — both blocked on sources that do not exist free rather
-     than on work. Do not re-attempt without new information; see dead ends.
+     Valuation tab more than trailing multiples and a risk premium. **This is
+     now the highest-value remaining gap.**
+   - **CH / CN / JP / NO inflation expectations** remain blocked on sources
+     that do not exist free rather than on work. CH and NO are permanent.
+     China is refused on definition, not availability. Do not re-attempt
+     without new information; see dead ends.
 
 9. **Data cleanliness.** `db/quality.py` checks staleness, gaps, outliers and
    curve consistency. What it does not yet do:
    - **Plausibility bands per series.** Nothing would presently catch a yield
      of 40% or a P/E of 4,000 — the outlier check is relative to a series' own
      history, so a first bad print on a short series passes. This matters most
-     for the scraped Swiss curve, where a page restyle could silently return
-     the wrong number rather than failing.
+     for the scraped **China** curve — the Swiss one is no longer scraped —
+     where a page restyle could silently return the wrong number rather than
+     failing. `fetch_chinabond_curve` carries a hard 0-15% band of its own as a
+     first line of defence, but that is per-fetcher rather than per-series and
+     is exactly the ad-hoc arrangement this step should generalise.
    - **Unit-drift detection.** A source switching between fractions and percent
      is the failure mode that has bitten this project most (Damodaran twice),
      and it is currently caught only by fetcher-specific heuristics.
    - **Cross-series consistency.** Nothing asserts that a 2s10s spread agrees
      with its own legs, or that a derived ratio moves when its inputs do.
-   - **Flag lifecycle.** Flags are raised but never cleared: two had to be
-     resolved by hand on 2026-08-29 after the conditions that raised them went
-     away. `quality.py` should retire a flag when its condition no longer holds.
+   - ~~**Flag lifecycle.**~~ **Done** — `quality.py` retires a flag when its
+     condition no longer holds, and since 2026-09-13 also when the series
+     itself leaves the registry, which a source switch can do. Both halves are
+     held by `tests/test_flag_resolution.py`.
 
 10. **Layout, readability, usability.** The 2026-08-29 rework covered structure
     and colour; what remains is craft:
@@ -441,28 +460,127 @@ allowed to be 150 days stale but is stored weekly like a price.
   stops 2025-03/04 (JP: 2021-06), `CPALTT01*` stops 2024-12, `NAEXKP01*Q657S`
   growth is discontinued. CPI moved to BIS; GDP to level series with growth
   derived here.
-- **SNB Confederation bond yields are discontinued, and nothing official
-  replaced them.** `rendoblid` (daily) and `rendoblim` (monthly) both return
-  200 while stopping at 2025-07-31, and seven candidate successor cube ids were
-  tried on 2026-08-29 — all 404. Money-market cubes on the same portal (e.g.
-  `zimoma`) are current, so the series was retired, not the portal broken.
-  Everything else was checked the same day and rejected: FRED carries only the
-  OECD monthly 10y (~2 months behind), Yahoo has no Swiss sovereign ticker,
-  worldgovernmentbonds and FT render their tables in JavaScript, and
-  MarketWatch sits behind a DataDome captcha. SIX has a working JSON quote API
-  but serves individual bonds, so using it would mean computing and fitting a
-  curve ourselves — our methodology, not an institution's. Hence the scraped
-  TradingEconomics fallback, taken knowingly.
-- **ChinaBond is JS-rendered** (`queryGjqxInfo` returns a 956-byte shell
-  regardless of parameters, and the `yield_main` XHR paths
-  `getYieldDataForWeb` / `queryTypeValues` are 404) and **CFETS answers
-  `{"Error":"Path not found."}` to every path**, including plain HTML.
-  Re-checked 2026-08-29: a POST to `cbweb-czb-web/czb/queryGjqxInfo` returns
-  200 but with empty tables, and the MOF curve page is another JS shell. The
-  China curve has no remaining lead short of a headless browser.
-- **Euro-area market-implied inflation has no free source.** The practitioner
-  standard is the EUR HICPx zero-coupon inflation swap. The ECB `FM` dataflow
-  has no ILS series — its `ILS` codes are Israeli shekel.
+- ~~**SNB Confederation bond yields are discontinued.**~~ **CORRECTED
+  2026-09-13: they were never discontinued. The curve MOVED CUBES.** The
+  original entry was right that `rendoblid` and `rendoblim` stop at 2025-07-31
+  while returning 200, and right that seven candidate successor ids 404ed on
+  2026-08-29. It was wrong to conclude there was no successor: it is
+  **`rendeiduebd`**, in the same `ziredev` topic on the same API, with
+  `dimSel=D0(CHF)` isolating Swiss Confederation issues and `D1` carrying the
+  maturity in years-German (`10J`, not `10Y`). Twelve tenors, `1J`–`10J`, `20J`
+  and `30J`, daily, back to 1988-01-04.
+  The proof it is the successor, not a different series: it has continuous
+  daily data straight through August and September 2025, exactly the window
+  where `rendoblid` died. The two overlap and then one takes over.
+  **The lesson worth keeping is about method, not Switzerland.** Guessing cube
+  ids found nothing seven times; the cube was found by listing what the topic
+  actually contains. When a series on an enumerable API appears to vanish,
+  enumerate before concluding.
+  Still closed, and still true: `rendoeid` is live but is 23 individual bond
+  ISINs with yields to maturity, so using it would mean fitting a curve
+  ourselves; the EFV/AFF publishes budget and debt series only; and FRED, Yahoo,
+  worldgovernmentbonds, FT, MarketWatch and SIX were all checked on 2026-08-29
+  and rejected for the reasons recorded then. The TradingEconomics scrape they
+  forced has been **retired** — it was the project's only unofficial source,
+  and on 2026-09-11 it had the Swiss 2y at 0.270 against the SNB curve's 0.078.
+- ~~**ChinaBond is JS-rendered and CFETS refuses all access.**~~ **CORRECTED
+  2026-09-13: ChinaBond is reachable. The earlier attempts hit the JavaScript
+  FRONT-END path.** The server-rendered endpoints live under
+  `cbweb-pbc-web/pbc/` and answer a plain cold GET — no cookies, no session, no
+  captcha, no key, and byte-identical with and without a browser User-Agent:
+
+      /cbweb-pbc-web/pbc/historyQuery?startDate=&endDate=&gjqx=0&qxId=ycqx&locale=en_US
+
+  Eight tenors (3M/6M/1Y/3Y/5Y/7Y/10Y/30Y, and **no 2Y**), history to
+  2006-03-01. Everything recorded about `queryGjqxInfo`, `getYieldDataForWeb`,
+  `queryTypeValues`, `cbweb-czb-web` and CFETS remains true — those paths are
+  still dead. They were simply not the only paths.
+  Its own traps, since this is a scrape and will break eventually: the response
+  carries **three** curves, so match the government one by its name string and
+  never by position; a query wider than **365 days** returns HTTP 200 with a
+  headers-only page, as does a range with no data, so zero rows must be treated
+  as failure; and the backfill therefore walks one calendar year per request.
+  Cross-check against OECD SDMX `CHN.M.IRLT`, which is monthly and ~6 weeks
+  behind — useful for validation, useless as a feed.
+  **Same lesson as the SNB entry:** "the site is JavaScript-rendered" is a
+  statement about one path, not about a host.
+- **Euro-area MARKET-implied inflation has no free source.** Still true. The
+  practitioner standard is the EUR HICPx zero-coupon inflation swap; the ECB
+  `FM` dataflow has no ILS series — its `ILS` codes are Israeli shekel. Note
+  that since 2026-09-13 the euro area does carry a SURVEY-based expectation
+  from the ECB SPF. That is a different quantity, not a substitute, and is
+  badged separately for exactly that reason.
+- **Eurostat `prc_hicp_manr`/`prc_hicp_midx` and the ECB `ICP` dataset are
+  retired, and both still return HTTP 200.** Discovered 2026-09-13. Both sit
+  frozen at **2025-12** while answering every query normally; Eurostat's
+  databrowser titles the dataset "(1997-2025)". The reason is in the ECB
+  payload's own `OBS_COM` field: both were discontinued on **2026-02-04** for
+  the ECOICOP ver.2 changeover. The successors are Eurostat
+  **`prc_hicp_minr`** — whose item dimension is `coicop18=TOTAL`, not
+  `coicop=CP00`, and whose index unit is `I25` (2025=100), not `I15` — and the
+  ECB's new **`HICP`** dataflow, which needs `DATA_PROVIDER=4D0`, not `4`. They
+  carry identical numbers.
+  This is the clearest example here of the failure mode that actually damages a
+  dashboard: not an outage, but a **silent freeze behind a 200**, from an
+  official publisher. The staleness check with a correct cadence is the only
+  thing that catches it.
+- **SSB table 14702 is not Norway's headline CPI**, despite being the obvious
+  successor to the closed table 03013 (1979M01–2025M12). It is CPI by
+  **delivery sector**, and its "consumer goods" aggregate diverges materially
+  from the headline: 7.7 against 6.5 in 2023M03, −0.3 against 1.4 in 2020M06.
+  The headline index is **table 14710** — one series, no consumption-group
+  dimension to pick wrongly, base 2025=100, back to 1920M03. Also: the
+  `pxwebapi/v2-beta` host returns 503; the v1 host works and its data retrieval
+  is POST-only, and its default selection returns only the latest period.
+- **BFS/FSO does not serve Swiss prices on its PxWeb API.** It publishes CPI at
+  T+3, against the SNB's T+21, so it is worth wanting. But of the 650 database
+  ids the PxWeb v1 root lists, **not one begins `px-x-05`** — domain 05
+  (Prices) is simply not there. Checked 2026-09-13. Swiss CPI stays on SNB
+  cube `plkopr`.
+- **No free investment-grade credit spread exists for any currency but the
+  dollar**, and the reason is structural rather than an oversight: the euro,
+  sterling and yen IG benchmarks ARE the ICE, iBoxx and Bloomberg indices, and
+  ICE licenses only its US series to FRED for free redistribution. FRED release
+  `rid=209` was enumerated in full — 192 series — and euro coverage is exactly
+  four, all high yield. Two near-misses are traps: `BAMLEMEBCRPIEOAS` is
+  EUR-denominated but **EM issuers**, `BAMLEMIBHGCRPIOAS` is IG-rated but **EM
+  issuers**. BIS has no corporate credit data at all; the ECB has no corporate
+  bond yield dataset (`FM` is government/money-market, `YC` the sovereign
+  curve, `STP` short-term paper, `MIR` bank lending); IMF FSI is bank soundness
+  ratios; the ESRB dashboard's spread panels are iBoxx/ICE-derived. Rejected as
+  proxies and not to be substituted: ECB MIR and BoE effective lending rates
+  (bank loan rates to largely unrated borrowers, not bond spreads), IG ETF
+  yields, and ECB STEP (a real credit spread, but at overnight-to-91-day
+  maturities against a 10y leg, last updated 2026-05-12). What IS free is the
+  plainer corporate-minus-government spread, for Germany via Bundesbank BBSIS —
+  a different quantity from an OAS, so it lives in its own labelled column.
+- **Japan's JSDA gives a rating matrix, not a spread, and not a curve.** The
+  `ER` file is an average compound yield per rating across ALL maturities, and
+  the sibling `ES` file is per-bond, so a government leg computed the same way
+  does not exist — it would have to be constructed by hand, which is a
+  different computation from the corporate side. Its URLs also encode one
+  business day each (`ER260911.csv`), so history would cost ~6,000 requests,
+  and the host returned connect timeouts when polled on 2026-09-13. Closed as
+  **not comparable**, not merely expensive. Its parsing trap, since someone
+  will try again: the column after the yield looks like a spread and is the
+  **standard deviation** — the order is (rating, compound yield, standard
+  deviation, number of issues, number of reporting members). JSDA publishes no
+  spread.
+- **DBnomics and aggregators generally: do not consolidate onto them.** Tested
+  2026-09-13, `BIS/WS_CBPOL/M.US` returns **2025-06 = 4.375%** with HTTP 200
+  where the true current value from BIS is 2026-08 = 3.625% — 75bp wrong,
+  well-formed, no error. Its BIS fetcher broke on the BIS data-portal migration
+  over a year ago and has served the stale mirror ever since; its OECD mirror
+  is ~3 months behind and its IMF mirror frozen at September 2025. It carries
+  neither SNB nor Norges Bank, so Switzerland and Norway could never have been
+  consolidated onto it anyway. The general point: an outage is the BENIGN
+  failure — loud and obviously a bug. What damages a dashboard is a silent
+  freeze, and an aggregator adds a scraping step that can rot with nobody on
+  either side noticing. Bespoke parsers fail noisily, which is a monitoring
+  feature disguised as a maintenance cost. The OECD's own SDMX API is worth
+  having as a **cross-check** (`DSD_STES@DF_FINMARK` gives `IRLT`/`IR3TIB` for
+  all eight regions), never as a feed; its CPI dataflow is ~9 months stale for
+  CH and NO.
 - **Yahoo has no CSI 300 index history** — `000300.SS`/`399300.SZ` accept only
   `period=1d/5d`. The CNY-priced tracker ETF `510300.SS` stands in.
 
