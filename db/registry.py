@@ -58,14 +58,24 @@ from fetch import universe
 # it lands and peaks at ~85 the day before the next release. At the plain 70 it
 # went stale in the back half of every month; 100 clears that peak with room to
 # spare while still catching a skipped release, which lands at ~115 days.
+#
+# `monthly_batch` is the SNB's rendeiduebd curve cube: DAILY observations
+# delivered once a month in one batch (measured 2026-09-13, PublishingDate
+# 2026-09-01 for data ending 2026-08-31), so a query into the current month
+# returns headers only. The data is daily, so it downsamples to weekly like any
+# other curve and gap detection applies normally within a batch -- it is only
+# ARRIVAL that is monthly. Worst case is the day before a batch: ~33 days of
+# unpublished month plus up to 6 days lost to weekly downsampling. 45 clears
+# that and still catches a skipped batch, which lands at ~63 days.
 MAX_AGE_DAYS = {"weekly": 14, "monthly": 70, "monthly_lagged": 120,
-                "monthly_month_end": 100,
+                "monthly_month_end": 100, "monthly_batch": 45,
                 "quarterly": 200, "policy": 150, "annual": 730}
 
 # Expected spacing between observations, for gap detection. "irregular" opts a
 # series out: a policy rate genuinely has no cadence between decisions.
 PERIODICITY_OF_CADENCE = {"weekly": "weekly", "monthly": "monthly",
                           "monthly_lagged": "monthly",
+                          "monthly_batch": "weekly",
                           "monthly_month_end": "monthly", "quarterly": "quarterly",
                           "annual": "annual", "policy": "irregular"}
 
@@ -73,7 +83,7 @@ PERIODICITY_OF_CADENCE = {"weekly": "weekly", "monthly": "monthly",
 # history is reduced to one observation per completed week -- the last actual
 # close on or before each Friday -- before anything is inserted. See
 # `db/ingest.to_weekly`.
-DOWNSAMPLED_TO_WEEKLY = {"weekly", "policy"}
+DOWNSAMPLED_TO_WEEKLY = {"weekly", "policy", "monthly_batch"}
 
 
 @dataclass(frozen=True)
@@ -117,14 +127,13 @@ _CURVE_SOURCES = {
     "boe_glc":    ("fetch_boe_glc", False),      # current-month workbook only
     "mof":        ("fetch_mof_jgb", False),      # one stitched file, no window
     "norges":     ("fetch_norges_curve", True),
-    # Scraped, snapshot-only: returns today's value and nothing else.
-    "tradingeconomics": ("fetch_tradingeconomics_bond", False),
+    "snb":        ("fetch_snb_curve", True),
 }
 
 _CURVE_SOURCE_NAMES = {
     "fred": "FRED", "bundesbank": "Deutsche Bundesbank", "ecb": "ECB Data Portal",
     "boe_glc": "Bank of England GLC", "mof": "Japan MOF", "norges": "Norges Bank",
-    "tradingeconomics": "TradingEconomics (unofficial)",
+    "snb": "Swiss National Bank", "chinabond": "ChinaBond (scraped)",
 }
 
 
@@ -134,7 +143,7 @@ def _curve_series(prefix: str, category: str, curves: dict, unit: str,
     for region, cfg in curves.items():
         src = cfg["source"]
         if src not in _CURVE_SOURCES:
-            continue  # chinabond / snb: no fetcher, so nothing to store
+            continue  # a declared curve with no fetcher stores nothing
         fetcher, bounded = _CURVE_SOURCES[src]
         cadence = _cadence(cfg)
         for tenor, key in cfg["tenors"].items():
@@ -142,8 +151,6 @@ def _curve_series(prefix: str, category: str, curves: dict, unit: str,
                 continue  # no source for this tenor (CH 2/5/30y, NO 30y)
             if src == "boe_glc":
                 kwargs = {"which": cfg.get("glc_file", "nominal"), "tenor_years": key}
-            elif src == "tradingeconomics":
-                kwargs = {"country": cfg["te_country"], "tenor": key}
             else:
                 kwargs = {_curve_arg(src): key}
             out.append(Series(
@@ -151,18 +158,19 @@ def _curve_series(prefix: str, category: str, curves: dict, unit: str,
                 category=category, region=region,
                 description=f"{region} {kind}, {tenor}"
                             + (f" ({cfg['basis']})" if cfg.get("basis") else ""),
-                # A curve whose source changed mid-life has no single spacing:
-                # Switzerland holds OECD monthly prints up to 2026-06 and
-                # weekly TradingEconomics quotes after it. "irregular" is the
-                # honest label and opts it out of gap detection, the same
-                # mechanism policy rates use. Staleness still applies, via
-                # cadence.
+                # A curve whose source changed mid-life has no single spacing,
+                # so "irregular" is the honest label and opts it out of gap
+                # detection, the same mechanism policy rates use. Staleness
+                # still applies, via cadence. No curve carries this today:
+                # Switzerland did until 2026-09-13, when the OECD monthly tail
+                # was replaced by 38 years of daily SNB data and gap detection
+                # could be turned back on.
                 native_periodicity="irregular" if cfg.get("mixed_history") else None,
                 unit=unit, cadence=cadence, source=_CURVE_SOURCE_NAMES[src],
                 fetcher=fetcher, fetch_kwargs=kwargs, bounded=bounded,
                 # The daily path reads the current-month workbook; bootstrap
                 # reads the multi-decade archive zip instead.
-                archive_kwargs={**kwargs, "archive": True} if src == "boe_glc" else None,
+                archive_kwargs=_curve_archive_kwargs(src, kwargs),
             ))
     return out
 
@@ -177,7 +185,25 @@ def _cadence(cfg: dict) -> str:
 
 def _curve_arg(src: str) -> str:
     return {"fred": "series_id", "bundesbank": "series_key", "ecb": "series_key",
-            "mof": "tenor", "norges": "tenor"}[src]
+            "mof": "tenor", "norges": "tenor", "snb": "tenor",
+            "chinabond": "tenor"}[src]
+
+
+def _curve_archive_kwargs(src: str, kwargs: dict) -> dict | None:
+    """
+    Bootstrap-only overrides. Three sources need one, for three reasons:
+    the BoE keeps its deep history in a separate archive zip; the SNB cube
+    returns only the LAST MONTH unless fromDate is passed explicitly; and
+    ChinaBond caps a query at 365 days, so its history has to be walked a
+    year at a time.
+    """
+    if src == "boe_glc":
+        return {**kwargs, "archive": True}
+    if src == "snb":
+        return {**kwargs, "start": "1988-01-01"}
+    if src == "chinabond":
+        return {**kwargs, "archive": True}
+    return None
 
 
 def all_series() -> list[Series]:

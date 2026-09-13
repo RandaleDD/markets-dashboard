@@ -205,27 +205,38 @@ YIELD_CURVES = {
         },
     },
     "CH": {
-        # The SNB's own daily curve froze at 2025-07-31 with no successor, and
-        # every official free alternative was checked and rejected on
-        # 2026-08-29 (SPEC.md, dead ends). This is the project's ONLY
-        # unofficial source, taken deliberately over a two-month-old OECD
-        # monthly print. It publishes 2Y and 10Y and nothing else, and it
-        # serves only today's value, so history builds forward from first run.
-        "source": "tradingeconomics", "cadence": "daily",
-        "te_country": "switzerland",
-        "unofficial": True,
-        # curve.CH.10Y carries OECD monthly history before the 2026-08-29
-        # switch and weekly quotes after it, so it has no single cadence.
-        "mixed_history": True,
-        "note": "TradingEconomics interbank quotes, not an official curve — "
-                "the SNB retired its own in July 2025 and publishes no "
-                "successor. 2y and 10y only; there is no free Swiss 5y or 30y.",
-        "tenors": {"2Y": "2Y", "5Y": None, "10Y": "10Y", "30Y": None},
+        # The SNB never retired this curve — it moved cubes. `rendoblid`
+        # stopped on 2025-07-31 and `rendeiduebd` carries it forward, with
+        # continuous daily data through the Aug-Sep 2025 window where the old
+        # cube ended. Verified 2026-09-13; SPEC.md's dead-ends entry was wrong.
+        # Retiring the TradingEconomics scrape here removes the project's only
+        # unofficial source.
+        #
+        # The cube publishes in a MONTHLY BATCH, so it gets a monthly cadence:
+        # judged as daily it would go stale every month by construction. The
+        # RSS R10 series below is the one judged as current.
+        "source": "snb", "cadence": "monthly_batch",
+        "note": "SNB cube rendeiduebd, Swiss Confederation bond issues "
+                "(dimSel D0=CHF), daily spot rates back to 1988-01-04. "
+                "Published in a monthly batch; the SNB interest-rate RSS "
+                "feed carries the 10y between batches.",
+        # D1 is the SNB's own maturity label, in years-German: 10J, not 10Y.
+        "tenors": {"2Y": "2J", "5Y": "5J", "10Y": "10J", "30Y": "30J"},
     },
     "CN": {
+        # Server-rendered after all: the earlier attempts hit ChinaBond's
+        # JavaScript front-end path, not the `cbweb-pbc-web/pbc/` endpoints
+        # underneath it, which answer a plain cold GET. Verified 2026-09-13;
+        # SPEC.md's dead-ends entry was wrong.
+        #
+        # ChinaBond publishes 3M/6M/1Y/3Y/5Y/7Y/10Y/30Y. Only the three that
+        # fit the dashboard's shared tenor columns are stored; there is no 2Y
+        # point at all, and 3Y is deliberately NOT interpolated into that slot.
         "source": "chinabond", "cadence": "daily",
-        "note": "ChinaBond is JS-rendered and CFETS (chinamoney.com.cn) "
-                "rejects all programmatic access. No free source found.",
+        "note": "ChinaBond government bond yield curve (中债国债收益率曲线), "
+                "server-rendered HTML — a scrape, though an official "
+                "CCDC/PBoC-affiliated one. History to 2006-03-01. There is "
+                "no 2y point on this curve.",
         "tenors": {"2Y": None, "5Y": None, "10Y": None, "30Y": None},
     },
     "JP": {
