@@ -29,6 +29,7 @@ the watermark itself and lets ON CONFLICT DO NOTHING discard the rest.
 """
 from __future__ import annotations
 
+import csv
 import io
 import logging
 import re
@@ -859,6 +860,115 @@ def fetch_snb_rss_rate(rate_name: str) -> pd.DataFrame | None:
         return _frame(dates, values)
     except Exception as exc:  # noqa: BLE001
         logger.warning("SNB RSS parse failed for %s: %s", rate_name, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# ECB Survey of Professional Forecasters — euro area inflation expectations.
+#
+# This is a SURVEY, not a breakeven, and the distinction is not cosmetic: a
+# survey mean and a market-implied rate are different quantities with different
+# biases. The payload labels it `kind: "survey"` so the table badges it
+# separately from the US TIPS and UK BoE figures rather than stacking them in
+# one undifferentiated column.
+#
+# THE TENOR TRAP. SPF publishes no rolling-horizon series at all -- only point
+# forecasts for named CALENDAR YEARS, plus one "longer term" series whose
+# horizon MOVES: it is 5 calendar years ahead in the Q3 and Q4 rounds but 4
+# years ahead in Q1 and Q2. That is verifiable rather than folklore: in the
+# 2026-Q3 round the LT series is bit-identical to the calendar-2031 series
+# (2.0368652187499996), and in 2026-Q2 it matches calendar-2030.
+#
+# So the constant-horizon series this dashboard needs are CONSTRUCTED here,
+# from the calendar-year keys, by reading each survey round's forecast for the
+# year that is a fixed distance from it: for a round held in year Y, horizon
+# 1 is the forecast for Y+1 and horizon 2 the forecast for Y+2. Those really
+# are constant tenors and can sit in the 1Y and 2Y columns honestly. The LT
+# series is passed through as published, and because its tenor moves it must be
+# labelled as 4-5 years wherever it is shown -- it is NOT the same tenor as a
+# 5y breakeven, and the two must never be averaged.
+#
+# One wildcard request returns all 34 series with full history back to 1999Q1,
+# so the rolling construction costs no extra round trips.
+#
+# Note sdw-wsrest.ecb.europa.eu no longer resolves; data-api.ecb.europa.eu is
+# the host.
+# ---------------------------------------------------------------------------
+_SPF_URL = "https://data-api.ecb.europa.eu/service/data/SPF/Q.U2.HICP.POINT...AVG"
+_SPF_KEY_RE = re.compile(r"^SPF\.Q\.U2\.HICP\.POINT\.(LT|\d{4})\.Q\.AVG$")
+_SPF_ROUND_RE = re.compile(r"^(\d{4})-Q([1-4])$")
+
+
+def _spf_rows():
+    """Every SPF HICP point forecast, as {horizon_code: {round: value}}."""
+    resp = _get(_SPF_URL, params={"format": "csvdata"})
+    if resp is None or not resp.text:
+        return None
+    try:
+        out = {}
+        for row in csv.DictReader(io.StringIO(resp.text)):
+            match = _SPF_KEY_RE.match(str(row.get("KEY") or ""))
+            if match is None:
+                continue
+            value = row.get("OBS_VALUE")
+            if value in (None, ""):
+                continue
+            out.setdefault(match.group(1), {})[row["TIME_PERIOD"]] = value
+        return out or None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ECB SPF parse failed: %s", exc)
+        return None
+
+
+def fetch_ecb_spf(horizon: str, start: str | None = None) -> pd.DataFrame | None:
+    """
+    One euro area SPF inflation-expectation series.
+
+    `horizon` is 'lt' for the published longer-term mean, or the integer number
+    of calendar years ahead ('1', '2') for a constructed constant-horizon
+    series. See the module comment above for why the second kind has to be
+    built rather than fetched.
+
+    Observations are dated to the first day of the survey ROUND's quarter, the
+    same convention every other period series here uses.
+    """
+    if not horizon:
+        return None
+    table = _spf_rows()
+    if table is None:
+        return None
+    try:
+        dates, values = [], []
+        if horizon == "lt":
+            for period, value in (table.get("LT") or {}).items():
+                match = _SPF_ROUND_RE.match(period)
+                if match is None:
+                    continue
+                dates.append(pd.Timestamp(year=int(match.group(1)),
+                                          month=(int(match.group(2)) - 1) * 3 + 1, day=1))
+                values.append(value)
+        else:
+            ahead = int(horizon)
+            for code, series in table.items():
+                if code == "LT":
+                    continue
+                target_year = int(code)
+                for period, value in series.items():
+                    match = _SPF_ROUND_RE.match(period)
+                    if match is None:
+                        continue
+                    round_year, quarter = int(match.group(1)), int(match.group(2))
+                    if target_year - round_year != ahead:
+                        continue
+                    dates.append(pd.Timestamp(year=round_year,
+                                              month=(quarter - 1) * 3 + 1, day=1))
+                    values.append(value)
+        if not dates:
+            logger.warning("ECB SPF: no observations for horizon %r", horizon)
+            return None
+        return _frame(dates, values)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ECB SPF build failed for horizon %r: %s", horizon, exc)
         return None
 
 

@@ -295,6 +295,9 @@ tr.chart-row > td { padding: 0; background: var(--page-plane); }
 }
 .badge-market { background: var(--stub-bg); color: var(--delta-up); }
 .badge-model { background: var(--stub-bg); color: var(--series-1); }
+/* A survey mean, not a market or model rate — distinct at a glance so the
+   three never read as one series. */
+.badge-survey { background: var(--stub-bg); color: var(--series-2); }
 
 h2.mt { margin-top: 30px; }
 .snap-head {
