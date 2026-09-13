@@ -832,6 +832,194 @@ def fetch_snb_rss_rate(rate_name: str) -> pd.DataFrame | None:
 
 
 # ---------------------------------------------------------------------------
+# World Bank Global Economic Monitor (source=15) — quarterly real GDP levels.
+#
+# This exists for China, which has no free quarterly real-GDP series anywhere
+# else: FRED's candidates all 404, the OECD series that used to carry it died
+# in 2023Q3, and the NBS itself returns HTTP 403 to non-browser clients from
+# outside mainland China -- which is exactly a GitHub Actions runner.
+#
+# NYGDPMKTPSAKN is constant-2010-LCU seasonally adjusted GDP -- a LEVEL, which
+# is what this project stores, deriving growth itself.
+#
+# THE TRAP, and the reason for the assertion below: `frequency=Q` is SILENTLY
+# IGNORED unless a `date` range is also passed. Omit the range and the API
+# returns ANNUAL rows with HTTP 200, and the current year is a partial sum that
+# looks exactly like a real annual figure -- measured 2026-09-13, 2026 came
+# back as 72,551,656 against 2025's 140,133,708, a half-year masquerading as a
+# year. Nothing in the response marks it as partial. So the range is always
+# sent, and every returned period is checked to be a quarter before any of it
+# is believed.
+# ---------------------------------------------------------------------------
+_WORLDBANK_GEM_URL = "https://api.worldbank.org/v2/country/{country}/indicator/{indicator}"
+_WORLDBANK_GEM_SOURCE = "15"
+_WORLDBANK_FIRST_YEAR = 1991
+_QUARTER_RE = re.compile(r"^(\d{4})Q([1-4])$")
+
+
+def fetch_worldbank_gem(country: str, indicator: str,
+                        start: str | None = None) -> pd.DataFrame | None:
+    """
+    One quarterly GEM indicator, as a level. `country` is the ISO3 code.
+
+    Observations are dated to the FIRST DAY OF THE QUARTER they describe, the
+    same convention the rest of this pipeline uses for period data, so 2026Q2
+    is stored as 2026-04-01.
+    """
+    if not country or not indicator:
+        return None
+    first_year = _WORLDBANK_FIRST_YEAR
+    if start:
+        parsed = pd.to_datetime(start, errors="coerce")
+        if parsed is not None and not pd.isna(parsed):
+            first_year = max(_WORLDBANK_FIRST_YEAR, parsed.year)
+    last_year = pd.Timestamp.now().year
+    resp = _get(_WORLDBANK_GEM_URL.format(country=country, indicator=indicator),
+                params={"source": _WORLDBANK_GEM_SOURCE, "format": "json",
+                        "frequency": "Q", "per_page": "20000",
+                        "date": f"{first_year}Q1:{last_year}Q4"})
+    if resp is None:
+        return None
+    try:
+        payload = resp.json()
+        if not isinstance(payload, list) or len(payload) < 2 or not payload[1]:
+            logger.warning("World Bank GEM %s/%s: no observations in response",
+                           country, indicator)
+            return None
+        dates, values = [], []
+        for row in payload[1]:
+            period = str(row.get("date") or "")
+            match = _QUARTER_RE.match(period)
+            if match is None:
+                # Annual rows mean the quarterly filter was dropped server-side.
+                # Refuse the whole response: the current year would be a
+                # partial sum indistinguishable from a real annual figure.
+                logger.warning("World Bank GEM %s/%s: got non-quarterly period "
+                               "%r -- refusing the response", country, indicator, period)
+                return None
+            if row.get("value") is None:
+                continue
+            year, quarter = int(match.group(1)), int(match.group(2))
+            dates.append(pd.Timestamp(year=year, month=(quarter - 1) * 3 + 1, day=1))
+            values.append(row["value"])
+        return _frame(dates, values)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("World Bank GEM parse failed for %s/%s: %s",
+                       country, indicator, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# ChinaBond — the government bond yield curve, from the server-rendered pages.
+#
+# SPEC.md recorded ChinaBond as JavaScript-rendered and CFETS as refusing all
+# access. That was true of the paths tried: the earlier attempts hit the
+# JavaScript FRONT-END application. The server-rendered endpoints live under
+# `cbweb-pbc-web/pbc/` and answer a plain cold GET -- no cookies, no session,
+# no captcha, no key. Verified 2026-09-13.
+#
+# This is still a scrape and is labelled as one in the catalog. It is sturdier
+# than the TradingEconomics page it is modelled on -- an official CCDC/PBoC-
+# affiliated publisher, explicitly labelled column headers and named curves --
+# but a restyle would still break it. Hence: match the header row by NAME and
+# the curve by its name STRING, never by column position, and bound the values.
+#
+# Traps, all measured:
+#   - The response carries THREE curves (government, commercial-bank financial
+#     bond AAA, CP&Note AAA). Matching on position would silently hand back a
+#     corporate curve, so the government curve is selected by name.
+#   - A query wider than 365 days returns HTTP 200 with a headers-only page of
+#     about 6.4 KB. So does a range with no data. Neither raises, and both
+#     parse cleanly to zero rows -- which is why zero rows returns None.
+#   - History starts 2006-03-01. Earlier ranges return the same empty page.
+#   - The published curve has 3M/6M/1Y/3Y/5Y/7Y/10Y/30Y and NO 2Y. Only the
+#     tenors the dashboard's shared columns carry are stored.
+# ---------------------------------------------------------------------------
+_CHINABOND_URL = "https://yield.chinabond.com.cn/cbweb-pbc-web/pbc/historyQuery"
+_CHINABOND_CURVE = "ChinaBond Government Bond Yield Curve"
+_CHINABOND_FIRST_DATE = "2006-03-01"
+# The server caps a single query at 365 days inclusive; 366 returns headers only.
+_CHINABOND_MAX_SPAN_DAYS = 365
+# A government bond yield outside this band is a parse error, not a market move.
+_CHINABOND_MIN_PCT, _CHINABOND_MAX_PCT = 0.0, 15.0
+
+
+def _chinabond_window(start: str, end: str, tenor: str) -> pd.DataFrame | None:
+    """One <=365-day window of one tenor, or None if the page carried no data."""
+    resp = _get(_CHINABOND_URL, params={"startDate": start, "endDate": end,
+                                        "gjqx": "0", "qxId": "ycqx",
+                                        "locale": "en_US"})
+    if resp is None or not resp.text:
+        return None
+    try:
+        tables = pd.read_html(io.StringIO(resp.text))
+    except Exception as exc:  # noqa: BLE001 - includes "no tables found"
+        logger.warning("ChinaBond %s..%s: no parseable table (%s)", start, end, exc)
+        return None
+    for table in tables:
+        if table.shape[0] < 2 or table.shape[1] < 3:
+            continue
+        # Row 0 is the header: "Yield Curve Name", "Date", then the tenors.
+        header = [str(c).strip() for c in table.iloc[0]]
+        if header[0] != "Yield Curve Name" or tenor not in header:
+            continue
+        body = table.iloc[1:]
+        rows = body[body.iloc[:, 0].astype(str).str.strip() == _CHINABOND_CURVE]
+        if rows.empty:
+            continue
+        frame = _frame(rows.iloc[:, 1], rows.iloc[:, header.index(tenor)])
+        if frame is None:
+            continue
+        sane = frame[(frame["value"] >= _CHINABOND_MIN_PCT)
+                     & (frame["value"] <= _CHINABOND_MAX_PCT)]
+        if len(sane) < len(frame):
+            logger.warning("ChinaBond %s: dropped %d value(s) outside %g-%g%%",
+                           tenor, len(frame) - len(sane),
+                           _CHINABOND_MIN_PCT, _CHINABOND_MAX_PCT)
+        return sane.reset_index(drop=True) if not sane.empty else None
+    return None
+
+
+def fetch_chinabond_curve(tenor: str, start: str | None = None,
+                          archive: bool = False) -> pd.DataFrame | None:
+    """
+    One tenor of the ChinaBond government curve. `tenor` is the published
+    column label ('10Y').
+
+    The 365-day server cap means a deep backfill has to be walked a year at a
+    time -- the only date-chunking loop in this module, and it exists because
+    the cap is silent: over-range returns 200 with an empty table rather than
+    an error. A chunk that comes back empty is skipped rather than treated as
+    failure, since holidays and the pre-2006 tail both look the same.
+    """
+    if not tenor:
+        return None
+    today = pd.Timestamp.now().normalize()
+    if archive:
+        first = pd.Timestamp(_CHINABOND_FIRST_DATE)
+    elif start:
+        first = max(pd.Timestamp(start), pd.Timestamp(_CHINABOND_FIRST_DATE))
+    else:
+        first = today - pd.Timedelta(days=_CHINABOND_MAX_SPAN_DAYS)
+    if first > today:
+        return None
+
+    chunks, cursor = [], first
+    while cursor <= today:
+        stop = min(cursor + pd.Timedelta(days=_CHINABOND_MAX_SPAN_DAYS - 1), today)
+        part = _chinabond_window(cursor.strftime("%Y-%m-%d"),
+                                 stop.strftime("%Y-%m-%d"), tenor)
+        if part is not None:
+            chunks.append(part)
+        cursor = stop + pd.Timedelta(days=1)
+    if not chunks:
+        logger.warning("ChinaBond: no data for tenor %s from %s", tenor, first.date())
+        return None
+    out = pd.concat(chunks).drop_duplicates(subset=["date"], keep="last")
+    return out.sort_values("date").reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
 # Robert Shiller's CAPE dataset (shillerdata.com, served from a wsimg blob).
 # Genuine legacy .xls, so this needs xlrd rather than openpyxl. The "Data"
 # sheet carries a fractional date (1871.01 = Jan 1871) and CAPE in a column

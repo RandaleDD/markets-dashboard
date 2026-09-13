@@ -128,6 +128,9 @@ _CURVE_SOURCES = {
     "mof":        ("fetch_mof_jgb", False),      # one stitched file, no window
     "norges":     ("fetch_norges_curve", True),
     "snb":        ("fetch_snb_curve", True),
+    # Scraped, but server-rendered and range-queryable, unlike the
+    # TradingEconomics page this project used to depend on.
+    "chinabond":  ("fetch_chinabond_curve", True),
 }
 
 _CURVE_SOURCE_NAMES = {
@@ -302,6 +305,10 @@ def all_series() -> list[Series]:
             fetcher, kwargs, bounded = "fetch_ons_timeseries", {
                 "series_code": cfg["ons_series"], "dataset": cfg["ons_dataset"]}, False
             source = f"ONS, {cfg['ons_dataset'].upper()}/{cfg['ons_series'].upper()}"
+        elif cfg["source"] == "worldbank_gem":
+            fetcher, kwargs, bounded = "fetch_worldbank_gem", {
+                "country": cfg["country"], "indicator": cfg["indicator"]}, True
+            source = f"World Bank GEM, {cfg['indicator']}"
         elif cfg["source"] == "eurostat":
             fetcher, kwargs, bounded = "fetch_eurostat", {
                 "dataset": cfg["eurostat_dataset"],

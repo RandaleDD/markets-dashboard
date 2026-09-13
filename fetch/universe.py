@@ -237,7 +237,7 @@ YIELD_CURVES = {
                 "server-rendered HTML — a scrape, though an official "
                 "CCDC/PBoC-affiliated one. History to 2006-03-01. There is "
                 "no 2y point on this curve.",
-        "tenors": {"2Y": None, "5Y": None, "10Y": None, "30Y": None},
+        "tenors": {"2Y": None, "5Y": "5Y", "10Y": "10Y", "30Y": "30Y"},
     },
     "JP": {
         "source": "mof", "cadence": "daily",
@@ -346,8 +346,15 @@ GDP_GROWTH = {
     "CH": {"source": "fred", "series": "CLVMNACSCAB1GQCH", "freq": "Q"},
     "JP": {"source": "fred", "series": "JPNRGDPEXP", "freq": "Q"},
     "NO": {"source": "fred", "series": "CLVMNACSCAB1GQNO", "freq": "Q"},
-    # Only an annual real-GDP series exists for China on FRED, so YoY only.
-    "CN": {"source": "fred", "series": "NGDPRXDCCNA", "freq": "A", "cadence": "annual"},
+    # Quarterly at last. FRED has no free quarterly real GDP for China (its
+    # candidates all 404, and the OECD series that used to carry it died in
+    # 2023Q3), and the NBS returns HTTP 403 to non-browser clients from outside
+    # the mainland -- a GitHub Actions runner's exact situation. The World Bank
+    # Global Economic Monitor carries it: a constant-2010-LCU seasonally
+    # adjusted LEVEL back to 1991Q1, keyless, on a host already used here.
+    # Worst-case staleness drops from ~15 months to about T+6-8 weeks.
+    "CN": {"source": "worldbank_gem", "country": "CHN",
+           "indicator": "NYGDPMKTPSAKN", "freq": "Q"},
 }
 GDP_DEFINITION = ("Real (chain-linked volume), national currency, not PPP, "
                   "seasonally adjusted. YoY and annualised QoQ derived from the level series.")
