@@ -14,8 +14,20 @@ LEG_LABELS = {
     "erp": "Equity risk premium",
 }
 
+# The non-OAS corporate spread is shown BESIDE the stack, not summed into it.
+# It is a second measurement of the same layer of risk on a different
+# definition -- corporate yield less government yield, with no option
+# adjustment and no duration matching -- so adding it would double-count the
+# credit leg, and requiring it would mark every region incomplete that has a
+# perfectly good OAS. It is supplementary, and `complete` deliberately ignores
+# it. See universe.CORPORATE_SPREADS_TO_GOVT for why it exists at all.
+SUPPLEMENTARY_LABELS = {
+    "credit_spread_to_govt": "Corporate spread to govt (non-OAS)",
+}
 
-def stack_cost_of_capital(risk_free=None, credit_spread=None, erp=None) -> dict:
+
+def stack_cost_of_capital(risk_free=None, credit_spread=None, erp=None,
+                          credit_spread_to_govt=None) -> dict:
     """
     Each leg in percentage points, any of them None.
 
@@ -23,6 +35,9 @@ def stack_cost_of_capital(risk_free=None, credit_spread=None, erp=None) -> dict:
     of what is missing — a region with two of three legs shows those two
     rather than dropping out of the table, but the total is then not
     comparable with a complete stack and has to say so.
+
+    `credit_spread_to_govt` rides along as a supplementary measurement: it is
+    reported, never summed, and never counted toward `complete`.
     """
     legs = {"risk_free": risk_free, "credit_spread": credit_spread, "erp": erp}
     present = {k: v for k, v in legs.items() if v is not None}
@@ -34,4 +49,5 @@ def stack_cost_of_capital(risk_free=None, credit_spread=None, erp=None) -> dict:
         "complete": not missing,
         "missing_legs": missing,
         "missing_labels": [LEG_LABELS[k] for k in missing],
+        "supplementary": {"credit_spread_to_govt": credit_spread_to_govt},
     }

@@ -251,6 +251,8 @@ def empty_payload(is_sample: bool) -> dict:
         "eurozone_spreads": {"benchmark": None, "benchmark_yield_pct": None,
                              "as_of": None, "cadence": "monthly", "rows": []},
         "credit_spreads": [],
+        "corporate_spreads_to_govt": [],
+        "corporate_spread_unavailable": {},
         "liquidity": [],
         "fx_hedging": [],
         "regime": {"axis_definition": "", "regions": {}},
@@ -578,6 +580,33 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         if cs.get("stack_leg") and level is not None:
             stack_credit[cs["region"]] = round(level, 2)
 
+    # --- Corporate spread to government, the non-OAS column. Both legs come
+    # from one publisher at one vintage, and the subtraction happens here so
+    # each leg stays stored exactly as published. ---
+    stack_to_govt = {}
+    for cs in universe.CORPORATE_SPREADS_TO_GOVT:
+        corp = hist.get(cs["corporate"]["series_id"])
+        govt = hist.get(cs["government"]["series_id"])
+        corp_level, govt_level = _latest(corp), _latest(govt)
+        spread = (round(corp_level - govt_level, 2)
+                  if corp_level is not None and govt_level is not None else None)
+        st, as_of = _series_status(corp)
+        status[f"credit_to_govt:{cs['region']}"] = st if spread is not None else "stubbed"
+        if spread is not None:
+            stack_to_govt[cs["region"]] = spread
+        out["corporate_spreads_to_govt"].append({
+            "region": cs["region"], "name": cs["name"],
+            "spread_bp": round(spread * 100) if spread is not None else None,
+            "corporate_yield_pct": corp_level,
+            "government_yield_pct": govt_level,
+            "basis": "Corporate yield less government yield. NOT "
+                     "option-adjusted and NOT duration-matched, so this is a "
+                     "different measure from the option-adjusted spreads "
+                     "above and the two must not be compared directly.",
+            "note": cs.get("note"), "as_of": as_of,
+        })
+    out["corporate_spread_unavailable"] = dict(universe.CORPORATE_SPREAD_UNAVAILABLE)
+
     # --- Liquidity / lending conditions ---
     for li in universe.LIQUIDITY_INDICATORS:
         df = hist.get(li["series_id"])
@@ -637,7 +666,8 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         # a real one.
         nominal = (out["yield_curves"].get(region, {}).get("tenors", {}) or {}).get("10Y")
         erp = (out["equity_risk_premia"].get(region, {}) or {}).get("erp_pct")
-        stack = stack_cost_of_capital(nominal, stack_credit.get(region), erp)
+        stack = stack_cost_of_capital(nominal, stack_credit.get(region), erp,
+                                      credit_spread_to_govt=stack_to_govt.get(region))
         status[f"costcap:{region}"] = ("ok" if stack["complete"]
                                        else "partial" if stack["total_pct"] is not None
                                        else "stubbed")

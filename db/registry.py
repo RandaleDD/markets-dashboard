@@ -501,6 +501,30 @@ def all_series() -> list[Series]:
             unit="%", cadence="weekly", source=f"FRED, {cs['series']}",
             fetcher="fetch_fred", fetch_kwargs={"series_id": cs["series"]}, bounded=True))
 
+    # The legs of the non-OAS corporate spread column. Yields, not spreads:
+    # the subtraction happens at export so both legs stay as published, and a
+    # leg already stored for another panel (the US 10y) is reused rather than
+    # fetched a second time under a second id.
+    _SPREAD_LEG_SOURCES = {
+        "fred": ("fetch_fred", "series_id", "FRED"),
+        "bundesbank": ("fetch_bundesbank", "series_key", "Deutsche Bundesbank"),
+    }
+    for cs in universe.CORPORATE_SPREADS_TO_GOVT:
+        for side in ("corporate", "government"):
+            leg = cs[side]
+            if leg["source"] == "stored":
+                continue  # already registered by another panel
+            fetcher, arg, publisher = _SPREAD_LEG_SOURCES[leg["source"]]
+            out.append(Series(
+                series_id=leg["series_id"], category="Credit spread",
+                region=cs["region"],
+                description=f"{cs['region']} {side} bond yield — the "
+                            f"{side} leg of {cs['name'].lower()}",
+                unit="%", cadence="weekly",
+                source=f"{publisher}, {leg['series']}", fetcher=fetcher,
+                fetch_kwargs={arg: leg["series"]},
+                bounded=(leg["source"] == "fred")))
+
     for li in universe.LIQUIDITY_INDICATORS:
         out.append(Series(
             series_id=li["series_id"], category="Liquidity cycle", region=li["region"],
