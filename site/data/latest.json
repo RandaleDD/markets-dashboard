@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T12:20:26.897802+00:00",
+  "generated_at": "2026-09-19T06:22:20.214031+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -38,60 +38,56 @@
         "region": "US",
         "weighting": "Float-adjusted market-cap weighted",
         "basis": "Price return \u2014 dividends are not included",
-        "as_of": "2026-09-11",
-        "level": 7656.98,
-        "chg_1w_pct": -0.8,
-        "chg_mtd_pct": -1.3,
-        "chg_ytd_pct": 10.49,
-        "chg_1y_pct": 18.14,
-        "drawdown_from_ath_pct": -1.65,
-        "realized_vol_4w_pct": 4.63,
-        "realized_vol_13w_pct": 11.05,
+        "as_of": "2026-09-18",
+        "level": 7650.5,
+        "chg_1w_pct": -0.08,
+        "chg_mtd_pct": -1.74,
+        "chg_ytd_pct": 10.4,
+        "chg_1y_pct": 16.19,
+        "drawdown_from_ath_pct": -1.74,
+        "realized_vol_4w_pct": 2.77,
+        "realized_vol_13w_pct": 10.08,
         "vol_context": {
           "5y": {
-            "pct": 26.3,
-            "z": -0.72,
+            "pct": 17.2,
+            "z": -0.88,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 35.9,
-            "z": -0.45,
+            "pct": 29.3,
+            "z": -0.57,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 35.6,
-            "z": -0.49,
-            "n": 5138,
+            "pct": 26.9,
+            "z": -0.59,
+            "n": 5139,
             "since": "1928-03-30"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 59.5,
-            "z": 0.63,
+            "pct": 58.8,
+            "z": 0.62,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 50.5,
-            "z": 0.47,
+            "pct": 49.9,
+            "z": 0.46,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 76.9,
+            "pct": 76.4,
             "z": 0.82,
-            "n": 5151,
+            "n": 5152,
             "since": "1927-12-30"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            4432.9902
-          ],
           [
             "2021-09-24",
             4455.48
@@ -1135,6 +1131,10 @@
           [
             "2026-09-11",
             7656.98
+          ],
+          [
+            "2026-09-18",
+            7650.5
           ]
         ]
       },
@@ -1145,60 +1145,56 @@
         "region": "US",
         "weighting": "Modified market-cap weighted (largest holdings capped)",
         "basis": "Price return \u2014 dividends are not included",
-        "as_of": "2026-09-11",
-        "level": 29368.4395,
-        "chg_1w_pct": -0.59,
-        "chg_mtd_pct": -1.19,
-        "chg_ytd_pct": 14.52,
-        "chg_1y_pct": 24.17,
-        "drawdown_from_ath_pct": -3.41,
-        "realized_vol_4w_pct": 6.27,
-        "realized_vol_13w_pct": 18.18,
+        "as_of": "2026-09-18",
+        "level": 29644.1699,
+        "chg_1w_pct": 0.94,
+        "chg_mtd_pct": -1.34,
+        "chg_ytd_pct": 15.6,
+        "chg_1y_pct": 23.04,
+        "drawdown_from_ath_pct": -2.51,
+        "realized_vol_4w_pct": 5.69,
+        "realized_vol_13w_pct": 16.07,
         "vol_context": {
           "5y": {
-            "pct": 45.0,
-            "z": -0.37,
+            "pct": 26.3,
+            "z": -0.7,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 53.9,
-            "z": -0.09,
+            "pct": 41.5,
+            "z": -0.35,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 49.7,
-            "z": -0.27,
-            "n": 2125,
+            "pct": 36.3,
+            "z": -0.46,
+            "n": 2126,
             "since": "1986-01-03"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 55.0,
-            "z": 0.56,
+            "pct": 62.6,
+            "z": 0.65,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 41.7,
-            "z": 0.31,
+            "pct": 48.4,
+            "z": 0.42,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 67.6,
-            "z": 0.77,
-            "n": 2138,
+            "pct": 71.6,
+            "z": 0.81,
+            "n": 2139,
             "since": "1985-10-04"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            15333.4697
-          ],
           [
             "2021-09-24",
             15329.6797
@@ -2242,6 +2238,10 @@
           [
             "2026-09-11",
             29368.4395
+          ],
+          [
+            "2026-09-18",
+            29644.1699
           ]
         ]
       },
@@ -2252,60 +2252,56 @@
         "region": "US",
         "weighting": "Float-adjusted market-cap weighted",
         "basis": "Price return \u2014 dividends are not included",
-        "as_of": "2026-09-11",
-        "level": 2903.9399,
-        "chg_1w_pct": -2.41,
-        "chg_mtd_pct": -4.3,
-        "chg_ytd_pct": 14.58,
-        "chg_1y_pct": 21.45,
-        "drawdown_from_ath_pct": -5.36,
-        "realized_vol_4w_pct": 8.48,
-        "realized_vol_13w_pct": 10.76,
+        "as_of": "2026-09-18",
+        "level": 2860.3999,
+        "chg_1w_pct": -1.5,
+        "chg_mtd_pct": -6.78,
+        "chg_ytd_pct": 12.87,
+        "chg_1y_pct": 19.33,
+        "drawdown_from_ath_pct": -6.78,
+        "realized_vol_4w_pct": 7.53,
+        "realized_vol_13w_pct": 10.72,
         "vol_context": {
           "5y": {
             "pct": 0.8,
-            "z": -1.99,
+            "z": -1.98,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 10.1,
-            "z": -0.96,
+            "pct": 9.6,
+            "z": -0.97,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 18.1,
+            "pct": 17.6,
             "z": -0.76,
-            "n": 2024,
+            "n": 2025,
             "since": "1987-12-11"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 74.8,
-            "z": 0.91,
+            "pct": 71.0,
+            "z": 0.77,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 59.5,
-            "z": 0.55,
+            "pct": 54.3,
+            "z": 0.4,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 60.1,
-            "z": 0.52,
-            "n": 2037,
+            "pct": 53.6,
+            "z": 0.39,
+            "n": 2038,
             "since": "1987-09-11"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            2236.8701
-          ],
           [
             "2021-09-24",
             2248.0701
@@ -3349,6 +3345,10 @@
           [
             "2026-09-11",
             2903.9399
+          ],
+          [
+            "2026-09-18",
+            2860.3999
           ]
         ]
       }
@@ -3361,60 +3361,56 @@
         "region": "UK",
         "weighting": "Float-adjusted market-cap weighted",
         "basis": "Price return \u2014 dividends are not included",
-        "as_of": "2026-09-11",
-        "level": 10650.4004,
-        "chg_1w_pct": -1.67,
-        "chg_mtd_pct": -2.3,
-        "chg_ytd_pct": 7.9,
-        "chg_1y_pct": 15.66,
-        "drawdown_from_ath_pct": -2.38,
-        "realized_vol_4w_pct": 6.36,
-        "realized_vol_13w_pct": 8.41,
+        "as_of": "2026-09-18",
+        "level": 10659.0996,
+        "chg_1w_pct": 0.08,
+        "chg_mtd_pct": -0.85,
+        "chg_ytd_pct": 7.99,
+        "chg_1y_pct": 14.82,
+        "drawdown_from_ath_pct": -2.31,
+        "realized_vol_4w_pct": 6.59,
+        "realized_vol_13w_pct": 8.01,
         "vol_context": {
           "5y": {
-            "pct": 13.7,
-            "z": -0.95,
+            "pct": 9.2,
+            "z": -1.06,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 13.4,
-            "z": -0.69,
+            "pct": 9.6,
+            "z": -0.75,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 9.0,
-            "z": -0.87,
-            "n": 2216,
+            "pct": 6.4,
+            "z": -0.93,
+            "n": 2217,
             "since": "1984-04-06"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 59.2,
-            "z": 0.42,
+            "pct": 59.5,
+            "z": 0.44,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 65.8,
-            "z": 0.57,
+            "pct": 66.5,
+            "z": 0.58,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 75.8,
-            "z": 0.78,
-            "n": 2229,
+            "pct": 76.2,
+            "z": 0.79,
+            "n": 2230,
             "since": "1984-01-06"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            6963.6001
-          ],
           [
             "2021-09-24",
             7051.5
@@ -4458,6 +4454,10 @@
           [
             "2026-09-11",
             10650.4004
+          ],
+          [
+            "2026-09-18",
+            10659.0996
           ]
         ]
       }
@@ -4470,60 +4470,56 @@
         "region": "EZ",
         "weighting": "Free-float market-cap weighted",
         "basis": "Price return \u2014 dividends are not included",
-        "as_of": "2026-09-11",
-        "level": 639.1,
-        "chg_1w_pct": -1.66,
-        "chg_mtd_pct": -3.2,
-        "chg_ytd_pct": 7.81,
-        "chg_1y_pct": 16.37,
-        "drawdown_from_ath_pct": -3.2,
-        "realized_vol_4w_pct": 6.51,
-        "realized_vol_13w_pct": 8.86,
+        "as_of": "2026-09-18",
+        "level": 635.45,
+        "chg_1w_pct": -0.57,
+        "chg_mtd_pct": -3.41,
+        "chg_ytd_pct": 7.2,
+        "chg_1y_pct": 14.53,
+        "drawdown_from_ath_pct": -3.76,
+        "realized_vol_4w_pct": 6.43,
+        "realized_vol_13w_pct": 8.94,
         "vol_context": {
           "5y": {
             "pct": 15.6,
-            "z": -1.08,
+            "z": -1.06,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 21.6,
-            "z": -0.67,
+            "pct": 22.0,
+            "z": -0.66,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 15.8,
-            "z": -0.75,
-            "n": 1156,
+            "pct": 16.2,
+            "z": -0.74,
+            "n": 1157,
             "since": "2004-07-30"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 50.0,
-            "z": 0.3,
+            "pct": 45.4,
+            "z": 0.19,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 66.5,
-            "z": 0.6,
+            "pct": 63.1,
+            "z": 0.5,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 71.7,
-            "z": 0.77,
-            "n": 1169,
+            "pct": 69.7,
+            "z": 0.73,
+            "n": 1170,
             "since": "2004-04-30"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            461.84
-          ],
           [
             "2021-09-24",
             463.29
@@ -5567,6 +5563,10 @@
           [
             "2026-09-11",
             639.1
+          ],
+          [
+            "2026-09-18",
+            635.45
           ]
         ]
       }
@@ -5579,60 +5579,56 @@
         "region": "DE",
         "weighting": "Free-float market-cap weighted",
         "basis": "TOTAL RETURN \u2014 the DAX reinvests dividends, so its level is not comparable with the price-return indices beside it",
-        "as_of": "2026-09-11",
-        "level": 25568.5605,
-        "chg_1w_pct": -1.83,
-        "chg_mtd_pct": -2.85,
-        "chg_ytd_pct": 5.05,
-        "chg_1y_pct": 8.36,
-        "drawdown_from_ath_pct": -3.77,
-        "realized_vol_4w_pct": 11.37,
-        "realized_vol_13w_pct": 15.13,
+        "as_of": "2026-09-18",
+        "level": 25304.0605,
+        "chg_1w_pct": -1.03,
+        "chg_mtd_pct": -4.3,
+        "chg_ytd_pct": 3.96,
+        "chg_1y_pct": 6.78,
+        "drawdown_from_ath_pct": -4.76,
+        "realized_vol_4w_pct": 9.09,
+        "realized_vol_13w_pct": 15.04,
         "vol_context": {
           "5y": {
-            "pct": 49.6,
-            "z": -0.13,
+            "pct": 48.5,
+            "z": -0.16,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 51.2,
-            "z": -0.19,
+            "pct": 50.5,
+            "z": -0.2,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 38.4,
-            "z": -0.4,
-            "n": 2008,
+            "pct": 38.0,
+            "z": -0.41,
+            "n": 2009,
             "since": "1988-03-31"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 37.8,
-            "z": 0.18,
+            "pct": 32.1,
+            "z": 0.01,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 50.7,
-            "z": 0.36,
+            "pct": 44.2,
+            "z": 0.2,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 68.5,
-            "z": 0.71,
-            "n": 2021,
+            "pct": 64.6,
+            "z": 0.64,
+            "n": 2022,
             "since": "1987-12-30"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            15490.1699
-          ],
           [
             "2021-09-24",
             15531.75
@@ -6676,6 +6672,10 @@
           [
             "2026-09-11",
             25568.5605
+          ],
+          [
+            "2026-09-18",
+            25304.0605
           ]
         ]
       }
@@ -6688,60 +6688,56 @@
         "region": "CH",
         "weighting": "Free-float market-cap weighted (constituents capped at 18%)",
         "basis": "Price return \u2014 dividends are not included",
-        "as_of": "2026-09-11",
-        "level": 13775.2695,
-        "chg_1w_pct": -4.31,
-        "chg_mtd_pct": -5.29,
-        "chg_ytd_pct": 3.83,
-        "chg_1y_pct": 11.36,
-        "drawdown_from_ath_pct": -5.29,
-        "realized_vol_4w_pct": 15.16,
-        "realized_vol_13w_pct": 12.48,
+        "as_of": "2026-09-18",
+        "level": 13786.7197,
+        "chg_1w_pct": 0.08,
+        "chg_mtd_pct": -4.2,
+        "chg_ytd_pct": 3.91,
+        "chg_1y_pct": 13.06,
+        "drawdown_from_ath_pct": -5.21,
+        "realized_vol_4w_pct": 15.75,
+        "realized_vol_13w_pct": 10.83,
         "vol_context": {
           "5y": {
-            "pct": 47.3,
-            "z": -0.24,
+            "pct": 28.2,
+            "z": -0.65,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 55.6,
-            "z": -0.16,
+            "pct": 38.0,
+            "z": -0.44,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 42.2,
-            "z": -0.35,
-            "n": 1859,
+            "pct": 28.4,
+            "z": -0.55,
+            "n": 1860,
             "since": "1991-02-08"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 71.0,
-            "z": 0.59,
+            "pct": 71.4,
+            "z": 0.61,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 62.1,
-            "z": 0.35,
+            "pct": 62.9,
+            "z": 0.36,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 67.6,
-            "z": 0.67,
-            "n": 1872,
+            "pct": 67.8,
+            "z": 0.68,
+            "n": 1873,
             "since": "1990-11-09"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            11935.5303
-          ],
           [
             "2021-09-24",
             11817.2002
@@ -7785,6 +7781,10 @@
           [
             "2026-09-11",
             13775.2695
+          ],
+          [
+            "2026-09-18",
+            13786.7197
           ]
         ]
       }
@@ -7797,52 +7797,52 @@
         "region": "CN",
         "weighting": "Free-float market-cap weighted",
         "basis": "Fund price, not the index \u2014 a dividend-distributing tracker ETF stands in because Yahoo serves the CSI 300 itself with only days of history",
-        "as_of": "2026-09-11",
-        "level": 4.579,
-        "chg_1w_pct": -0.8,
-        "chg_mtd_pct": -3.62,
-        "chg_ytd_pct": -3.66,
-        "chg_1y_pct": 0.55,
-        "drawdown_from_ath_pct": -21.15,
-        "realized_vol_4w_pct": 4.31,
-        "realized_vol_13w_pct": 12.95,
+        "as_of": "2026-09-17",
+        "level": 4.532,
+        "chg_1w_pct": -1.84,
+        "chg_mtd_pct": -4.1,
+        "chg_ytd_pct": -4.65,
+        "chg_1y_pct": -1.93,
+        "drawdown_from_ath_pct": -21.96,
+        "realized_vol_4w_pct": 3.74,
+        "realized_vol_13w_pct": 8.57,
         "vol_context": {
           "5y": {
-            "pct": 42.5,
-            "z": -0.36,
-            "n": 259,
+            "pct": 0.4,
+            "z": -0.95,
+            "n": 260,
             "since": "2021-09-17"
           },
           "10y": {
-            "pct": 35.2,
-            "z": -0.54,
+            "pct": 2.9,
+            "z": -1.18,
             "n": 514,
-            "since": "2016-09-14"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 27.3,
-            "z": -0.7,
-            "n": 726,
+            "pct": 2.1,
+            "z": -1.23,
+            "n": 727,
             "since": "2012-08-03"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 71.8,
-            "z": 0.88,
-            "n": 259,
+            "pct": 69.6,
+            "z": 0.78,
+            "n": 260,
             "since": "2021-09-17"
           },
           "10y": {
-            "pct": 72.4,
-            "z": 0.58,
+            "pct": 69.8,
+            "z": 0.49,
             "n": 514,
-            "since": "2016-09-14"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 60.6,
-            "z": 0.25,
-            "n": 739,
+            "pct": 58.2,
+            "z": 0.18,
+            "n": 740,
             "since": "2012-05-04"
           }
         },
@@ -8882,6 +8882,10 @@
           [
             "2026-09-11",
             4.579
+          ],
+          [
+            "2026-09-17",
+            4.532
           ]
         ]
       },
@@ -8892,60 +8896,56 @@
         "region": "CN",
         "weighting": "Free-float market-cap weighted (constituents capped at 8%)",
         "basis": "Price return \u2014 dividends are not included",
-        "as_of": "2026-09-11",
-        "level": 24805.6309,
-        "chg_1w_pct": -3.3,
-        "chg_mtd_pct": -3.36,
-        "chg_ytd_pct": -3.92,
-        "chg_1y_pct": -2.41,
-        "drawdown_from_ath_pct": -25.18,
-        "realized_vol_4w_pct": 12.06,
-        "realized_vol_13w_pct": 20.63,
+        "as_of": "2026-09-18",
+        "level": 24750.7793,
+        "chg_1w_pct": -0.22,
+        "chg_mtd_pct": -1.46,
+        "chg_ytd_pct": -4.14,
+        "chg_1y_pct": -6.2,
+        "drawdown_from_ath_pct": -25.35,
+        "realized_vol_4w_pct": 12.1,
+        "realized_vol_13w_pct": 16.87,
         "vol_context": {
           "5y": {
-            "pct": 45.8,
-            "z": -0.21,
+            "pct": 22.1,
+            "z": -0.75,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 61.4,
-            "z": 0.16,
+            "pct": 37.9,
+            "z": -0.41,
             "n": 523,
-            "since": "2016-09-15"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 57.3,
-            "z": -0.11,
-            "n": 2060,
+            "pct": 36.0,
+            "z": -0.49,
+            "n": 2061,
             "since": "1987-04-03"
           }
         },
         "drawdown_context": {
           "5y": {
             "pct": 75.6,
-            "z": 1.03,
+            "z": 1.02,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 45.1,
-            "z": 0.09,
+            "pct": 44.7,
+            "z": 0.08,
             "n": 523,
-            "since": "2016-09-15"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 45.2,
-            "z": -0.11,
-            "n": 2073,
+            "pct": 44.6,
+            "z": -0.12,
+            "n": 2074,
             "since": "1987-01-02"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            24920.7598
-          ],
           [
             "2021-09-24",
             24192.1602
@@ -9989,6 +9989,10 @@
           [
             "2026-09-11",
             24805.6309
+          ],
+          [
+            "2026-09-18",
+            24750.7793
           ]
         ]
       }
@@ -10001,60 +10005,56 @@
         "region": "JP",
         "weighting": "PRICE-weighted, not market-cap weighted \u2014 a high share price moves it more than a large company does",
         "basis": "Price return \u2014 dividends are not included",
-        "as_of": "2026-09-11",
-        "level": 64011.3398,
-        "chg_1w_pct": -1.55,
-        "chg_mtd_pct": -2.43,
-        "chg_ytd_pct": 27.16,
-        "chg_1y_pct": 48.8,
-        "drawdown_from_ath_pct": -10.16,
-        "realized_vol_4w_pct": 8.96,
-        "realized_vol_13w_pct": 20.07,
+        "as_of": "2026-09-18",
+        "level": 65018.9492,
+        "chg_1w_pct": 1.57,
+        "chg_mtd_pct": -5.38,
+        "chg_ytd_pct": 29.16,
+        "chg_1y_pct": 45.23,
+        "drawdown_from_ath_pct": -8.75,
+        "realized_vol_4w_pct": 12.3,
+        "realized_vol_13w_pct": 20.15,
         "vol_context": {
           "5y": {
-            "pct": 58.8,
-            "z": 0.17,
+            "pct": 59.2,
+            "z": 0.19,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 68.8,
-            "z": 0.21,
+            "pct": 69.2,
+            "z": 0.22,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 69.9,
-            "z": 0.36,
-            "n": 3204,
+            "pct": 70.3,
+            "z": 0.37,
+            "n": 3205,
             "since": "1965-04-09"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 50.4,
-            "z": 0.38,
+            "pct": 55.0,
+            "z": 0.5,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 75.1,
-            "z": 1.06,
+            "pct": 77.4,
+            "z": 1.14,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 65.7,
-            "z": 0.83,
-            "n": 3217,
+            "pct": 67.7,
+            "z": 0.88,
+            "n": 3218,
             "since": "1965-01-08"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            30500.0508
-          ],
           [
             "2021-09-24",
             30248.8105
@@ -11098,6 +11098,10 @@
           [
             "2026-09-11",
             64011.3398
+          ],
+          [
+            "2026-09-18",
+            65018.9492
           ]
         ]
       }
@@ -11110,32 +11114,32 @@
         "region": "NO",
         "weighting": "Free-float market-cap weighted",
         "basis": "Price return, adjusted for corporate actions",
-        "as_of": "2026-09-11",
-        "level": 2110.54,
-        "chg_1w_pct": 0.33,
-        "chg_mtd_pct": 4.17,
-        "chg_ytd_pct": 26.64,
-        "chg_1y_pct": 29.81,
+        "as_of": "2026-09-18",
+        "level": 2117.3301,
+        "chg_1w_pct": 0.32,
+        "chg_mtd_pct": 1.51,
+        "chg_ytd_pct": 27.05,
+        "chg_1y_pct": 27.96,
         "drawdown_from_ath_pct": 0.0,
-        "realized_vol_4w_pct": 2.05,
-        "realized_vol_13w_pct": 10.42,
+        "realized_vol_4w_pct": 0.89,
+        "realized_vol_13w_pct": 7.91,
         "vol_context": {
           "5y": {
-            "pct": 24.4,
-            "z": -0.79,
+            "pct": 2.3,
+            "z": -1.52,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 28.1,
-            "z": -0.54,
+            "pct": 4.8,
+            "z": -0.96,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 24.4,
-            "z": -0.62,
-            "n": 694,
+            "pct": 4.5,
+            "z": -1.05,
+            "n": 695,
             "since": "2013-06-07"
           }
         },
@@ -11144,26 +11148,22 @@
             "pct": 100.0,
             "z": 0.97,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
             "pct": 100.0,
             "z": 0.81,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
             "pct": 100.0,
             "z": 0.86,
-            "n": 707,
+            "n": 708,
             "since": "2013-03-08"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            1141.17
-          ],
           [
             "2021-09-24",
             1155.0
@@ -12207,6 +12207,10 @@
           [
             "2026-09-11",
             2110.54
+          ],
+          [
+            "2026-09-18",
+            2117.3301
           ]
         ]
       }
@@ -12219,60 +12223,56 @@
         "region": "EM",
         "weighting": "Free-float market-cap weighted",
         "basis": "Fund price, not the index \u2014 a dividend-distributing ETF stands in",
-        "as_of": "2026-09-11",
-        "level": 67.84,
-        "chg_1w_pct": -1.25,
-        "chg_mtd_pct": 3.35,
-        "chg_ytd_pct": 23.8,
-        "chg_1y_pct": 34.47,
-        "drawdown_from_ath_pct": -4.17,
-        "realized_vol_4w_pct": 11.53,
-        "realized_vol_13w_pct": 18.64,
+        "as_of": "2026-09-18",
+        "level": 67.03,
+        "chg_1w_pct": -1.19,
+        "chg_mtd_pct": 0.63,
+        "chg_ytd_pct": 22.32,
+        "chg_1y_pct": 28.26,
+        "drawdown_from_ath_pct": -5.31,
+        "realized_vol_4w_pct": 12.29,
+        "realized_vol_13w_pct": 15.69,
         "vol_context": {
           "5y": {
-            "pct": 61.5,
-            "z": 0.08,
+            "pct": 30.5,
+            "z": -0.52,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 64.6,
-            "z": 0.11,
+            "pct": 39.4,
+            "z": -0.37,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 50.4,
-            "z": -0.23,
-            "n": 1210,
+            "pct": 30.6,
+            "z": -0.51,
+            "n": 1211,
             "since": "2003-07-18"
           }
         },
         "drawdown_context": {
           "5y": {
-            "pct": 92.7,
-            "z": 1.64,
+            "pct": 88.5,
+            "z": 1.53,
             "n": 262,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 94.6,
-            "z": 1.67,
+            "pct": 91.6,
+            "z": 1.55,
             "n": 523,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 84.8,
-            "z": 1.23,
-            "n": 1223,
+            "pct": 82.5,
+            "z": 1.14,
+            "n": 1224,
             "since": "2003-04-17"
           }
         },
         "history": [
-          [
-            "2021-09-17",
-            51.37
-          ],
           [
             "2021-09-24",
             50.78
@@ -13316,6 +13316,10 @@
           [
             "2026-09-11",
             67.84
+          ],
+          [
+            "2026-09-18",
+            67.03
           ]
         ]
       }
@@ -13325,40 +13329,36 @@
     {
       "id": "dxy",
       "name": "US Dollar Index (DXY)",
-      "as_of": "2026-09-11",
-      "level": 99.12,
-      "chg_1w_pct": -0.04,
-      "chg_mtd_pct": -0.48,
-      "chg_ytd_pct": 1.12,
-      "chg_1y_pct": 1.38,
-      "drawdown_from_ath_pct": -39.26,
-      "realized_vol_4w_pct": 3.48,
-      "realized_vol_13w_pct": 4.69,
+      "as_of": "2026-09-18",
+      "level": 100.22,
+      "chg_1w_pct": 1.11,
+      "chg_mtd_pct": 0.55,
+      "chg_ytd_pct": 2.24,
+      "chg_1y_pct": 2.74,
+      "drawdown_from_ath_pct": -38.58,
+      "realized_vol_4w_pct": 5.16,
+      "realized_vol_13w_pct": 5.18,
       "context": {
         "5y": {
-          "pct": 26.7,
-          "z": -0.73,
+          "pct": 37.4,
+          "z": -0.47,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 57.0,
-          "z": 0.07,
+          "pct": 64.1,
+          "z": 0.29,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 61.7,
-          "z": 0.12,
-          "n": 2907,
+          "pct": 65.8,
+          "z": 0.2,
+          "n": 2908,
           "since": "1971-01-08"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          93.2
-        ],
         [
           "2021-09-24",
           93.33
@@ -14402,46 +14402,46 @@
         [
           "2026-09-11",
           99.12
+        ],
+        [
+          "2026-09-18",
+          100.22
         ]
       ]
     },
     {
       "id": "eurusd",
       "name": "EUR/USD",
-      "as_of": "2026-09-11",
-      "level": 1.1602,
-      "chg_1w_pct": -0.16,
-      "chg_mtd_pct": 0.67,
-      "chg_ytd_pct": -1.55,
-      "chg_1y_pct": -0.47,
-      "drawdown_from_ath_pct": -27.25,
-      "realized_vol_4w_pct": 6.59,
-      "realized_vol_13w_pct": 5.37,
+      "as_of": "2026-09-18",
+      "level": 1.1489,
+      "chg_1w_pct": -0.98,
+      "chg_mtd_pct": -0.4,
+      "chg_ytd_pct": -2.51,
+      "chg_1y_pct": -2.09,
+      "drawdown_from_ath_pct": -27.96,
+      "realized_vol_4w_pct": 4.31,
+      "realized_vol_13w_pct": 5.34,
       "context": {
         "5y": {
-          "pct": 82.4,
-          "z": 1.16,
+          "pct": 74.7,
+          "z": 0.94,
           "n": 261,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 69.0,
-          "z": 0.66,
+          "pct": 63.2,
+          "z": 0.45,
           "n": 522,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 37.6,
-          "z": -0.5,
-          "n": 1187,
+          "pct": 35.1,
+          "z": -0.59,
+          "n": 1188,
           "since": "2003-12-05"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          1.1767
-        ],
         [
           "2021-09-24",
           1.174
@@ -15481,46 +15481,46 @@
         [
           "2026-09-11",
           1.1602
+        ],
+        [
+          "2026-09-18",
+          1.1489
         ]
       ]
     },
     {
       "id": "gbpusd",
       "name": "GBP/USD",
-      "as_of": "2026-09-11",
-      "level": 1.3529,
-      "chg_1w_pct": 0.09,
-      "chg_mtd_pct": 0.55,
-      "chg_ytd_pct": 0.15,
-      "chg_1y_pct": 0.63,
-      "drawdown_from_ath_pct": -35.41,
-      "realized_vol_4w_pct": 5.73,
-      "realized_vol_13w_pct": 6.26,
+      "as_of": "2026-09-18",
+      "level": 1.3394,
+      "chg_1w_pct": -1.0,
+      "chg_mtd_pct": -0.72,
+      "chg_ytd_pct": -0.85,
+      "chg_1y_pct": -1.35,
+      "drawdown_from_ath_pct": -36.06,
+      "realized_vol_4w_pct": 3.7,
+      "realized_vol_13w_pct": 5.68,
       "context": {
         "5y": {
-          "pct": 90.0,
-          "z": 1.14,
+          "pct": 75.5,
+          "z": 0.92,
           "n": 261,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 83.7,
-          "z": 0.99,
+          "pct": 74.3,
+          "z": 0.75,
           "n": 522,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 37.7,
-          "z": -0.68,
-          "n": 1189,
+          "pct": 33.6,
+          "z": -0.73,
+          "n": 1190,
           "since": "2003-12-05"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          1.3797
-        ],
         [
           "2021-09-24",
           1.3723
@@ -16560,46 +16560,46 @@
         [
           "2026-09-11",
           1.3529
+        ],
+        [
+          "2026-09-18",
+          1.3394
         ]
       ]
     },
     {
       "id": "usdjpy",
       "name": "USD/JPY",
-      "as_of": "2026-09-11",
-      "level": 153.554,
-      "chg_1w_pct": -1.71,
-      "chg_mtd_pct": -3.06,
-      "chg_ytd_pct": -1.62,
-      "chg_1y_pct": 3.49,
-      "drawdown_from_ath_pct": -6.27,
-      "realized_vol_4w_pct": 10.04,
-      "realized_vol_13w_pct": 8.42,
+      "as_of": "2026-09-18",
+      "level": 156.129,
+      "chg_1w_pct": 1.68,
+      "chg_mtd_pct": -2.07,
+      "chg_ytd_pct": 0.02,
+      "chg_1y_pct": 6.05,
+      "drawdown_from_ath_pct": -4.7,
+      "realized_vol_4w_pct": 13.95,
+      "realized_vol_13w_pct": 9.11,
       "context": {
         "5y": {
-          "pct": 75.1,
-          "z": 0.74,
+          "pct": 81.6,
+          "z": 0.93,
           "n": 261,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 87.5,
-          "z": 1.38,
+          "pct": 90.8,
+          "z": 1.5,
           "n": 522,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 95.8,
-          "z": 2.1,
-          "n": 1557,
+          "pct": 96.9,
+          "z": 2.23,
+          "n": 1558,
           "since": "1996-11-01"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          109.699
-        ],
         [
           "2021-09-24",
           110.326
@@ -17639,46 +17639,46 @@
         [
           "2026-09-11",
           153.554
+        ],
+        [
+          "2026-09-18",
+          156.129
         ]
       ]
     },
     {
       "id": "usdchf",
       "name": "USD/CHF",
-      "as_of": "2026-09-11",
-      "level": 0.8132,
-      "chg_1w_pct": 0.52,
-      "chg_mtd_pct": 0.1,
-      "chg_ytd_pct": 3.19,
-      "chg_1y_pct": 1.0,
-      "drawdown_from_ath_pct": -40.51,
-      "realized_vol_4w_pct": 9.25,
-      "realized_vol_13w_pct": 6.88,
+      "as_of": "2026-09-18",
+      "level": 0.8218,
+      "chg_1w_pct": 1.06,
+      "chg_mtd_pct": 0.94,
+      "chg_ytd_pct": 4.28,
+      "chg_1y_pct": 3.25,
+      "drawdown_from_ath_pct": -39.88,
+      "realized_vol_4w_pct": 4.09,
+      "realized_vol_13w_pct": 6.77,
       "context": {
         "5y": {
-          "pct": 23.8,
-          "z": -1.11,
+          "pct": 26.8,
+          "z": -0.96,
           "n": 261,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 11.9,
-          "z": -1.67,
+          "pct": 13.4,
+          "z": -1.53,
           "n": 522,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 5.7,
-          "z": -1.4,
-          "n": 1200,
+          "pct": 6.5,
+          "z": -1.34,
+          "n": 1201,
           "since": "2003-09-19"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          0.9274
-        ],
         [
           "2021-09-24",
           0.9245
@@ -18718,46 +18718,46 @@
         [
           "2026-09-11",
           0.8132
+        ],
+        [
+          "2026-09-18",
+          0.8218
         ]
       ]
     },
     {
       "id": "eurchf",
       "name": "EUR/CHF",
-      "as_of": "2026-09-11",
-      "level": 0.9441,
-      "chg_1w_pct": 0.55,
-      "chg_mtd_pct": 0.84,
-      "chg_ytd_pct": 1.66,
-      "chg_1y_pct": 0.6,
-      "drawdown_from_ath_pct": -43.77,
-      "realized_vol_4w_pct": 3.13,
-      "realized_vol_13w_pct": 2.51,
+      "as_of": "2026-09-18",
+      "level": 0.9466,
+      "chg_1w_pct": 0.27,
+      "chg_mtd_pct": 0.81,
+      "chg_ytd_pct": 1.93,
+      "chg_1y_pct": 1.36,
+      "drawdown_from_ath_pct": -43.62,
+      "realized_vol_4w_pct": 1.07,
+      "realized_vol_13w_pct": 2.52,
       "context": {
         "5y": {
-          "pct": 40.6,
-          "z": -0.53,
+          "pct": 44.1,
+          "z": -0.47,
           "n": 261,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 20.3,
-          "z": -1.15,
+          "pct": 22.0,
+          "z": -1.11,
           "n": 522,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 8.6,
-          "z": -1.26,
-          "n": 1231,
+          "pct": 9.3,
+          "z": -1.25,
+          "n": 1232,
           "since": "2003-01-24"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          1.091
-        ],
         [
           "2021-09-24",
           1.0856
@@ -19797,46 +19797,46 @@
         [
           "2026-09-11",
           0.9441
+        ],
+        [
+          "2026-09-18",
+          0.9466
         ]
       ]
     },
     {
       "id": "usdcny",
       "name": "USD/CNY",
-      "as_of": "2026-09-11",
-      "level": 6.7061,
-      "chg_1w_pct": -0.19,
-      "chg_mtd_pct": -0.63,
-      "chg_ytd_pct": -4.58,
-      "chg_1y_pct": -6.1,
-      "drawdown_from_ath_pct": -18.98,
-      "realized_vol_4w_pct": 0.98,
-      "realized_vol_13w_pct": 1.19,
+      "as_of": "2026-09-18",
+      "level": 6.7074,
+      "chg_1w_pct": 0.02,
+      "chg_mtd_pct": -0.53,
+      "chg_ytd_pct": -4.56,
+      "chg_1y_pct": -5.77,
+      "drawdown_from_ath_pct": -18.97,
+      "realized_vol_4w_pct": 0.69,
+      "realized_vol_13w_pct": 1.21,
       "context": {
         "5y": {
           "pct": 15.7,
           "z": -0.94,
           "n": 261,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
           "pct": 27.4,
           "z": -0.55,
           "n": 522,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
           "pct": 35.4,
           "z": -0.47,
-          "n": 1286,
+          "n": 1287,
           "since": "2001-06-26"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          6.4566
-        ],
         [
           "2021-09-24",
           6.4579
@@ -20876,46 +20876,46 @@
         [
           "2026-09-11",
           6.7061
+        ],
+        [
+          "2026-09-18",
+          6.7074
         ]
       ]
     },
     {
       "id": "eurnok",
       "name": "EUR/NOK",
-      "as_of": "2026-09-11",
-      "level": 10.765,
-      "chg_1w_pct": -0.28,
-      "chg_mtd_pct": -2.02,
-      "chg_ytd_pct": -8.56,
-      "chg_1y_pct": -8.34,
-      "drawdown_from_ath_pct": -11.25,
-      "realized_vol_4w_pct": 1.09,
-      "realized_vol_13w_pct": 5.51,
+      "as_of": "2026-09-18",
+      "level": 10.8069,
+      "chg_1w_pct": 0.39,
+      "chg_mtd_pct": -1.42,
+      "chg_ytd_pct": -8.2,
+      "chg_1y_pct": -6.54,
+      "drawdown_from_ath_pct": -10.91,
+      "realized_vol_4w_pct": 3.29,
+      "realized_vol_13w_pct": 4.19,
       "context": {
         "5y": {
-          "pct": 28.0,
-          "z": -0.53,
+          "pct": 29.1,
+          "z": -0.47,
           "n": 261,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 59.8,
-          "z": 0.29,
+          "pct": 60.3,
+          "z": 0.34,
           "n": 522,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 84.8,
-          "z": 1.3,
-          "n": 1380,
+          "pct": 85.0,
+          "z": 1.33,
+          "n": 1381,
           "since": "2000-03-17"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          10.1543
-        ],
         [
           "2021-09-24",
           10.0639
@@ -21955,6 +21955,10 @@
         [
           "2026-09-11",
           10.765
+        ],
+        [
+          "2026-09-18",
+          10.8069
         ]
       ]
     }
@@ -21966,40 +21970,36 @@
       "exchange": "ICE",
       "contract": "Brent Crude, front month",
       "unit": "USD/bbl",
-      "as_of": "2026-09-11",
-      "level": 104.61,
-      "chg_1w_pct": 8.65,
-      "chg_mtd_pct": 25.21,
-      "chg_ytd_pct": 72.51,
-      "chg_1y_pct": 59.71,
-      "drawdown_from_ath_pct": -28.39,
-      "realized_vol_4w_pct": 47.49,
-      "realized_vol_13w_pct": 56.94,
+      "as_of": "2026-09-18",
+      "level": 103.87,
+      "chg_1w_pct": -0.71,
+      "chg_mtd_pct": 17.34,
+      "chg_ytd_pct": 71.29,
+      "chg_1y_pct": 55.05,
+      "drawdown_from_ath_pct": -28.9,
+      "realized_vol_4w_pct": 36.73,
+      "realized_vol_13w_pct": 51.06,
       "context": {
         "5y": {
-          "pct": 90.8,
-          "z": 1.59,
+          "pct": 90.1,
+          "z": 1.52,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 95.4,
-          "z": 1.91,
+          "pct": 95.0,
+          "z": 1.85,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 79.5,
-          "z": 1.1,
-          "n": 998,
+          "pct": 78.6,
+          "z": 1.06,
+          "n": 999,
           "since": "2007-08-03"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          75.34
-        ],
         [
           "2021-09-24",
           78.09
@@ -23043,6 +23043,10 @@
         [
           "2026-09-11",
           104.61
+        ],
+        [
+          "2026-09-18",
+          103.87
         ]
       ]
     },
@@ -23052,40 +23056,36 @@
       "exchange": "NYMEX",
       "contract": "WTI Light Sweet Crude, front month",
       "unit": "USD/bbl",
-      "as_of": "2026-09-11",
-      "level": 100.05,
-      "chg_1w_pct": 9.37,
-      "chg_mtd_pct": 27.97,
-      "chg_ytd_pct": 76.33,
-      "chg_1y_pct": 61.71,
-      "drawdown_from_ath_pct": -31.14,
-      "realized_vol_4w_pct": 49.78,
-      "realized_vol_13w_pct": 54.76,
+      "as_of": "2026-09-18",
+      "level": 100.3,
+      "chg_1w_pct": 0.25,
+      "chg_mtd_pct": 21.72,
+      "chg_ytd_pct": 76.77,
+      "chg_1y_pct": 59.99,
+      "drawdown_from_ath_pct": -30.97,
+      "realized_vol_4w_pct": 39.5,
+      "realized_vol_13w_pct": 48.63,
       "context": {
         "5y": {
           "pct": 92.4,
           "z": 1.6,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
           "pct": 96.2,
           "z": 1.93,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 91.8,
-          "z": 1.42,
-          "n": 1361,
+          "pct": 91.9,
+          "z": 1.43,
+          "n": 1362,
           "since": "2000-08-25"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          71.97
-        ],
         [
           "2021-09-24",
           73.98
@@ -24129,6 +24129,10 @@
         [
           "2026-09-11",
           100.05
+        ],
+        [
+          "2026-09-18",
+          100.3
         ]
       ]
     },
@@ -24138,40 +24142,36 @@
       "exchange": "NYMEX",
       "contract": "Henry Hub Natural Gas, front month",
       "unit": "USD/MMBtu",
-      "as_of": "2026-09-11",
-      "level": 2.831,
-      "chg_1w_pct": -4.84,
-      "chg_mtd_pct": 6.35,
-      "chg_ytd_pct": -35.16,
-      "chg_1y_pct": -7.12,
-      "drawdown_from_ath_pct": -80.22,
-      "realized_vol_4w_pct": 30.85,
-      "realized_vol_13w_pct": 25.5,
+      "as_of": "2026-09-18",
+      "level": 2.912,
+      "chg_1w_pct": 2.86,
+      "chg_mtd_pct": 6.55,
+      "chg_ytd_pct": -33.3,
+      "chg_1y_pct": -0.99,
+      "drawdown_from_ath_pct": -79.65,
+      "realized_vol_4w_pct": 26.68,
+      "realized_vol_13w_pct": 26.59,
       "context": {
         "5y": {
-          "pct": 34.4,
-          "z": -0.54,
+          "pct": 40.1,
+          "z": -0.49,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 43.4,
-          "z": -0.32,
+          "pct": 50.1,
+          "z": -0.26,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 26.6,
-          "z": -0.7,
-          "n": 1360,
+          "pct": 30.1,
+          "z": -0.66,
+          "n": 1361,
           "since": "2000-09-01"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          5.105
-        ],
         [
           "2021-09-24",
           5.14
@@ -25215,6 +25215,10 @@
         [
           "2026-09-11",
           2.831
+        ],
+        [
+          "2026-09-18",
+          2.912
         ]
       ]
     },
@@ -25224,35 +25228,31 @@
       "exchange": "ICE",
       "contract": "Dutch TTF Natural Gas, front month",
       "unit": "EUR/MWh",
-      "as_of": "2026-09-11",
-      "level": 79.52,
-      "chg_1w_pct": 10.52,
-      "chg_mtd_pct": 43.17,
-      "chg_ytd_pct": 183.04,
-      "chg_1y_pct": 148.74,
+      "as_of": "2026-09-18",
+      "level": 79.518,
+      "chg_1w_pct": -0.0,
+      "chg_mtd_pct": 29.46,
+      "chg_ytd_pct": 183.03,
+      "chg_1y_pct": 143.46,
       "drawdown_from_ath_pct": -76.56,
-      "realized_vol_4w_pct": 37.93,
-      "realized_vol_13w_pct": 52.71,
+      "realized_vol_4w_pct": 42.05,
+      "realized_vol_13w_pct": 52.98,
       "context": {
         "5y": {
-          "pct": 77.9,
-          "z": 0.42,
+          "pct": 77.5,
+          "z": 0.41,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": null,
         "full": {
-          "pct": 87.5,
+          "pct": 87.3,
           "z": 0.93,
-          "n": 465,
+          "n": 466,
           "since": "2017-10-27"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          65.103
-        ],
         [
           "2021-09-24",
           70.24
@@ -26296,6 +26296,10 @@
         [
           "2026-09-11",
           79.52
+        ],
+        [
+          "2026-09-18",
+          79.518
         ]
       ]
     },
@@ -26305,40 +26309,36 @@
       "exchange": "COMEX",
       "contract": "Gold, front month",
       "unit": "USD/troy oz",
-      "as_of": "2026-09-11",
-      "level": 4366.2002,
-      "chg_1w_pct": -1.44,
-      "chg_mtd_pct": 0.59,
-      "chg_ytd_pct": -3.6,
-      "chg_1y_pct": 20.84,
-      "drawdown_from_ath_pct": -16.52,
-      "realized_vol_4w_pct": 7.68,
-      "realized_vol_13w_pct": 22.19,
+      "as_of": "2026-09-18",
+      "level": 4424.8999,
+      "chg_1w_pct": 1.34,
+      "chg_mtd_pct": 1.02,
+      "chg_ytd_pct": -2.3,
+      "chg_1y_pct": 21.25,
+      "drawdown_from_ath_pct": -15.4,
+      "realized_vol_4w_pct": 12.58,
+      "realized_vol_13w_pct": 20.71,
       "context": {
         "5y": {
-          "pct": 89.7,
-          "z": 1.68,
+          "pct": 90.1,
+          "z": 1.72,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 94.8,
-          "z": 2.41,
+          "pct": 95.0,
+          "z": 2.45,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 98.0,
-          "z": 3.35,
-          "n": 1360,
+          "pct": 98.1,
+          "z": 3.4,
+          "n": 1361,
           "since": "2000-09-01"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          1749.4
-        ],
         [
           "2021-09-24",
           1749.7
@@ -27382,6 +27382,10 @@
         [
           "2026-09-11",
           4366.2002
+        ],
+        [
+          "2026-09-18",
+          4424.8999
         ]
       ]
     },
@@ -27391,40 +27395,36 @@
       "exchange": "COMEX",
       "contract": "Silver, front month",
       "unit": "USD/troy oz",
-      "as_of": "2026-09-11",
-      "level": 64.554,
-      "chg_1w_pct": -2.26,
-      "chg_mtd_pct": 1.93,
-      "chg_ytd_pct": -15.6,
-      "chg_1y_pct": 57.17,
-      "drawdown_from_ath_pct": -36.04,
-      "realized_vol_4w_pct": 10.47,
-      "realized_vol_13w_pct": 39.41,
+      "as_of": "2026-09-18",
+      "level": 66.556,
+      "chg_1w_pct": 3.1,
+      "chg_mtd_pct": 2.41,
+      "chg_ytd_pct": -12.98,
+      "chg_1y_pct": 57.02,
+      "drawdown_from_ath_pct": -34.05,
+      "realized_vol_4w_pct": 20.76,
+      "realized_vol_13w_pct": 32.41,
       "context": {
         "5y": {
-          "pct": 87.8,
-          "z": 1.66,
+          "pct": 88.9,
+          "z": 1.76,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 93.9,
-          "z": 2.48,
+          "pct": 94.5,
+          "z": 2.59,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 97.6,
-          "z": 3.41,
-          "n": 1360,
+          "pct": 97.9,
+          "z": 3.54,
+          "n": 1361,
           "since": "2000-09-01"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          22.295
-        ],
         [
           "2021-09-24",
           22.388
@@ -28468,6 +28468,10 @@
         [
           "2026-09-11",
           64.554
+        ],
+        [
+          "2026-09-18",
+          66.556
         ]
       ]
     },
@@ -28477,40 +28481,36 @@
       "exchange": "COMEX",
       "contract": "Copper, front month",
       "unit": "USD/lb",
-      "as_of": "2026-09-11",
-      "level": 6.4695,
-      "chg_1w_pct": -1.93,
-      "chg_mtd_pct": -1.54,
-      "chg_ytd_pct": 12.19,
-      "chg_1y_pct": 44.33,
-      "drawdown_from_ath_pct": -1.97,
-      "realized_vol_4w_pct": 7.77,
-      "realized_vol_13w_pct": 11.77,
+      "as_of": "2026-09-18",
+      "level": 6.615,
+      "chg_1w_pct": 2.25,
+      "chg_mtd_pct": 0.23,
+      "chg_ytd_pct": 14.71,
+      "chg_1y_pct": 44.16,
+      "drawdown_from_ath_pct": 0.0,
+      "realized_vol_4w_pct": 12.61,
+      "realized_vol_13w_pct": 9.19,
       "context": {
         "5y": {
-          "pct": 97.7,
-          "z": 2.42,
+          "pct": 100.0,
+          "z": 2.56,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 98.9,
-          "z": 2.63,
+          "pct": 100.0,
+          "z": 2.75,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 99.6,
-          "z": 2.77,
-          "n": 1360,
+          "pct": 100.0,
+          "z": 2.87,
+          "n": 1361,
           "since": "2000-09-01"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          4.2455
-        ],
         [
           "2021-09-24",
           4.2875
@@ -29554,6 +29554,10 @@
         [
           "2026-09-11",
           6.4695
+        ],
+        [
+          "2026-09-18",
+          6.615
         ]
       ]
     },
@@ -29563,40 +29567,36 @@
       "exchange": "NYSE Arca",
       "contract": "Invesco DB Commodity Index Tracking Fund",
       "unit": "USD",
-      "as_of": "2026-09-11",
-      "level": 33.16,
-      "chg_1w_pct": 3.95,
-      "chg_mtd_pct": 14.7,
-      "chg_ytd_pct": 46.08,
-      "chg_1y_pct": 50.52,
-      "drawdown_from_ath_pct": -28.57,
-      "realized_vol_4w_pct": 19.14,
-      "realized_vol_13w_pct": 22.15,
+      "as_of": "2026-09-18",
+      "level": 32.93,
+      "chg_1w_pct": -0.69,
+      "chg_mtd_pct": 9.77,
+      "chg_ytd_pct": 45.07,
+      "chg_1y_pct": 47.34,
+      "drawdown_from_ath_pct": -29.06,
+      "realized_vol_4w_pct": 17.73,
+      "realized_vol_13w_pct": 19.64,
       "context": {
         "5y": {
-          "pct": 100.0,
-          "z": 3.44,
+          "pct": 99.6,
+          "z": 3.29,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 100.0,
-          "z": 2.78,
+          "pct": 99.8,
+          "z": 2.71,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
           "pct": 96.8,
-          "z": 1.83,
-          "n": 1076,
+          "z": 1.79,
+          "n": 1077,
           "since": "2006-02-10"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          19.52
-        ],
         [
           "2021-09-24",
           19.92
@@ -30640,6 +30640,10 @@
         [
           "2026-09-11",
           33.16
+        ],
+        [
+          "2026-09-18",
+          32.93
         ]
       ]
     },
@@ -30653,40 +30657,36 @@
         "commodity.gold",
         "commodity.copper"
       ],
-      "as_of": "2026-09-11",
-      "level": 674.8899,
-      "chg_1w_pct": 0.51,
-      "chg_mtd_pct": 2.16,
-      "chg_ytd_pct": -14.07,
-      "chg_1y_pct": -16.27,
-      "drawdown_from_ath_pct": -24.5,
-      "realized_vol_4w_pct": 9.47,
-      "realized_vol_13w_pct": 19.08,
+      "as_of": "2026-09-18",
+      "level": 668.9191,
+      "chg_1w_pct": -0.88,
+      "chg_mtd_pct": 0.78,
+      "chg_ytd_pct": -14.83,
+      "chg_1y_pct": -15.89,
+      "drawdown_from_ath_pct": -25.17,
+      "realized_vol_4w_pct": 9.12,
+      "realized_vol_13w_pct": 19.2,
       "context": {
         "5y": {
-          "pct": 77.1,
-          "z": 0.74,
+          "pct": 76.0,
+          "z": 0.69,
           "n": 262,
-          "since": "2021-09-17"
+          "since": "2021-09-24"
         },
         "10y": {
-          "pct": 85.9,
-          "z": 1.15,
+          "pct": 85.3,
+          "z": 1.1,
           "n": 523,
-          "since": "2016-09-16"
+          "since": "2016-09-23"
         },
         "full": {
-          "pct": 94.4,
-          "z": 1.74,
-          "n": 1359,
+          "pct": 94.2,
+          "z": 1.69,
+          "n": 1360,
           "since": "2000-09-01"
         }
       },
       "history": [
-        [
-          "2021-09-17",
-          412.0598
-        ],
         [
           "2021-09-24",
           408.0933
@@ -31730,6 +31730,10 @@
         [
           "2026-09-11",
           674.8899
+        ],
+        [
+          "2026-09-18",
+          668.9191
         ]
       ]
     }
@@ -31739,24 +31743,24 @@
       "US": {
         "name": "Federal Reserve (Fed Funds)",
         "rate_pct": 3.625,
-        "as_of": "2026-09-08",
+        "as_of": "2026-09-15",
         "context": {
           "5y": {
-            "pct": 38.6,
+            "pct": 38.9,
             "z": -0.08,
-            "n": 264,
-            "since": "2021-09-10"
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 69.1,
+            "pct": 69.2,
             "z": 0.63,
-            "n": 525,
-            "since": "2016-09-09"
+            "n": 526,
+            "since": "2016-09-16"
           },
           "full": {
             "pct": 78.3,
             "z": 0.97,
-            "n": 1309,
+            "n": 1311,
             "since": "2001-08-31"
           }
         }
@@ -31764,24 +31768,24 @@
       "UK": {
         "name": "Bank of England (Bank Rate)",
         "rate_pct": 3.75,
-        "as_of": "2026-09-07",
+        "as_of": "2026-09-14",
         "context": {
           "5y": {
-            "pct": 43.0,
-            "z": 0.08,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 43.2,
+            "z": 0.07,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
             "pct": 71.4,
-            "z": 0.87,
-            "n": 524,
-            "since": "2016-09-09"
+            "z": 0.86,
+            "n": 525,
+            "since": "2016-09-16"
           },
           "full": {
-            "pct": 63.8,
+            "pct": 63.9,
             "z": 0.72,
-            "n": 1308,
+            "n": 1310,
             "since": "2001-08-31"
           }
         }
@@ -31789,24 +31793,24 @@
       "EZ": {
         "name": "European Central Bank (Deposit Rate)",
         "rate_pct": 2.25,
-        "as_of": "2026-09-08",
+        "as_of": "2026-09-15",
         "context": {
           "5y": {
-            "pct": 53.8,
-            "z": -0.12,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 54.0,
+            "z": -0.13,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
             "pct": 76.8,
             "z": 0.63,
-            "n": 525,
-            "since": "2016-09-09"
+            "n": 526,
+            "since": "2016-09-16"
           },
           "full": {
             "pct": 72.2,
             "z": 0.48,
-            "n": 1309,
+            "n": 1311,
             "since": "2001-08-31"
           }
         }
@@ -31814,24 +31818,24 @@
       "DE": {
         "name": "European Central Bank (Deposit Rate)",
         "rate_pct": 2.25,
-        "as_of": "2026-09-08",
+        "as_of": "2026-09-15",
         "context": {
           "5y": {
-            "pct": 53.8,
-            "z": -0.12,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 54.0,
+            "z": -0.13,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
             "pct": 76.8,
             "z": 0.63,
-            "n": 525,
-            "since": "2016-09-09"
+            "n": 526,
+            "since": "2016-09-16"
           },
           "full": {
             "pct": 72.2,
             "z": 0.48,
-            "n": 1309,
+            "n": 1311,
             "since": "2001-08-31"
           }
         }
@@ -31839,24 +31843,24 @@
       "CH": {
         "name": "Swiss National Bank (Policy Rate)",
         "rate_pct": 0.0,
-        "as_of": "2026-09-08",
+        "as_of": "2026-09-15",
         "context": {
           "5y": {
-            "pct": 45.8,
-            "z": -0.59,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 46.0,
+            "z": -0.6,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
             "pct": 72.8,
             "z": 0.14,
-            "n": 525,
-            "since": "2016-09-09"
+            "n": 526,
+            "since": "2016-09-16"
           },
           "full": {
-            "pct": 36.1,
+            "pct": 36.2,
             "z": -0.36,
-            "n": 1309,
+            "n": 1311,
             "since": "2001-08-31"
           }
         }
@@ -31864,24 +31868,24 @@
       "CN": {
         "name": "People's Bank of China",
         "rate_pct": 3.0,
-        "as_of": "2026-09-08",
+        "as_of": "2026-09-15",
         "context": {
           "5y": {
-            "pct": 27.3,
-            "z": -1.28,
-            "n": 260,
-            "since": "2021-09-10"
+            "pct": 28.0,
+            "z": -1.27,
+            "n": 261,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 13.6,
-            "z": -1.64,
-            "n": 521,
-            "since": "2016-09-09"
+            "pct": 14.0,
+            "z": -1.62,
+            "n": 522,
+            "since": "2016-09-16"
           },
           "full": {
-            "pct": 5.4,
+            "pct": 5.6,
             "z": -1.71,
-            "n": 1305,
+            "n": 1307,
             "since": "2001-08-31"
           }
         }
@@ -31889,24 +31893,24 @@
       "JP": {
         "name": "Bank of Japan",
         "rate_pct": 1.0,
-        "as_of": "2026-09-08",
+        "as_of": "2026-09-15",
         "context": {
           "5y": {
             "pct": 100.0,
-            "z": 2.25,
-            "n": 264,
-            "since": "2021-09-10"
+            "z": 2.2,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
             "pct": 100.0,
-            "z": 3.24,
-            "n": 523,
+            "z": 3.17,
+            "n": 525,
             "since": "2016-09-23"
           },
           "full": {
             "pct": 100.0,
-            "z": 3.39,
-            "n": 893,
+            "z": 3.34,
+            "n": 895,
             "since": "2006-03-10"
           }
         }
@@ -31914,24 +31918,24 @@
       "NO": {
         "name": "Norges Bank (Key Policy Rate)",
         "rate_pct": 4.25,
-        "as_of": "2026-09-07",
+        "as_of": "2026-09-11",
         "context": {
           "5y": {
             "pct": 70.1,
-            "z": 0.63,
+            "z": 0.62,
             "n": 264,
-            "since": "2021-09-10"
+            "since": "2021-09-17"
           },
           "10y": {
             "pct": 85.0,
             "z": 1.3,
             "n": 525,
-            "since": "2016-09-09"
+            "since": "2016-09-16"
           },
           "full": {
             "pct": 80.8,
             "z": 0.99,
-            "n": 1309,
+            "n": 1310,
             "since": "2001-08-31"
           }
         }
@@ -31987,56 +31991,56 @@
         }
       },
       "UK": {
-        "yoy_pct": 2.9,
-        "qoq_ann_pct": 2.27,
-        "as_of": "2026-07-01",
-        "period_label": "Jul 2026",
+        "yoy_pct": 3.1,
+        "qoq_ann_pct": 3.41,
+        "as_of": "2026-08-01",
+        "period_label": "Aug 2026",
         "basis": "CPI",
         "yoy_is_derived": false,
         "context": {
           "5y": {
-            "pct": 26.2,
-            "z": -0.76,
+            "pct": 32.8,
+            "z": -0.7,
             "n": 61,
-            "since": "2021-07-01"
+            "since": "2021-08-01"
           },
           "10y": {
-            "pct": 58.7,
-            "z": -0.21,
+            "pct": 66.1,
+            "z": -0.14,
             "n": 121,
-            "since": "2016-07-01"
+            "since": "2016-08-01"
           },
           "full": {
-            "pct": 69.2,
-            "z": 0.03,
-            "n": 451,
+            "pct": 74.6,
+            "z": 0.12,
+            "n": 452,
             "since": "1989-01-01"
           }
         },
         "qoq_ann_context": {
           "5y": {
-            "pct": 27.9,
-            "z": -0.64,
+            "pct": 47.5,
+            "z": -0.39,
             "n": 61,
-            "since": "2021-07-01"
+            "since": "2021-08-01"
           },
           "10y": {
-            "pct": 44.6,
-            "z": -0.35,
+            "pct": 63.6,
+            "z": -0.05,
             "n": 121,
-            "since": "2016-07-01"
+            "since": "2016-08-01"
           },
           "full": {
-            "pct": 48.7,
-            "z": -0.19,
-            "n": 460,
+            "pct": 65.9,
+            "z": 0.15,
+            "n": 461,
             "since": "1988-04-01"
           }
         }
       },
       "EZ": {
-        "yoy_pct": 3.3,
-        "qoq_ann_pct": 2.23,
+        "yoy_pct": 3.2,
+        "qoq_ann_pct": 2.19,
         "as_of": "2026-08-01",
         "period_label": "Aug 2026",
         "basis": "HICP",
@@ -32044,19 +32048,19 @@
         "context": {
           "5y": {
             "pct": 59.0,
-            "z": -0.38,
+            "z": -0.41,
             "n": 61,
             "since": "2021-08-01"
           },
           "10y": {
             "pct": 79.3,
-            "z": 0.22,
+            "z": 0.18,
             "n": 121,
             "since": "2016-08-01"
           },
           "full": {
-            "pct": 91.3,
-            "z": 0.73,
+            "pct": 90.7,
+            "z": 0.67,
             "n": 356,
             "since": "1997-01-01"
           }
@@ -32064,19 +32068,19 @@
         "qoq_ann_context": {
           "5y": {
             "pct": 42.6,
-            "z": -0.47,
+            "z": -0.48,
             "n": 61,
             "since": "2021-08-01"
           },
           "10y": {
             "pct": 55.4,
-            "z": -0.16,
+            "z": -0.17,
             "n": 121,
             "since": "2016-08-01"
           },
           "full": {
-            "pct": 60.8,
-            "z": 0.03,
+            "pct": 59.7,
+            "z": 0.02,
             "n": 365,
             "since": "1996-04-01"
           }
@@ -32626,96 +32630,96 @@
   "yield_curves": {
     "US": {
       "tenors": {
-        "2Y": 4.56,
-        "5Y": 4.75,
-        "10Y": 4.95,
-        "30Y": 5.37
+        "2Y": 4.67,
+        "5Y": 4.78,
+        "10Y": 4.94,
+        "30Y": 5.29
       },
       "context": {
         "2Y": {
           "5y": {
-            "pct": 81.1,
-            "z": 0.72,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 84.9,
+            "z": 0.81,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 90.5,
-            "z": 1.27,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 92.4,
+            "z": 1.33,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 49.6,
-            "z": -0.11,
-            "n": 2626,
+            "pct": 50.9,
+            "z": -0.08,
+            "n": 2628,
             "since": "1976-06-04"
           }
         },
         "5Y": {
           "5y": {
-            "pct": 99.2,
-            "z": 1.2,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 99.6,
+            "z": 1.23,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 99.6,
-            "z": 1.56,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 99.8,
+            "z": 1.57,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 45.3,
-            "z": -0.23,
-            "n": 3378,
+            "pct": 45.8,
+            "z": -0.22,
+            "n": 3380,
             "since": "1962-01-05"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.31,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 99.2,
+            "z": 1.29,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.68,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 99.6,
+            "z": 1.66,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 45.9,
-            "z": -0.29,
-            "n": 3378,
+            "pct": 45.8,
+            "z": -0.3,
+            "n": 3380,
             "since": "1962-01-05"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.39,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 99.2,
+            "z": 1.29,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.85,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 99.6,
+            "z": 1.76,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 49.6,
-            "z": -0.26,
-            "n": 2589,
+            "pct": 48.5,
+            "z": -0.29,
+            "n": 2591,
             "since": "1977-02-18"
           }
         }
       },
-      "2s10s_bp": 39.0,
+      "2s10s_bp": 27.0,
       "3m10y_bp": null,
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "source_note": null,
       "cadence": "weekly",
       "lagged": false,
@@ -32723,10 +32727,6 @@
       "basis": null,
       "tenor_history": {
         "2Y": [
-          [
-            "2023-09-15",
-            5.02
-          ],
           [
             "2023-09-22",
             5.1
@@ -33358,13 +33358,17 @@
           [
             "2026-09-10",
             4.56
+          ],
+          [
+            "2026-09-11",
+            4.63
+          ],
+          [
+            "2026-09-17",
+            4.67
           ]
         ],
         "5Y": [
-          [
-            "2023-09-15",
-            4.45
-          ],
           [
             "2023-09-22",
             4.57
@@ -33996,13 +34000,17 @@
           [
             "2026-09-10",
             4.75
+          ],
+          [
+            "2026-09-11",
+            4.78
+          ],
+          [
+            "2026-09-17",
+            4.78
           ]
         ],
         "10Y": [
-          [
-            "2023-09-15",
-            4.33
-          ],
           [
             "2023-09-22",
             4.44
@@ -34634,13 +34642,17 @@
           [
             "2026-09-10",
             4.95
+          ],
+          [
+            "2026-09-11",
+            4.96
+          ],
+          [
+            "2026-09-17",
+            4.94
           ]
         ],
         "30Y": [
-          [
-            "2023-09-15",
-            4.42
-          ],
           [
             "2023-09-22",
             4.53
@@ -35272,102 +35284,110 @@
           [
             "2026-09-10",
             5.37
+          ],
+          [
+            "2026-09-11",
+            5.35
+          ],
+          [
+            "2026-09-17",
+            5.29
           ]
         ]
       }
     },
     "UK": {
       "tenors": {
-        "2Y": 4.651,
-        "5Y": 4.907,
-        "10Y": 5.357,
-        "30Y": 6.015
+        "2Y": 4.536,
+        "5Y": 4.769,
+        "10Y": 5.207,
+        "30Y": 5.783
       },
       "context": {
         "2Y": {
           "5y": {
-            "pct": 94.7,
-            "z": 0.96,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 91.7,
+            "z": 0.86,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 97.3,
-            "z": 1.52,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 95.8,
+            "z": 1.44,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 46.3,
-            "z": -0.22,
-            "n": 2490,
+            "pct": 44.7,
+            "z": -0.24,
+            "n": 2492,
             "since": "1979-01-05"
           }
         },
         "5Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.26,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 98.9,
+            "z": 1.13,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.72,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 99.4,
+            "z": 1.62,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 49.8,
-            "z": -0.23,
-            "n": 2490,
+            "pct": 48.0,
+            "z": -0.26,
+            "n": 2492,
             "since": "1979-01-05"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.33,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 98.9,
+            "z": 1.19,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.79,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 99.4,
+            "z": 1.69,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 57.9,
-            "z": -0.19,
-            "n": 2490,
+            "pct": 56.7,
+            "z": -0.23,
+            "n": 2492,
             "since": "1979-01-05"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.26,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 95.5,
+            "z": 1.08,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.81,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 97.7,
+            "z": 1.67,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 100.0,
-            "z": 1.89,
-            "n": 559,
+            "pct": 97.9,
+            "z": 1.74,
+            "n": 561,
             "since": "2016-01-08"
           }
         }
       },
-      "2s10s_bp": 70.6,
+      "2s10s_bp": 67.1,
       "3m10y_bp": null,
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "source_note": "Bank of England GLC nominal spot curve (commercial-bank liability curve workbook), full 0.5y-40y term structure.",
       "cadence": "weekly",
       "lagged": false,
@@ -35375,10 +35395,6 @@
       "basis": null,
       "tenor_history": {
         "2Y": [
-          [
-            "2023-09-15",
-            4.6841
-          ],
           [
             "2023-09-22",
             4.4961
@@ -36006,13 +36022,17 @@
           [
             "2026-09-10",
             4.6509
+          ],
+          [
+            "2026-09-11",
+            4.6238
+          ],
+          [
+            "2026-09-17",
+            4.5359
           ]
         ],
         "5Y": [
-          [
-            "2023-09-15",
-            4.2775
-          ],
           [
             "2023-09-22",
             4.1361
@@ -36640,13 +36660,17 @@
           [
             "2026-09-10",
             4.9066
+          ],
+          [
+            "2026-09-11",
+            4.8831
+          ],
+          [
+            "2026-09-17",
+            4.7695
           ]
         ],
         "10Y": [
-          [
-            "2023-09-15",
-            4.308
-          ],
           [
             "2023-09-22",
             4.222
@@ -37274,13 +37298,17 @@
           [
             "2026-09-10",
             5.3572
+          ],
+          [
+            "2026-09-11",
+            5.3483
+          ],
+          [
+            "2026-09-17",
+            5.2074
           ]
         ],
         "30Y": [
-          [
-            "2023-09-15",
-            4.6372
-          ],
           [
             "2023-09-22",
             4.6563
@@ -37908,102 +37936,110 @@
           [
             "2026-09-10",
             6.0148
+          ],
+          [
+            "2026-09-11",
+            6.0122
+          ],
+          [
+            "2026-09-17",
+            5.7826
           ]
         ]
       }
     },
     "EZ": {
       "tenors": {
-        "2Y": 3.2,
-        "5Y": 3.483,
-        "10Y": 3.952,
-        "30Y": 4.438
+        "2Y": 3.252,
+        "5Y": 3.512,
+        "10Y": 3.942,
+        "30Y": 4.365
       },
       "context": {
         "2Y": {
           "5y": {
-            "pct": 90.9,
-            "z": 0.99,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 94.0,
+            "z": 1.03,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 95.4,
-            "z": 1.59,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 97.0,
+            "z": 1.61,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 96.6,
-            "z": 1.83,
-            "n": 787,
+            "pct": 97.6,
+            "z": 1.86,
+            "n": 789,
             "since": "2011-09-02"
           }
         },
         "5Y": {
           "5y": {
             "pct": 100.0,
-            "z": 1.2,
-            "n": 264,
-            "since": "2021-09-10"
+            "z": 1.22,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
             "pct": 100.0,
             "z": 1.7,
-            "n": 524,
-            "since": "2016-09-16"
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 99.2,
-            "z": 1.76,
-            "n": 787,
+            "pct": 99.5,
+            "z": 1.78,
+            "n": 789,
             "since": "2011-09-02"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.24,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 99.2,
+            "z": 1.23,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.7,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 99.6,
+            "z": 1.68,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 97.3,
-            "z": 1.54,
-            "n": 787,
+            "pct": 97.0,
+            "z": 1.52,
+            "n": 789,
             "since": "2011-09-02"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.41,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 98.9,
+            "z": 1.32,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.84,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 99.4,
+            "z": 1.76,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 93.4,
-            "z": 1.42,
-            "n": 787,
+            "pct": 92.9,
+            "z": 1.35,
+            "n": 789,
             "since": "2011-09-02"
           }
         }
       },
-      "2s10s_bp": 75.2,
+      "2s10s_bp": 69.0,
       "3m10y_bp": null,
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "source_note": "ECB euro area yield curve, ALL government bonds (a blend across euro area sovereigns), not the AAA-only curve.",
       "cadence": "weekly",
       "lagged": false,
@@ -38011,10 +38047,6 @@
       "basis": null,
       "tenor_history": {
         "2Y": [
-          [
-            "2023-09-15",
-            3.3883
-          ],
           [
             "2023-09-22",
             3.4241
@@ -38646,13 +38678,17 @@
           [
             "2026-09-10",
             3.1997
+          ],
+          [
+            "2026-09-11",
+            3.2277
+          ],
+          [
+            "2026-09-17",
+            3.252
           ]
         ],
         "5Y": [
-          [
-            "2023-09-15",
-            3.209
-          ],
           [
             "2023-09-22",
             3.2722
@@ -39284,13 +39320,17 @@
           [
             "2026-09-10",
             3.4827
+          ],
+          [
+            "2026-09-11",
+            3.5074
+          ],
+          [
+            "2026-09-17",
+            3.5118
           ]
         ],
         "10Y": [
-          [
-            "2023-09-15",
-            3.4705
-          ],
           [
             "2023-09-22",
             3.5545
@@ -39922,13 +39962,17 @@
           [
             "2026-09-10",
             3.952
+          ],
+          [
+            "2026-09-11",
+            3.9711
+          ],
+          [
+            "2026-09-17",
+            3.9424
           ]
         ],
         "30Y": [
-          [
-            "2023-09-15",
-            3.6471
-          ],
           [
             "2023-09-22",
             3.7259
@@ -40560,102 +40604,110 @@
           [
             "2026-09-10",
             4.4381
+          ],
+          [
+            "2026-09-11",
+            4.4245
+          ],
+          [
+            "2026-09-17",
+            4.3653
           ]
         ]
       }
     },
     "DE": {
       "tenors": {
-        "2Y": 3.17,
-        "5Y": 3.26,
-        "10Y": 3.56,
-        "30Y": 3.99
+        "2Y": 3.24,
+        "5Y": 3.31,
+        "10Y": 3.55,
+        "30Y": 3.92
       },
       "context": {
         "2Y": {
           "5y": {
-            "pct": 98.9,
-            "z": 1.12,
+            "pct": 100.0,
+            "z": 1.18,
             "n": 261,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 99.4,
-            "z": 1.68,
+            "pct": 100.0,
+            "z": 1.71,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 75.0,
-            "z": 0.81,
-            "n": 1519,
+            "pct": 75.9,
+            "z": 0.85,
+            "n": 1520,
             "since": "1997-08-08"
           }
         },
         "5Y": {
           "5y": {
             "pct": 100.0,
-            "z": 1.44,
+            "z": 1.49,
             "n": 261,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
             "pct": 100.0,
-            "z": 1.86,
+            "z": 1.88,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 67.5,
-            "z": 0.64,
-            "n": 1519,
+            "pct": 68.2,
+            "z": 0.67,
+            "n": 1520,
             "since": "1997-08-08"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.48,
+            "pct": 99.6,
+            "z": 1.47,
             "n": 261,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.9,
+            "pct": 99.8,
+            "z": 1.88,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 61.7,
-            "z": 0.5,
-            "n": 1519,
+            "pct": 61.6,
+            "z": 0.49,
+            "n": 1520,
             "since": "1997-08-08"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.59,
+            "pct": 99.6,
+            "z": 1.51,
             "n": 261,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 2.07,
+            "pct": 99.8,
+            "z": 2.0,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 66.3,
-            "z": 0.59,
-            "n": 1363,
+            "pct": 64.7,
+            "z": 0.55,
+            "n": 1364,
             "since": "2000-08-04"
           }
         }
       },
-      "2s10s_bp": 39.0,
+      "2s10s_bp": 31.0,
       "3m10y_bp": null,
-      "as_of": "2026-09-11",
+      "as_of": "2026-09-18",
       "source_note": "Deutsche Bundesbank daily term structure on listed Federal securities (Svensson). Literal single-issuer Bund curve.",
       "cadence": "weekly",
       "lagged": false,
@@ -40663,10 +40715,6 @@
       "basis": null,
       "tenor_history": {
         "2Y": [
-          [
-            "2023-09-15",
-            3.16
-          ],
           [
             "2023-09-22",
             3.21
@@ -41290,13 +41338,13 @@
           [
             "2026-09-11",
             3.17
+          ],
+          [
+            "2026-09-18",
+            3.24
           ]
         ],
         "5Y": [
-          [
-            "2023-09-15",
-            2.61
-          ],
           [
             "2023-09-22",
             2.69
@@ -41920,13 +41968,13 @@
           [
             "2026-09-11",
             3.26
+          ],
+          [
+            "2026-09-18",
+            3.31
           ]
         ],
         "10Y": [
-          [
-            "2023-09-15",
-            2.65
-          ],
           [
             "2023-09-22",
             2.74
@@ -42550,13 +42598,13 @@
           [
             "2026-09-11",
             3.56
+          ],
+          [
+            "2026-09-18",
+            3.55
           ]
         ],
         "30Y": [
-          [
-            "2023-09-15",
-            2.71
-          ],
           [
             "2023-09-22",
             2.81
@@ -43180,6 +43228,10 @@
           [
             "2026-09-11",
             3.99
+          ],
+          [
+            "2026-09-18",
+            3.92
           ]
         ]
       }
@@ -43235,20 +43287,20 @@
         "10Y": {
           "5y": {
             "pct": 54.4,
-            "z": -0.05,
+            "z": -0.06,
             "n": 261,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
             "pct": 77.2,
             "z": 0.76,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
             "pct": 26.1,
             "z": -0.88,
-            "n": 2019,
+            "n": 2020,
             "since": "1988-01-04"
           }
         },
@@ -43275,7 +43327,7 @@
       },
       "2s10s_bp": 50.3,
       "3m10y_bp": null,
-      "as_of": "2026-09-11",
+      "as_of": "2026-09-18",
       "source_note": "SNB cube rendeiduebd, Swiss Confederation bond issues (dimSel D0=CHF), daily spot rates back to 1988-01-04. Published in a monthly batch; the SNB interest-rate RSS feed carries the 10y between batches.",
       "cadence": "monthly_batch",
       "lagged": false,
@@ -44552,10 +44604,6 @@
         ],
         "10Y": [
           [
-            "2023-09-15",
-            1.055
-          ],
-          [
             "2023-09-22",
             1.057
           ],
@@ -45177,6 +45225,10 @@
           ],
           [
             "2026-09-11",
+            0.581
+          ],
+          [
+            "2026-09-18",
             0.581
           ]
         ],
@@ -45819,75 +45871,75 @@
     "CN": {
       "tenors": {
         "2Y": null,
-        "5Y": 1.423,
-        "10Y": 1.69,
-        "30Y": 2.146
+        "5Y": 1.407,
+        "10Y": 1.682,
+        "30Y": 2.126
       },
       "context": {
         "5Y": {
           "5y": {
-            "pct": 5.1,
-            "z": -1.38,
+            "pct": 3.1,
+            "z": -1.4,
             "n": 257,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 2.5,
-            "z": -1.75,
+            "pct": 1.6,
+            "z": -1.76,
             "n": 516,
-            "since": "2016-09-14"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 1.2,
-            "z": -2.15,
-            "n": 1063,
+            "pct": 0.8,
+            "z": -2.16,
+            "n": 1064,
             "since": "2006-03-03"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 9.7,
+            "pct": 8.9,
             "z": -1.32,
             "n": 257,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 4.8,
+            "pct": 4.5,
             "z": -1.74,
             "n": 516,
-            "since": "2016-09-14"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 2.4,
-            "z": -2.18,
-            "n": 1063,
+            "pct": 2.2,
+            "z": -2.19,
+            "n": 1064,
             "since": "2006-03-03"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 16.7,
-            "z": -0.99,
+            "pct": 15.2,
+            "z": -1.02,
             "n": 257,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 8.3,
-            "z": -1.53,
+            "pct": 7.6,
+            "z": -1.55,
             "n": 516,
-            "since": "2016-09-14"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 4.0,
-            "z": -2.12,
-            "n": 1063,
+            "pct": 3.7,
+            "z": -2.14,
+            "n": 1064,
             "since": "2006-03-03"
           }
         }
       },
       "2s10s_bp": null,
       "3m10y_bp": null,
-      "as_of": "2026-09-11",
+      "as_of": "2026-09-18",
       "source_note": "ChinaBond government bond yield curve (\u4e2d\u503a\u56fd\u503a\u6536\u76ca\u7387\u66f2\u7ebf), server-rendered HTML \u2014 a scrape, though an official CCDC/PBoC-affiliated one. History to 2006-03-01. There is no 2y point on this curve.",
       "cadence": "weekly",
       "lagged": false,
@@ -45895,10 +45947,6 @@
       "basis": null,
       "tenor_history": {
         "5Y": [
-          [
-            "2023-09-15",
-            2.4939
-          ],
           [
             "2023-09-22",
             2.5296
@@ -46514,13 +46562,13 @@
           [
             "2026-09-11",
             1.4226
+          ],
+          [
+            "2026-09-18",
+            1.407
           ]
         ],
         "10Y": [
-          [
-            "2023-09-15",
-            2.64
-          ],
           [
             "2023-09-22",
             2.6776
@@ -47136,13 +47184,13 @@
           [
             "2026-09-11",
             1.6899
+          ],
+          [
+            "2026-09-18",
+            1.682
           ]
         ],
         "30Y": [
-          [
-            "2023-09-15",
-            2.984
-          ],
           [
             "2023-09-22",
             2.9971
@@ -47758,102 +47806,106 @@
           [
             "2026-09-11",
             2.146
+          ],
+          [
+            "2026-09-18",
+            2.126
           ]
         ]
       }
     },
     "JP": {
       "tenors": {
-        "2Y": 1.823,
-        "5Y": 2.244,
-        "10Y": 2.92,
-        "30Y": 3.995
+        "2Y": 1.868,
+        "5Y": 2.322,
+        "10Y": 2.993,
+        "30Y": 4.047
       },
       "context": {
         "2Y": {
           "5y": {
-            "pct": 99.2,
+            "pct": 100.0,
             "z": 2.59,
-            "n": 264,
-            "since": "2021-09-10"
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 99.6,
+            "pct": 100.0,
             "z": 3.49,
-            "n": 523,
-            "since": "2016-09-16"
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 62.2,
-            "z": -0.22,
-            "n": 2648,
+            "pct": 62.3,
+            "z": -0.21,
+            "n": 2650,
             "since": "1974-09-27"
           }
         },
         "5Y": {
           "5y": {
-            "pct": 99.2,
-            "z": 2.43,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 100.0,
+            "z": 2.47,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 99.6,
-            "z": 3.26,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 100.0,
+            "z": 3.3,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 58.7,
-            "z": -0.21,
-            "n": 2713,
+            "pct": 59.4,
+            "z": -0.19,
+            "n": 2715,
             "since": "1974-09-27"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 99.2,
-            "z": 2.37,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 100.0,
+            "z": 2.4,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 99.6,
-            "z": 3.15,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 100.0,
+            "z": 3.18,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 74.7,
-            "z": 0.46,
-            "n": 2098,
+            "pct": 75.4,
+            "z": 0.5,
+            "n": 2100,
             "since": "1986-07-11"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 98.1,
-            "z": 1.98,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 99.2,
+            "z": 2.0,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 99.0,
-            "z": 2.63,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 99.6,
+            "z": 2.64,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 99.6,
-            "z": 2.79,
-            "n": 1412,
+            "pct": 99.9,
+            "z": 2.84,
+            "n": 1414,
             "since": "1999-09-03"
           }
         }
       },
-      "2s10s_bp": 109.7,
+      "2s10s_bp": 112.5,
       "3m10y_bp": null,
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "source_note": "Japan Ministry of Finance JGB interest rate CSV \u2014 the whole 1Y-40Y curve in one file (chosen over JSDA's per-bond xlsx).",
       "cadence": "weekly",
       "lagged": false,
@@ -47861,10 +47913,6 @@
       "basis": null,
       "tenor_history": {
         "2Y": [
-          [
-            "2023-09-15",
-            0.03
-          ],
           [
             "2023-09-22",
             0.035
@@ -48496,13 +48544,17 @@
           [
             "2026-09-10",
             1.823
+          ],
+          [
+            "2026-09-11",
+            1.844
+          ],
+          [
+            "2026-09-17",
+            1.868
           ]
         ],
         "5Y": [
-          [
-            "2023-09-15",
-            0.29
-          ],
           [
             "2023-09-22",
             0.324
@@ -49134,13 +49186,17 @@
           [
             "2026-09-10",
             2.244
+          ],
+          [
+            "2026-09-11",
+            2.296
+          ],
+          [
+            "2026-09-17",
+            2.322
           ]
         ],
         "10Y": [
-          [
-            "2023-09-15",
-            0.715
-          ],
           [
             "2023-09-22",
             0.754
@@ -49772,13 +49828,17 @@
           [
             "2026-09-10",
             2.92
+          ],
+          [
+            "2026-09-11",
+            2.987
+          ],
+          [
+            "2026-09-17",
+            2.993
           ]
         ],
         "30Y": [
-          [
-            "2023-09-15",
-            1.598
-          ],
           [
             "2023-09-22",
             1.611
@@ -50410,82 +50470,90 @@
           [
             "2026-09-10",
             3.995
+          ],
+          [
+            "2026-09-11",
+            4.024
+          ],
+          [
+            "2026-09-17",
+            4.047
           ]
         ]
       }
     },
     "NO": {
       "tenors": {
-        "2Y": 4.565,
+        "2Y": 4.596,
         "5Y": 4.445,
-        "10Y": 4.432,
+        "10Y": 4.369,
         "30Y": null
       },
       "context": {
         "2Y": {
           "5y": {
-            "pct": 98.1,
-            "z": 1.3,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 98.9,
+            "z": 1.33,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 99.0,
+            "pct": 99.4,
             "z": 1.66,
-            "n": 523,
-            "since": "2016-09-16"
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 99.2,
-            "z": 1.82,
-            "n": 612,
+            "pct": 99.5,
+            "z": 1.83,
+            "n": 614,
             "since": "2015-01-02"
           }
         },
         "5Y": {
           "5y": {
-            "pct": 99.6,
+            "pct": 99.2,
             "z": 1.44,
-            "n": 263,
-            "since": "2021-09-10"
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 99.8,
-            "z": 1.72,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 99.6,
+            "z": 1.7,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 99.8,
-            "z": 1.88,
-            "n": 612,
+            "pct": 99.7,
+            "z": 1.86,
+            "n": 614,
             "since": "2015-01-02"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.37,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 98.9,
+            "z": 1.28,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.72,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 99.4,
+            "z": 1.65,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 100.0,
-            "z": 1.89,
-            "n": 612,
+            "pct": 99.5,
+            "z": 1.82,
+            "n": 614,
             "since": "2015-01-02"
           }
         }
       },
-      "2s10s_bp": -13.3,
+      "2s10s_bp": -22.7,
       "3m10y_bp": null,
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "source_note": "Norges Bank zero-coupon government yields. The published curve stops at 10 years \u2014 there is no 30y point.",
       "cadence": "weekly",
       "lagged": false,
@@ -50493,10 +50561,6 @@
       "basis": null,
       "tenor_history": {
         "2Y": [
-          [
-            "2023-09-15",
-            4.055
-          ],
           [
             "2023-09-22",
             4.213
@@ -51124,13 +51188,17 @@
           [
             "2026-09-10",
             4.565
+          ],
+          [
+            "2026-09-11",
+            4.606
+          ],
+          [
+            "2026-09-17",
+            4.596
           ]
         ],
         "5Y": [
-          [
-            "2023-09-15",
-            3.888
-          ],
           [
             "2023-09-22",
             4.033
@@ -51758,13 +51826,17 @@
           [
             "2026-09-10",
             4.445
+          ],
+          [
+            "2026-09-11",
+            4.463
+          ],
+          [
+            "2026-09-17",
+            4.445
           ]
         ],
         "10Y": [
-          [
-            "2023-09-15",
-            3.726
-          ],
           [
             "2023-09-22",
             3.851
@@ -52392,6 +52464,14 @@
           [
             "2026-09-10",
             4.432
+          ],
+          [
+            "2026-09-11",
+            4.428
+          ],
+          [
+            "2026-09-17",
+            4.369
           ]
         ]
       }
@@ -52401,75 +52481,75 @@
     "US": {
       "tenors": {
         "2Y": null,
-        "5Y": 2.29,
-        "10Y": 2.55,
-        "30Y": 3.05
+        "5Y": 2.46,
+        "10Y": 2.61,
+        "30Y": 3.04
       },
       "context": {
         "5Y": {
           "5y": {
-            "pct": 97.7,
-            "z": 0.98,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 99.6,
+            "z": 1.13,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 98.9,
-            "z": 1.46,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 99.8,
+            "z": 1.59,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 94.8,
-            "z": 1.48,
-            "n": 1239,
+            "pct": 97.6,
+            "z": 1.63,
+            "n": 1241,
             "since": "2003-01-03"
           }
         },
         "10Y": {
           "5y": {
             "pct": 100.0,
-            "z": 1.15,
-            "n": 264,
-            "since": "2021-09-10"
+            "z": 1.21,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
             "pct": 100.0,
-            "z": 1.67,
-            "n": 524,
-            "since": "2016-09-16"
+            "z": 1.71,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 98.5,
-            "z": 1.52,
-            "n": 1239,
+            "pct": 98.9,
+            "z": 1.58,
+            "n": 1241,
             "since": "2003-01-03"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.32,
-            "n": 264,
-            "since": "2021-09-10"
+            "pct": 99.2,
+            "z": 1.3,
+            "n": 265,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.89,
-            "n": 524,
-            "since": "2016-09-16"
+            "pct": 99.6,
+            "z": 1.86,
+            "n": 525,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 100.0,
-            "z": 2.29,
-            "n": 866,
+            "pct": 99.8,
+            "z": 2.26,
+            "n": 868,
             "since": "2010-02-26"
           }
         }
       },
       "2s10s_bp": null,
       "3m10y_bp": null,
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "source_note": null,
       "cadence": "weekly",
       "lagged": false,
@@ -52479,96 +52559,96 @@
     },
     "UK": {
       "tenors": {
-        "2Y": 0.334,
-        "5Y": 1.191,
-        "10Y": 1.962,
-        "30Y": 2.557
+        "2Y": 0.207,
+        "5Y": 1.064,
+        "10Y": 1.802,
+        "30Y": 2.336
       },
       "context": {
         "2Y": {
           "5y": {
-            "pct": 67.0,
-            "z": 0.62,
-            "n": 191,
+            "pct": 53.4,
+            "z": 0.55,
+            "n": 193,
             "since": "2021-10-01"
           },
           "10y": {
-            "pct": 80.4,
-            "z": 1.11,
-            "n": 321,
+            "pct": 72.1,
+            "z": 1.03,
+            "n": 323,
             "since": "2017-06-30"
           },
           "full": {
-            "pct": 36.7,
-            "z": -0.26,
-            "n": 1381,
+            "pct": 34.8,
+            "z": -0.31,
+            "n": 1383,
             "since": "1985-06-28"
           }
         },
         "5Y": {
           "5y": {
-            "pct": 99.2,
-            "z": 0.93,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 95.5,
+            "z": 0.83,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 99.6,
-            "z": 1.58,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 97.7,
+            "z": 1.49,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 42.3,
-            "z": 0.01,
-            "n": 2177,
+            "pct": 41.6,
+            "z": -0.05,
+            "n": 2179,
             "since": "1985-01-04"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.15,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 95.5,
+            "z": 1.04,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.76,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 97.7,
+            "z": 1.65,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 54.9,
-            "z": 0.26,
-            "n": 2177,
+            "pct": 50.5,
+            "z": 0.18,
+            "n": 2179,
             "since": "1985-01-04"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 100.0,
-            "z": 1.12,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 89.4,
+            "z": 0.96,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 100.0,
-            "z": 1.73,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 94.7,
+            "z": 1.59,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 100.0,
-            "z": 1.81,
-            "n": 559,
+            "pct": 95.0,
+            "z": 1.66,
+            "n": 561,
             "since": "2016-01-08"
           }
         }
       },
-      "2s10s_bp": 162.8,
+      "2s10s_bp": 159.5,
       "3m10y_bp": null,
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "source_note": null,
       "cadence": "weekly",
       "lagged": false,
@@ -52583,68 +52663,68 @@
       "basis": "CPI",
       "note": null,
       "tenors": {
-        "5y": 2.4,
-        "10y": 2.36,
-        "5y5y_fwd": 2.32
+        "5y": 2.31,
+        "10y": 2.33,
+        "5y5y_fwd": 2.35
       },
       "context": {
         "5y": {
           "5y": {
-            "pct": 56.3,
-            "z": -0.15,
+            "pct": 35.6,
+            "z": -0.46,
             "n": 261,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 73.2,
-            "z": 0.6,
+            "pct": 61.9,
+            "z": 0.41,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 79.5,
-            "z": 0.76,
-            "n": 1237,
+            "pct": 70.8,
+            "z": 0.6,
+            "n": 1238,
             "since": "2003-01-03"
           }
         },
         "10y": {
           "5y": {
-            "pct": 64.8,
-            "z": 0.03,
+            "pct": 51.7,
+            "z": -0.17,
             "n": 261,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 80.3,
-            "z": 0.72,
+            "pct": 72.4,
+            "z": 0.63,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 75.0,
-            "z": 0.64,
-            "n": 1237,
+            "pct": 68.6,
+            "z": 0.56,
+            "n": 1238,
             "since": "2003-01-03"
           }
         },
         "5y5y_fwd": {
           "5y": {
-            "pct": 73.2,
-            "z": 0.52,
+            "pct": 83.5,
+            "z": 0.81,
             "n": 261,
-            "since": "2021-09-17"
+            "since": "2021-09-24"
           },
           "10y": {
-            "pct": 86.0,
-            "z": 0.89,
+            "pct": 91.8,
+            "z": 1.01,
             "n": 522,
-            "since": "2016-09-16"
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 55.3,
-            "z": 0.21,
-            "n": 1237,
+            "pct": 59.9,
+            "z": 0.3,
+            "n": 1238,
             "since": "2003-01-03"
           }
         }
@@ -52665,68 +52745,68 @@
       "basis": "RPI",
       "note": "BoE implied inflation curve is RPI-based (UK linkers reference RPI), typically ~0.8-1.0pp above the equivalent CPI rate.",
       "tenors": {
-        "2y": 4.33,
-        "5y": 3.72,
-        "10y": 3.4
+        "2y": 4.34,
+        "5y": 3.71,
+        "10y": 3.41
       },
       "context": {
         "2y": {
           "5y": {
-            "pct": 66.5,
-            "z": 0.32,
-            "n": 191,
+            "pct": 66.8,
+            "z": 0.33,
+            "n": 193,
             "since": "2021-10-01"
           },
           "10y": {
-            "pct": 80.1,
-            "z": 0.77,
-            "n": 321,
+            "pct": 80.2,
+            "z": 0.78,
+            "n": 323,
             "since": "2017-06-30"
           },
           "full": {
-            "pct": 74.7,
-            "z": 0.32,
-            "n": 1381,
+            "pct": 74.8,
+            "z": 0.33,
+            "n": 1383,
             "since": "1985-06-28"
           }
         },
         "5y": {
           "5y": {
-            "pct": 67.3,
-            "z": 0.26,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 65.9,
+            "z": 0.23,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 83.6,
-            "z": 0.87,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 82.6,
+            "z": 0.84,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 67.9,
-            "z": 0.01,
-            "n": 2177,
+            "pct": 67.4,
+            "z": 0.0,
+            "n": 2179,
             "since": "1985-01-04"
           }
         },
         "10y": {
           "5y": {
-            "pct": 39.9,
-            "z": -0.29,
-            "n": 263,
-            "since": "2021-09-10"
+            "pct": 42.0,
+            "z": -0.25,
+            "n": 264,
+            "since": "2021-09-17"
           },
           "10y": {
-            "pct": 62.0,
-            "z": 0.09,
-            "n": 523,
-            "since": "2016-09-16"
+            "pct": 63.2,
+            "z": 0.13,
+            "n": 524,
+            "since": "2016-09-23"
           },
           "full": {
-            "pct": 59.1,
-            "z": -0.27,
-            "n": 2177,
+            "pct": 59.4,
+            "z": -0.26,
+            "n": 2179,
             "since": "1985-01-04"
           }
         }
@@ -52907,16 +52987,16 @@
       "region": "US",
       "name": "US investment grade credit spread",
       "grade": "IG",
-      "spread_bp": 80,
+      "spread_bp": 78,
       "basis": "Option-adjusted spread over government bonds \u2014 the extra yield the index pays, adjusted for issuers' rights to call bonds early.",
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "context": {
         "5y": null,
         "10y": null,
         "full": {
-          "pct": 32.9,
-          "z": -0.71,
-          "n": 161,
+          "pct": 16.6,
+          "z": -0.85,
+          "n": 163,
           "since": "2023-09-01"
         }
       }
@@ -52928,14 +53008,14 @@
       "grade": "HY",
       "spread_bp": 270,
       "basis": "Option-adjusted spread over government bonds \u2014 the extra yield the index pays, adjusted for issuers' rights to call bonds early.",
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "context": {
         "5y": null,
         "10y": null,
         "full": {
-          "pct": 13.0,
-          "z": -1.0,
-          "n": 161,
+          "pct": 14.1,
+          "z": -0.98,
+          "n": 163,
           "since": "2023-09-01"
         }
       }
@@ -52945,16 +53025,16 @@
       "region": "EZ",
       "name": "Euro high yield credit spread",
       "grade": "HY",
-      "spread_bp": 268,
+      "spread_bp": 269,
       "basis": "Option-adjusted spread over government bonds \u2014 the extra yield the index pays, adjusted for issuers' rights to call bonds early.",
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "context": {
         "5y": null,
         "10y": null,
         "full": {
-          "pct": 17.4,
-          "z": -1.0,
-          "n": 161,
+          "pct": 19.6,
+          "z": -0.97,
+          "n": 163,
           "since": "2023-09-01"
         }
       }
@@ -52964,16 +53044,16 @@
       "region": "EM",
       "name": "EM corporate credit spread",
       "grade": "IG/HY blend",
-      "spread_bp": 131,
+      "spread_bp": 137,
       "basis": "Option-adjusted spread over government bonds \u2014 the extra yield the index pays, adjusted for issuers' rights to call bonds early.",
-      "as_of": "2026-09-10",
+      "as_of": "2026-09-17",
       "context": {
         "5y": null,
         "10y": null,
         "full": {
-          "pct": 0.6,
-          "z": -1.41,
-          "n": 161,
+          "pct": 3.7,
+          "z": -1.22,
+          "n": 163,
           "since": "2023-09-01"
         }
       }
@@ -52983,22 +53063,22 @@
     {
       "region": "US",
       "name": "US investment grade, spread to government",
-      "spread_bp": 73,
-      "corporate_yield_pct": 5.68,
-      "government_yield_pct": 4.95,
+      "spread_bp": 72,
+      "corporate_yield_pct": 5.66,
+      "government_yield_pct": 4.94,
       "basis": "Corporate yield less government yield. NOT option-adjusted and NOT duration-matched, so this is a different measure from the option-adjusted spreads above and the two must not be compared directly.",
       "note": "ICE BofA US Corporate effective yield less the 10y Treasury. Not option-adjusted and not duration-matched \u2014 a deliberately plainer measure than credit.US.ig_oas, computed so this column has a consistent basis across regions.",
-      "as_of": "2026-09-10"
+      "as_of": "2026-09-17"
     },
     {
       "region": "DE",
       "name": "German corporate, spread to government",
-      "spread_bp": 93,
-      "corporate_yield_pct": 4.38,
-      "government_yield_pct": 3.45,
+      "spread_bp": 96,
+      "corporate_yield_pct": 4.51,
+      "government_yield_pct": 3.55,
       "basis": "Corporate yield less government yield. NOT option-adjusted and NOT duration-matched, so this is a different measure from the option-adjusted spreads above and the two must not be compared directly.",
       "note": "Bundesbank yields on outstanding debt securities: corporate less general government. One publisher, one methodology, one vintage, so no cross-publisher gap enters the spread.",
-      "as_of": "2026-09-10"
+      "as_of": "2026-09-17"
     }
   ],
   "corporate_spread_unavailable": {
@@ -53841,25 +53921,25 @@
   "cost_of_capital": {
     "US": {
       "legs": {
-        "risk_free": 4.95,
-        "credit_spread": 0.8,
+        "risk_free": 4.94,
+        "credit_spread": 0.78,
         "erp": 4.23
       },
-      "total_pct": 9.98,
+      "total_pct": 9.95,
       "complete": true,
       "missing_legs": [],
       "missing_labels": [],
       "supplementary": {
-        "credit_spread_to_govt": 0.73
+        "credit_spread_to_govt": 0.72
       }
     },
     "UK": {
       "legs": {
-        "risk_free": 5.357,
+        "risk_free": 5.207,
         "credit_spread": null,
         "erp": 5.01
       },
-      "total_pct": 10.37,
+      "total_pct": 10.22,
       "complete": false,
       "missing_legs": [
         "credit_spread"
@@ -53873,11 +53953,11 @@
     },
     "EZ": {
       "legs": {
-        "risk_free": 3.952,
+        "risk_free": 3.942,
         "credit_spread": null,
         "erp": null
       },
-      "total_pct": 3.95,
+      "total_pct": 3.94,
       "complete": false,
       "missing_legs": [
         "credit_spread",
@@ -53893,11 +53973,11 @@
     },
     "DE": {
       "legs": {
-        "risk_free": 3.56,
+        "risk_free": 3.55,
         "credit_spread": null,
         "erp": 4.23
       },
-      "total_pct": 7.79,
+      "total_pct": 7.78,
       "complete": false,
       "missing_legs": [
         "credit_spread"
@@ -53906,7 +53986,7 @@
         "IG credit spread"
       ],
       "supplementary": {
-        "credit_spread_to_govt": 0.93
+        "credit_spread_to_govt": 0.96
       }
     },
     "CH": {
@@ -53929,11 +54009,11 @@
     },
     "CN": {
       "legs": {
-        "risk_free": 1.69,
+        "risk_free": 1.682,
         "credit_spread": null,
         "erp": 5.14
       },
-      "total_pct": 6.83,
+      "total_pct": 6.82,
       "complete": false,
       "missing_legs": [
         "credit_spread"
@@ -53947,11 +54027,11 @@
     },
     "JP": {
       "legs": {
-        "risk_free": 2.92,
+        "risk_free": 2.993,
         "credit_spread": null,
         "erp": 5.14
       },
-      "total_pct": 8.06,
+      "total_pct": 8.13,
       "complete": false,
       "missing_legs": [
         "credit_spread"
@@ -53965,11 +54045,11 @@
     },
     "NO": {
       "legs": {
-        "risk_free": 4.432,
+        "risk_free": 4.369,
         "credit_spread": null,
         "erp": 4.23
       },
-      "total_pct": 8.66,
+      "total_pct": 8.6,
       "complete": false,
       "missing_legs": [
         "credit_spread"
@@ -54431,20 +54511,30 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-09-13T12:20:26.321206+00:00",
+    "generated_at": "2026-09-19T06:22:19.725530+00:00",
     "series": 153,
     "fresh": 152,
     "stale": 1,
     "missing": 0,
     "gapped": 3,
-    "observations": 150756,
-    "flags_raised_this_run": {},
+    "observations": 150887,
+    "flags_raised_this_run": {
+      "basis_break": 1
+    },
     "flags_resolved_this_run": {},
     "open_flags": {
+      "basis_break": 1,
       "gap": 3,
       "stale": 1
     },
     "open_flag_examples": [
+      {
+        "series_id": "cpi.EZ",
+        "date": "2026-08-01",
+        "flag_type": "basis_break",
+        "detail": "vintage 2026-09-19 restated the 1 most recent observation(s) by a median -3.030%, but left 355 earlier observation(s) back to 1997-01-01 on the previous basis. A uniform rescaling of only part of a series splices two bases together, and any growth rate spanning 2026-08-01 reports the rebasing as change. Re-ingest the full history for this series.",
+        "raised_at": "2026-09-19T06:22:19.266285+00:00"
+      },
       {
         "series_id": "valuation.US.cape",
         "date": "2024-09-01",
