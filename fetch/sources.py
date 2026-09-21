@@ -68,6 +68,94 @@ def _frame(dates, values) -> pd.DataFrame | None:
     return df if not df.empty else None
 
 
+
+# ---------------------------------------------------------------------------
+# iShares product screener — fund-level yield to worst, for the euro and
+# sterling IG credit spreads.
+#
+# WHY THIS EXISTS AT ALL. No free euro or sterling investment-grade corporate
+# spread is published anywhere. That is now established rather than assumed:
+# FRED's euro coverage is four HIGH-YIELD series and there is no sterling ICE
+# BofA series of any kind; the ECB has no corporate-bond dataflow, and all 115
+# public series in its FM dataflow were enumerated on 2026-09-21 with zero
+# corporate among them (the ER00/iBoxx codes in CL_PROVIDER_FM_ID are internal
+# and 404 on data queries). ICE, iBoxx and Bloomberg license these indices, and
+# the ECB licenses rather than republishes them.
+#
+# So the spread is CONSTRUCTED: an IG bond ETF's yield to worst, less the
+# government curve at the same duration. Both legs are stated, neither is an
+# OAS, and the result therefore lives in the non-OAS column beside Germany's
+# rather than next to the US option-adjusted spreads.
+#
+# Traps, all measured 2026-09-21:
+#   - The query string below is the ONLY combination that returns 200. country
+#     must be `gb` (not `uk`, which 500s for every siteName) and userType must
+#     be `individual` (professional 500s).
+#   - The response is ALWAYS gzipped; without Accept-Encoding it is binary
+#     noise. requests handles this when the header is sent.
+#   - Values are {"d": display, "r": raw} pairs, not bare numbers.
+#   - It is a SNAPSHOT: one as-of date per fund and no history at all. The
+#     stored series therefore begins the day this ships and deepens weekly.
+#     That is why the US stayed on FRED, where three years already exist.
+#   - This is an undocumented private endpoint. It can change without notice,
+#     and when it does the fetcher must degrade to None like any other.
+# ---------------------------------------------------------------------------
+_ISHARES_SCREENER = (
+    "https://www.ishares.com/varnish-api/blk-product-screener-server"
+    "/api/v1/product-screener/product-data"
+)
+_ISHARES_PARAMS = {"country": "gb", "language": "en",
+                   "siteName": "ishares-uk", "userType": "individual"}
+_ISHARES_HEADERS = {"Accept": "application/json", "Accept-Encoding": "gzip"}
+
+
+def _ishares_num(cell):
+    """Unwrap iShares' {"d": "4.14", "r": 4.14} value pairs."""
+    if isinstance(cell, dict):
+        cell = cell.get("r", cell.get("d"))
+    value = pd.to_numeric(cell, errors="coerce")
+    return None if pd.isna(value) else float(value)
+
+
+def fetch_ishares_fund(ticker: str, field: str = "yieldToWorst"):
+    """
+    One numeric field for one fund, stamped with the fund's own as-of date.
+
+    Returns a single-row [date, value] frame, or None. `ticker` is the local
+    exchange ticker ('IEAC', 'SLXX'). See the banner for why this is a
+    snapshot rather than a series.
+    """
+    if not ticker or not field:
+        return None
+    resp = _get(_ISHARES_SCREENER, params=_ISHARES_PARAMS, headers=_ISHARES_HEADERS)
+    if resp is None:
+        return None
+    try:
+        funds = resp.json()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("iShares screener: unexpected payload: %s", exc)
+        return None
+    if not isinstance(funds, dict):
+        return None
+    for fund in funds.values():
+        if not isinstance(fund, dict):
+            continue
+        if str(fund.get("localExchangeTicker", "")).strip().upper() != ticker.upper():
+            continue
+        value = _ishares_num(fund.get(field))
+        # navAmountAsOf is {"d": "Sept 18, 2026", "r": 20260918}; the raw form
+        # is an unambiguous yyyymmdd integer, so parse that and not the prose.
+        stamp = fund.get("navAmountAsOf")
+        raw = stamp.get("r") if isinstance(stamp, dict) else stamp
+        date = pd.to_datetime(str(raw), format="%Y%m%d", errors="coerce")
+        if value is None or pd.isna(date):
+            logger.warning("iShares %s: no usable %s / as-of date", ticker, field)
+            return None
+        return _frame([date], [value])
+    logger.warning("iShares screener: no fund with ticker %s", ticker)
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Yahoo Finance (via yfinance) — equity indices, FX, commodities.
 #
@@ -1441,6 +1529,12 @@ _DAM_DATASET = "https://pages.stern.nyu.edu/~adamodar/pc/datasets/"
 # Damodaran's country name -> this dashboard's region code. Explicit by
 # design; do not replace with a fuzzy match.
 DAMODARAN_COUNTRY_NAMES = {
+    # The US was absent here until 2026-09-21, which is why the S&P 500 row
+    # showed CAPE and nothing else. That was a CONFIG gap, not a data gap:
+    # countrystats.xls has carried a "United States" row all along (median
+    # trailing P/E 22.61, P/B 2.19, P/S 2.04, EV/EBITDA 12.40 in the
+    # 2026-01-05 file), on exactly the same median basis as the other six.
+    "united states": "US",
     "united kingdom": "UK",
     "germany": "DE",
     "switzerland": "CH",
@@ -1466,7 +1560,14 @@ def _dam_country(value) -> str:
 
 # The current file's extension differs per dataset and is stable; hardcoding it
 # keeps the weekly run from making a guaranteed-404 request every Saturday.
-_DAM_CURRENT_EXT = {"ctryprem": "xlsx", "countrystats": "xls"}
+_DAM_CURRENT_EXT = {"ctryprem": "xlsx", "countrystats": "xls",
+                    "peEurope": "xls", "pbvEurope": "xls", "vebitdaEurope": "xls"}
+
+# The aggregate row at the foot of Damodaran's industry-average sheets. He
+# spells it "Grand Total" in the regional files and "Total Market" in the US
+# ones -- and inconsistently even within the regional set (vebitdaEurope says
+# "Total Market"), so match either rather than keying on one string.
+_DAM_AGGREGATE_ROWS = ("grand total", "total market")
 
 
 def _dam_book(name: str, year: int | None):
@@ -1564,6 +1665,57 @@ def _dam_pick(body, region: str, col_idx: int | None):
         return None
     value = pd.to_numeric(hit.iloc[0, col_idx], errors="coerce")
     return None if pd.isna(value) else float(value)
+
+
+def fetch_damodaran_region_multiple(book: str, sheet: str, header: int,
+                                   column: str) -> pd.DataFrame | None:
+    """
+    One valuation multiple for a whole REGION, from a Damodaran industry-average
+    workbook (peEurope / pbvEurope / vebitdaEurope). Used for the Europe row.
+
+    Different in kind from fetch_damodaran_country_multiple, and the difference
+    matters enough that the two are separate functions rather than one with a
+    flag: countrystats publishes the MEDIAN across companies in a country,
+    while these files publish CAP-WEIGHTED AGGREGATES across a region. For the
+    US the two read 22.6 and 26.6 respectively, and the unweighted mean in the
+    same file reads 57.9 -- which is why `column` must name the aggregate
+    column explicitly and the plain "Trailing PE" column is never used.
+
+    Cap-weighted is the right analogue for an index multiple, but it is not
+    comparable with the medians in the other rows, so the caller labels it
+    (universe.VALUATION_BASIS).
+
+    Annual, republished in the first week of January. Only the current file is
+    read: the archives are year-stamped per metric and this is one row of one
+    sheet, so the deep history is not worth six more downloads a run.
+    """
+    if not book or not column:
+        return None
+    try:
+        xl = _dam_book(book, None)
+        if xl is None:
+            return None
+        sheets = [x for x in xl.sheet_names if x.strip().lower() == sheet.strip().lower()]
+        raw = xl.parse(sheet_name=(sheets or xl.sheet_names)[0], header=header)
+        raw.columns = [str(c).strip() for c in raw.columns]
+        first = raw.columns[0]
+        rows = raw[raw[first].astype(str).str.strip().str.lower().isin(_DAM_AGGREGATE_ROWS)]
+        if rows.empty:
+            logger.warning("Damodaran %s: no aggregate row (%s)", book, "/".join(_DAM_AGGREGATE_ROWS))
+            return None
+        want = re.sub(r"\s+", " ", column.strip().lower())
+        idx = _dam_col_index(raw, lambda c: re.sub(r"\s+", " ", c.lower()) == want)
+        if idx is None:
+            logger.warning("Damodaran %s: no column %r", book, column)
+            return None
+        value = pd.to_numeric(rows.iloc[0, idx], errors="coerce")
+        if pd.isna(value):
+            return None
+        # Stamped like the countrystats rows so the two sit on one annual grid.
+        return _frame([f"{_DAM_LAST_ARCHIVE_YEAR + 1}-12-31"], [float(value)])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Damodaran %s parse failed for %s: %s", book, column, exc)
+        return None
 
 
 def fetch_damodaran_crp(region: str, archive: bool = False) -> pd.DataFrame | None:

@@ -139,7 +139,12 @@ function ctxTag(context) {
 // ---------------------------------------------------------------------------
 // Expandable chart
 // ---------------------------------------------------------------------------
-const PERIOD_DAYS = { "3M": 91, "1Y": 365, "2Y": 731, "3Y": 1096, "5Y": 1827 };
+// 1W and 1M are not offered as chart periods; they exist so the currency
+// conversion can rebuild the table's 1W and 1M columns over the same windows
+// the Python side uses. They must be here: slicePeriod falls back to 365 days
+// for a key it does not know, which would quietly turn a one-week return into
+// a one-year one.
+const PERIOD_DAYS = { "1W": 7, "1M": 31, "3M": 91, "1Y": 365, "2Y": 731, "3Y": 1096, "5Y": 1827 };
 
 function slicePeriod(history, period) {
   if (!history || !history.length) return [];
@@ -262,8 +267,14 @@ function chartLegend(lines) {
  * which is the only way several indices in different currencies and at wildly
  * different levels can be read against each other. It is forced on whenever
  * more than one line is shown, and the y-axis label says so.
+ *
+ * A line may set `step: true` to be drawn step-after rather than straight.
+ * That is not decoration: a policy rate holds its value until the day it
+ * changes, so sloping between two meetings would draw rate moves that never
+ * happened. `opts.noteHtml` overrides the caption for charts that are not
+ * price levels.
  */
-function dateChart(lines, period, rebase) {
+function dateChart(lines, period, rebase, opts) {
   const cut = lines.map((l) => ({ ...l, pts: slicePeriod(l.points, period) }))
                    .filter((l) => l.pts.length > 1);
   if (!cut.length) return `<div class="chart-empty">Not enough history for ${period}.</div>`;
@@ -292,19 +303,27 @@ function dateChart(lines, period, rebase) {
     xLabels += `<text class="axis" x="${x(p[0]).toFixed(1)}" y="${CHART_H - 10}" text-anchor="${i === 0 ? "start" : i === n - 1 ? "end" : "middle"}">${axisDate(p[0])}</text>`;
   }
 
-  const paths = shaped.map((l) =>
-    `<polyline points="${l.vals.map((v, i) => `${x(l.pts[i][0]).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}" fill="none" stroke="${l.color}" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>`
-  ).join("");
+  const paths = shaped.map((l) => {
+    const pts = [];
+    l.vals.forEach((v, i) => {
+      const px = x(l.pts[i][0]).toFixed(1), py = y(v).toFixed(1);
+      // Step-after: carry the previous level across to this date, then drop.
+      if (l.step && i > 0) pts.push(`${px},${y(l.vals[i - 1]).toFixed(1)}`);
+      pts.push(`${px},${py}`);
+    });
+    return `<polyline points="${pts.join(" ")}" fill="none" stroke="${l.color}" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }).join("");
 
   const base100 = rebase
     ? `<line class="grid" x1="${CH_L}" x2="${CHART_W - CH_R}" y1="${y(100).toFixed(1)}" y2="${y(100).toFixed(1)}" stroke-dasharray="3 3"/>`
     : "";
 
   const fmt = rebase ? (v) => v.toFixed(0) : (v) => v.toFixed(Math.abs(hi) < 20 ? 2 : 0);
+  const caption = (opts && opts.noteHtml) || (rebase
+    ? `Indexed to 100 at ${cut[0].pts[0][0]}, so lines in different currencies and at different levels can be compared. Values are relative, not price levels.`
+    : `Level in local currency. Weekly closes.`);
   return chartFrame(base100 + paths, ticks, y, xLabels, fmt) + chartLegend(shaped) +
-    `<div class="chart-note">${rebase
-      ? `Indexed to 100 at ${cut[0].pts[0][0]}, so lines in different currencies and at different levels can be compared. Values are relative, not price levels.`
-      : `Level in local currency. Weekly closes.`}</div>`;
+    `<div class="chart-note">${caption}</div>`;
 }
 
 /** Yield-curve chart: x is the tenor, a category axis, not a date. */
@@ -405,8 +424,6 @@ function setupChartToggles() {
     }
     const cw = e.target.closest("[data-corr-window]");
     if (cw) { corrWindow = cw.getAttribute("data-corr-window"); renderCrossAsset(); return; }
-    const ct = e.target.closest("[data-corr-table]");
-    if (ct) { corrTableView = !corrTableView; renderCrossAsset(); return; }
     const btn = e.target.closest(".period-btn");
     if (btn) {
       const key = btn.getAttribute("data-chart-key");
@@ -456,7 +473,128 @@ function indexTip(idx) {
   return `<span class="tip-title">${idx.name}</span>${rows}`.replace(/"/g, "&quot;");
 }
 
-let eqSel = { ids: ["sp500"], period: "1Y" };
+let eqSel = { ids: ["sp500"], period: "1Y", currency: "Local" };
+
+// ---------------------------------------------------------------------------
+// Currency conversion for the equity tab.
+//
+// Every index is published in its own currency, which makes the levels
+// incomparable and, more importantly, makes the RETURNS incomparable: a 10%
+// gain in yen is not a 10% gain to a franc investor if the yen fell 12%. This
+// converts a whole history series, so the chart and every derived figure in
+// the table move together.
+//
+// The FX series are Yahoo's `XXXYYY=X`, quoted as YYY per 1 XXX. `usdPer` is
+// therefore built as "how many USD is one unit of this currency", and any
+// cross is that ratio -- USD is the pivot because that is what is tracked.
+// NOK has no direct USD cross in the payload, so it is derived from EUR/NOK
+// and EUR/USD; HKD was added to CURRENCIES purely so the Hang Seng could be
+// converted at all.
+// ---------------------------------------------------------------------------
+const CONVERT_TO = ["Local", "USD", "GBP", "EUR", "CHF"];
+
+/** A Map of isoDate -> value for one payload series id. */
+function fxMap(id) {
+  const fx = (DATA.currencies || []).find((f) => f.id === id);
+  const m = new Map();
+  (fx && fx.history ? fx.history : []).forEach(([d, v]) => m.set(d, v));
+  return m;
+}
+
+/**
+ * USD per one unit of `ccy`, as a Map keyed by date.
+ * Returns null for a currency with no route to USD, so the caller can say so
+ * rather than silently showing unconverted numbers.
+ */
+function usdPer(ccy) {
+  if (ccy === "USD") return "identity";
+  const eurusd = fxMap("eurusd");
+  if (ccy === "EUR") return eurusd;
+  if (ccy === "GBP") return fxMap("gbpusd");
+  // Quoted the other way round (units per USD), so invert.
+  const inverted = { CHF: "usdchf", JPY: "usdjpy", CNY: "usdcny", HKD: "usdhkd" }[ccy];
+  if (inverted) {
+    const m = fxMap(inverted), out = new Map();
+    m.forEach((v, d) => { if (v) out.set(d, 1 / v); });
+    return out;
+  }
+  if (ccy === "NOK") {
+    // EUR/NOK and EUR/USD give USD/NOK without a direct cross being tracked.
+    const eurnok = fxMap("eurnok"), out = new Map();
+    eurnok.forEach((v, d) => {
+      const eu = eurusd.get(d);
+      if (v && eu) out.set(d, eu / v);
+    });
+    return out;
+  }
+  return null;
+}
+
+/**
+ * Convert a [[iso, value], ...] history from `from` into `to`.
+ *
+ * Dates with no FX quote are DROPPED rather than carried forward: an index
+ * close paired with a stale rate is a wrong number, and both series are weekly
+ * Friday closes so the overlap is near-total in practice.
+ */
+function convertHistory(history, from, to) {
+  if (!history || !history.length || to === "Local" || from === to) return history;
+  const a = usdPer(from), b = usdPer(to);
+  if (!a || !b) return null;
+  const rate = (m, d) => (m === "identity" ? 1 : m.get(d));
+  const out = [];
+  history.forEach(([d, v]) => {
+    const ra = rate(a, d), rb = rate(b, d);
+    if (ra == null || rb == null || !rb) return;
+    out.push([d, (v * ra) / rb]);
+  });
+  return out.length > 1 ? out : null;
+}
+
+/** pct change between the first and last points of a window, or null. */
+function pctOver(history, period) {
+  const pts = slicePeriod(history || [], period);
+  if (pts.length < 2 || !pts[0][1]) return null;
+  return (pts[pts.length - 1][1] / pts[0][1] - 1) * 100;
+}
+
+/**
+ * Recompute the table figures for one index in `ccy`.
+ *
+ * Returns the index unchanged for "Local". Otherwise every displayed number is
+ * rebuilt from the converted history, because a return in another currency is
+ * genuinely a different number -- not the local return with a note attached.
+ * Percentile context is dropped: it was measured on the local-currency series
+ * and would be a different distribution here, so showing it would be wrong.
+ */
+function inCurrency(idx, ccy) {
+  if (ccy === "Local" || idx.currency === ccy) return idx;
+  const hist = convertHistory(idx.history, idx.currency, ccy);
+  if (!hist) return { ...idx, unconvertible: true };
+  const last = hist[hist.length - 1][1];
+  let peak = -Infinity, dd = 0;
+  hist.forEach(([, v]) => { peak = Math.max(peak, v); });
+  if (peak > 0) dd = (last / peak - 1) * 100;
+  // Annualised from weekly log-ish returns, matching transform/returns.py.
+  const rets = [];
+  for (let i = 1; i < hist.length; i++) {
+    if (hist[i - 1][1]) rets.push(hist[i][1] / hist[i - 1][1] - 1);
+  }
+  const tail = rets.slice(-13);
+  let vol = null;
+  if (tail.length >= 8) {
+    const mean = tail.reduce((x, y) => x + y, 0) / tail.length;
+    const varr = tail.reduce((x, y) => x + (y - mean) ** 2, 0) / (tail.length - 1);
+    vol = Math.sqrt(varr) * Math.sqrt(52) * 100;
+  }
+  return {
+    ...idx, history: hist, level: last, currency: ccy, converted: true,
+    chg_1w_pct: pctOver(hist, "1W"), chg_mtd_pct: pctOver(hist, "1M"),
+    chg_ytd_pct: pctOver(hist, "YTD"), chg_1y_pct: pctOver(hist, "1Y"),
+    drawdown_from_ath_pct: dd, realized_vol_13w_pct: vol,
+    drawdown_context: null, vol_context: null,
+  };
+}
 
 function renderEquities() {
   const all = equityList();
@@ -464,12 +602,15 @@ function renderEquities() {
 
   let chosen = eqSel.ids.filter((id) => all.some((i) => i.id === id));
   if (!chosen.length) chosen = [all[0].id];
+  const ccy = CONVERT_TO.includes(eqSel.currency) ? eqSel.currency : "Local";
   // More than one line means different currencies and levels on one axis, so
   // indexing is not optional -- it is the only way the comparison means
-  // anything. A single line keeps its real level.
+  // anything. A single line keeps its real level. Converting to a common
+  // currency does NOT remove the need: levels still differ by orders of
+  // magnitude between, say, the Nikkei and the SMI.
   const rebase = chosen.length > 1;
   const lines = chosen.map((id, i) => {
-    const idx = all.find((x) => x.id === id);
+    const idx = inCurrency(all.find((x) => x.id === id), ccy);
     return { label: idx.name, points: idx.history || [], color: seriesColor(i) };
   });
 
@@ -481,23 +622,45 @@ function renderEquities() {
   }).join("");
   const periodChips = periods.map((p) =>
     `<button class="chip${p === eqSel.period ? " active" : ""}" data-eq-period="${p}">${p}</button>`).join("");
+  const ccyChips = CONVERT_TO.map((c) =>
+    `<button class="chip${c === ccy ? " active" : ""}" data-eq-ccy="${c}">${c}</button>`).join("");
 
-  const headers = ["Index", "Level", "1W", "1M", "YTD", "1Y", "DD from ATH", "Vol (13w)"];
+  // The currency must be impossible to forget: it changes every number on the
+  // tab, and a reader returning to it later has no other way to tell that the
+  // figures are not in local currency. Hence a banner, not just an active chip.
+  const ccyBanner = ccy === "Local" ? "" :
+    `<div class="ccy-banner">All figures converted to <strong>${ccy}</strong>
+       — levels, returns, drawdown and volatility. Currency moves are inside
+       every number here.</div>`;
+
+  const headers = ["Index", "Level", "1W", "1M", "YTD", "1Y", "DD from ATH",
+                   "Vol (13w)", "P/E", "P/B", "EV/EBITDA"];
   const rows = [];
   REGION_ORDER.concat(["EM"]).forEach((region) => {
     const indices = (DATA.equity_indices || {})[region] || [];
     if (!indices.length) return;
     rows.push({ band: region === "EM" ? "Emerging Markets" : regionName(region) });
-    indices.forEach((idx) => {
+    // Valuation is per COUNTRY, not per index -- see the note under the table.
+    const val = (DATA.valuation || {})[region] || {};
+    const mult = (key) => {
+      const m = (val.multiples || {})[key];
+      return m && m.value != null ? m.value.toFixed(2) : dash();
+    };
+    indices.forEach((raw) => {
+      const idx = inCurrency(raw, ccy);
+      const ccyTag = idx.unconvertible
+        ? `<span class="stub">${raw.currency}, no ${ccy} cross</span>`
+        : `<span class="ccy">${idx.currency}</span>`;
       // className, not a wrapper span: the indent belongs to the row's
       // relationship with the band above it, not to the index name.
       rows.push({ className: "idx-row", cells: [
-        `<span class="has-tip" data-tip="${indexTip(idx)}">${idx.name}</span> <span class="ccy">${idx.currency}</span>`,
+        `<span class="has-tip" data-tip="${indexTip(raw)}">${idx.name}</span> ${ccyTag}`,
         fmtNum(idx.level, (idx.level || 0) > 100 ? 1 : 4),
         fmtPct(idx.chg_1w_pct), fmtPct(idx.chg_mtd_pct),
         fmtPct(idx.chg_ytd_pct), fmtPct(idx.chg_1y_pct),
         fmtPct(idx.drawdown_from_ath_pct) + ctxTag(idx.drawdown_context),
         (idx.realized_vol_13w_pct != null ? `${idx.realized_vol_13w_pct.toFixed(1)}%` : dash()) + ctxTag(idx.vol_context),
+        mult("pe"), mult("pb"), mult("ev_ebitda"),
       ] });
     });
   });
@@ -508,11 +671,27 @@ function renderEquities() {
        <div class="chart-controls">
          <div class="control-group"><span class="control-label">Index</span>${indexChips}</div>
          <div class="control-group"><span class="control-label">Period</span>${periodChips}</div>
+         <div class="control-group control-group-ccy"><span class="control-label">Currency</span>${ccyChips}</div>
        </div>
-       <div class="chart-figure">${dateChart(lines, eqSel.period, rebase)}</div>
+       ${ccyBanner}
+       <div class="chart-figure">${dateChart(lines, eqSel.period, rebase,
+          ccy === "Local" ? null : { noteHtml: `Converted to ${ccy}. Weekly closes.` })}</div>
      </div>` +
-    note("Weekly closes (Friday, or the last session before it). Levels in local currency; volatility is annualised from 13 weeks of weekly returns, and drawdown is measured on weekly closes, so an intra-week trough that recovered by Friday does not appear. Hover an index name for how it is weighted and whether its level includes dividends.") +
-    tableWithRaw(headers, rows);
+    // A second, shorter reminder directly above the table: the chart banner
+    // can be scrolled past, and the table is where the numbers get read off.
+    (ccy === "Local" ? "" :
+      `<div class="ccy-banner ccy-banner-slim">Table figures below are in <strong>${ccy}</strong>, not local currency.</div>`) +
+    note(`Weekly closes (Friday, or the last session before it). ${ccy === "Local" ? "Levels in local currency" : `Levels converted to ${ccy}`}; volatility is annualised from 13 weeks of weekly returns, and drawdown is measured on weekly closes, so an intra-week trough that recovered by Friday does not appear. Hover an index name for how it is weighted and whether its level includes dividends — the DAX and MDAX are total-return indices and are not comparable on level with the price-return ones beside them.`) +
+    tableWithRaw(headers, rows) +
+    `<p class="section-note">P/E, P/B and EV/EBITDA are <strong>country
+      aggregates, not index multiples</strong> — Damodaran's median across all
+      listed companies in that country, which is why every index in a country
+      shows the same figure and why they cannot be read as the valuation of
+      that specific index. Europe is the exception and is a cap-weighted
+      aggregate rather than a median, so it is not comparable with the country
+      rows either. Annual, and not cyclically adjusted. Percentile context is
+      dropped when a currency other than Local is selected: it was measured on
+      the local-currency series and would be a different distribution here.</p>`;
 
   document.querySelectorAll("[data-eq-id]").forEach((b) =>
     b.addEventListener("click", () => {
@@ -522,6 +701,8 @@ function renderEquities() {
       else eqSel.ids.push(id);
       renderEquities();
     }));
+  document.querySelectorAll("[data-eq-ccy]").forEach((b) =>
+    b.addEventListener("click", () => { eqSel.currency = b.getAttribute("data-eq-ccy"); renderEquities(); }));
   document.querySelectorAll("[data-eq-period]").forEach((b) =>
     b.addEventListener("click", () => { eqSel.period = b.getAttribute("data-eq-period"); renderEquities(); }));
 }
@@ -648,6 +829,30 @@ function wireCurveControls() {
   if (now) now.addEventListener("click", () => { curveSel.date = null; renderYields(); });
 }
 
+/** "2026-08-01" -> "August 2026", for a figure that measures a whole month. */
+function monthLabel(iso) {
+  if (!iso) return dash();
+  const [y, m] = String(iso).split("-");
+  const full = ["January", "February", "March", "April", "May", "June", "July",
+                "August", "September", "October", "November", "December"];
+  const idx = parseInt(m, 10) - 1;
+  return full[idx] ? `${full[idx]} ${y}` : iso;
+}
+
+/**
+ * The euro area's sovereign risk premium in aggregate, and current — unlike
+ * the per-country table above it, which can only ever be monthly.
+ */
+function aggregateRiskPremium() {
+  const a = ((DATA.eurozone_spreads || {}).aggregate_risk_premium) || {};
+  if (a.spread_bp == null) return "";
+  return `<h2 class="mt">${a.name || "Euro area sovereign risk premium"}</h2>` +
+    note(a.basis || "") +
+    table(["Measure", "Spread", "As of"],
+          [["All euro area issuers less AAA issuers, 5y",
+            fmtBp(a.spread_bp) + ctxTag(a.context), a.as_of || dash()]]);
+}
+
 /**
  * Inflation-expectation rows on the same tenor columns as the curve tables.
  * Commentary is not squeezed into a cell -- it gets its own full-width row
@@ -666,12 +871,12 @@ function inflationRows(colCount) {
   };
   REGION_ORDER.forEach((region) => {
     const e = (DATA.inflation_expectations || {})[region];
-    if (!e) return;
-    if (e.kind === "unavailable") {
-      rows.push([regionName(region), `<span class="stub">not sourced</span>`].concat(INFL_TENORS.map(() => dash())));
-      rows.push(`<tr><td class="commentary" colspan="${colCount}">${e.note || "No free market-implied source."}</td></tr>`);
-      return;
-    }
+    // Regions with no source are simply absent from the payload now. They used
+    // to render an empty row plus a paragraph explaining the blank, which was
+    // five rows of nothing on a table of eight -- and a permanently empty row
+    // is one you learn to scroll past. The reasons are kept in
+    // data/DATA-CATALOG.csv and fetch/universe.py, where they belong.
+    if (!e || e.kind === "unavailable") return;
     push(regionName(region), `<span class="badge badge-${e.kind}">${kindLabel(e.kind)}</span>`,
          e.basis, e.tenors || {}, e.context || {}, e.note);
     // Only the 1y model point is kept: there is no 1-year TIPS breakeven, so a
@@ -693,27 +898,32 @@ function renderYields() {
   const inflHeaders = ["Region", "Basis"].concat(INFL_TENORS.map(([, label]) => label));
 
   const sp = DATA.eurozone_spreads || { rows: [] };
+  // "Month" states what the figure measures; "As of" is the date it is filed
+  // under. Without the first, a month-average dated to the 1st reads as a
+  // stale daily quote sitting beside genuinely daily curves.
   const spreadRows = (sp.rows || []).map((r) => [
     r.country, pctPlain(r.yield_pct, 3),
-    (r.spread_bp != null ? fmtBp(r.spread_bp) : dash()) + ctxTag(r.context), r.as_of || dash(),
+    (r.spread_bp != null ? fmtBp(r.spread_bp) : dash()) + ctxTag(r.context),
+    monthLabel(r.as_of), r.as_of || dash(),
   ]);
 
   document.getElementById("panel-yields").innerHTML =
     `<h2>Government Yield Curves</h2>` +
     curvePanel() +
-    note("Nominal sovereign curves. The Eurozone row is the ECB's all-bonds euro area curve — a blend across euro area sovereigns — while Germany is the single-issuer Bund curve. They are deliberately different measures. Switzerland is the one unofficial source on this dashboard and carries 2y and 10y only; the SNB retired its own curve in July 2025.") +
+    note("Nominal sovereign curves. The Eurozone row is the ECB's euro area curve across <em>all</em> government issuers at <em>all</em> ratings — Bunds, OATs, BTPs and Bonos together, fitted with a Svensson model — while Germany is the single-issuer Bund curve. They are deliberately different measures: the ECB's AAA-only curve tracks the Bund so closely it would simply duplicate the Germany row. Switzerland is the SNB's own curve, which was never retired — it moved cubes in 2025.") +
     table(nominalHeaders, curveRows(DATA.yield_curves, false)) +
 
     `<h2 class="mt">Euro-Area Sovereign Spreads vs. ${sp.benchmark || "Bund"}</h2>` +
-    note(`Both legs come from the same ECB long-term rate series, so the spread is not distorted by mixing sources. Benchmark: ${sp.benchmark || "—"} at ${sp.benchmark_yield_pct != null ? sp.benchmark_yield_pct.toFixed(3) + "%" : "—"} (${sp.cadence || "monthly"}).`) +
-    table(["Country", "10y yield", "Spread", "As of"], spreadRows) +
+    note(`Both legs are the same ECB long-term rate series, so no cross-publisher gap enters the spread. Benchmark: ${sp.benchmark || "—"} at ${sp.benchmark_yield_pct != null ? sp.benchmark_yield_pct.toFixed(3) + "%" : "—"}. <strong>This table is monthly and will always read behind the daily curves above</strong> — it is the Maastricht convergence-criterion yield, published as a month average, and no free per-country euro sovereign yield exists at any higher frequency. Taking France, Italy and Spain from three national publishers instead would put a methodology gap inside the spread. The aggregate measure below is the same quantity, current.`) +
+    table(["Country", "10y yield", "Spread", "Month", "As of"], spreadRows) +
+    aggregateRiskPremium() +
 
     `<h2 class="mt">Real Yields</h2>` +
     note("Inflation-linked yields. Note the basis differs: US TIPS reference CPI, UK index-linked gilts reference RPI.") +
     table(realHeaders, curveRows(DATA.real_yield_curves, true)) +
 
     `<h2 class="mt">Market-Implied Inflation</h2>` +
-    note("Breakeven / implied inflation, on the same tenor columns as the curves above. These are not comparable across regions: UK figures are RPI-based and historically run roughly 0.8–1.0pp above the equivalent CPI rate.") +
+    note("Breakeven / implied inflation, on the same tenor columns as the curves above. These are not comparable across regions: UK figures are RPI-based and historically run roughly 0.8–1.0pp above the equivalent CPI rate, and the euro area figure is a survey rather than a market breakeven. Only regions with a source are listed — Germany, Switzerland, China, Japan and Norway have none, structurally in the Swiss and Norwegian cases, whose governments issue no inflation-linked debt at all.") +
     tableWithRaw(inflHeaders, inflationRows(inflHeaders.length)) +
 
     `<h2 class="mt">Credit Spreads</h2>` +
@@ -727,38 +937,133 @@ function renderYields() {
       ])) +
 
     `<h2 class="mt">Cost of Capital</h2>` +
-    note("The nominal building blocks of a discount rate, laid out leg by leg. The risk-free leg is the nominal 10y government yield, not a real yield: the equity risk premium beside it is itself measured against a nominal government yield, so pairing it with a real rate would remove inflation twice. Option-adjusted credit spreads are only published free for the dollar, so a second, plainer spread — corporate yield less government yield — is shown separately for the regions where both legs exist.") +
-    table(["Region", "Risk-free (nominal 10y)", "IG credit spread (OAS)",
-           "Corporate spread to govt (non-OAS)", "Equity risk premium", "Total", "Coverage"],
+    note(DATA.cost_of_capital_note || "") +
+    table(["Region", "Risk-free (nominal 10y)", "IG credit spread",
+           "Equity risk premium", "Cost of equity", "Cost of debt"],
       REGION_ORDER.map((region) => {
         const s2 = (DATA.cost_of_capital || {})[region];
+        // A region that can build neither rate is absent from the payload
+        // rather than shown as a row of dashes.
         if (!s2) return null;
         const L = s2.legs || {};
-        // The non-OAS spread is a second measurement of the credit layer on a
-        // different definition, so it sits in its own column and is never
-        // summed into the total or counted toward coverage.
         const supp = (s2.supplementary || {}).credit_spread_to_govt;
-        const cov = s2.complete
-          ? '<span class="badge badge-market">all 3 legs</span>'
-          : (s2.total_pct != null
-              ? `<span class="flag">partial — no ${s2.missing_labels.join(", ").toLowerCase()}</span>`
-              : `<span class="stub">no legs sourced</span>`);
+        // Which spread actually fed the cost of debt. Where a region has no
+        // OAS, the non-OAS spread is used and the cell says so -- the two are
+        // different measures and the table must not let them read alike.
+        const usedNonOas = L.credit_spread == null && supp != null;
+        const spreadCell = L.credit_spread != null
+          ? pctPlain(L.credit_spread)
+          : (supp != null
+              ? `${pctPlain(supp)} <span class="ccy">non-OAS</span>`
+              : dash());
+        const rate = (v, formula) => v != null
+          ? `<span class="has-tip" data-tip="${formula}"><strong>${v.toFixed(2)}%</strong></span>`
+          : dash();
         return [
-          regionName(region), pctPlain(L.risk_free), pctPlain(L.credit_spread),
-          pctPlain(supp), pctPlain(L.erp),
-          s2.total_pct != null
-            ? `<strong>${s2.total_pct.toFixed(2)}%</strong>${s2.complete ? "" : "*"}`
-            : dash(),
-          cov,
+          regionName(region),
+          pctPlain(L.risk_free),
+          spreadCell,
+          pctPlain(L.erp),
+          rate(s2.cost_of_equity, (s2.formulae || {}).cost_of_equity || ""),
+          rate(s2.cost_of_debt, (s2.formulae || {}).cost_of_debt || "") +
+            (usedNonOas ? `<span class="ccy"> est.</span>` : ""),
         ];
       }).filter(Boolean)) +
-    `<p class="section-note">* A partial total sums only the legs that are sourced, so it is not comparable with a complete stack. The non-OAS column is corporate yield less government yield — not option-adjusted and not duration-matched — so it is a different measure from the OAS column beside it, is never added into the total, and does not count toward coverage. Only the US has both, where they read 80bp and 73bp.</p>`;
+    `<p class="section-note">A blank cost of equity or cost of debt means one of
+      its two legs is not sourced for that region, not that the rate is zero —
+      a half-built discount rate is worse than a blank, because it looks like a
+      number you could use. Option-adjusted spreads are published free for the
+      dollar only, so the euro and sterling IG spreads are constructed here
+      (an IG bond ETF's yield to worst less the government curve at the same
+      duration) and marked <span class="ccy">non-OAS</span> and
+      <span class="ccy">est.</span> — they are estimates of where those indices
+      trade, not published indices, and must not be read as equivalent to the
+      US figure beside them.</p>`;
 
   wireCurveControls();
 }
 
+// Which macro series the chart can draw, and how each behaves. `step` is not
+// cosmetic -- see dateChart.
+const MACRO_SERIES = [
+  { key: "gdp_yoy", label: "GDP growth (YoY)", step: false },
+  { key: "cpi_yoy", label: "Inflation (CPI YoY)", step: false },
+  { key: "policy_rate", label: "Policy rate", step: true },
+];
+// Selection survives a regime-slider drag, which re-runs renderMacro wholesale.
+let macroSel = { regions: ["CH"], series: ["gdp_yoy", "cpi_yoy", "policy_rate"], period: "5Y" };
+
+function macroChartBlock() {
+  const hist = (DATA.macro || {}).history || {};
+  const available = MACRO_SERIES.filter((m) => Object.keys(hist[m.key] || {}).length);
+  if (!available.length) return "";
+
+  let regions = macroSel.regions.filter((r) => REGION_ORDER.includes(r));
+  if (!regions.length) regions = [REGION_ORDER[0]];
+  let series = macroSel.series.filter((k) => available.some((m) => m.key === k));
+  if (!series.length) series = [available[0].key];
+
+  // One line per (region, series) pair. Naming both in the label matters: with
+  // several of each selected the legend is the only thing telling them apart.
+  const lines = [];
+  regions.forEach((region) => {
+    series.forEach((key) => {
+      const meta = MACRO_SERIES.find((m) => m.key === key);
+      const points = (hist[key] || {})[region] || [];
+      if (points.length < 2) return;
+      lines.push({
+        label: regions.length > 1 ? `${regionName(region)} — ${meta.label}` : meta.label,
+        points, step: meta.step, color: seriesColor(lines.length),
+      });
+    });
+  });
+
+  const chip = (attr, value, label, on, idx) =>
+    `<button class="chip${on ? " active" : ""}" data-${attr}="${value}"` +
+    `${on && idx != null ? ` data-swatch style="--chip-color:${seriesColor(idx)}"` : ""}>${label}</button>`;
+
+  const regionChips = REGION_ORDER.map((r) =>
+    chip("macro-region", r, regionName(r), regions.includes(r))).join("");
+  const seriesChips = available.map((m) =>
+    chip("macro-series", m.key, m.label, series.includes(m.key))).join("");
+  const periodChips = (DATA.chart_periods || []).map((pd) =>
+    chip("macro-period", pd, pd, pd === macroSel.period)).join("");
+
+  // rebase is forced OFF: these are already rates in percent, and indexing a
+  // growth rate to 100 would turn "inflation fell to 2%" into a number with no
+  // meaning. Everything shares one axis honestly because everything is a %.
+  const figure = lines.length
+    ? dateChart(lines, macroSel.period, false,
+                { noteHtml: (DATA.macro || {}).history_note || "" })
+    : `<div class="chart-empty">Nothing selected.</div>`;
+
+  return `<h2>Growth, Inflation and Policy Rates</h2>` +
+    `<div class="chart-panel">
+       <div class="chart-controls">
+         <div class="control-group"><span class="control-label">Region</span>${regionChips}</div>
+         <div class="control-group"><span class="control-label">Series</span>${seriesChips}</div>
+         <div class="control-group"><span class="control-label">Period</span>${periodChips}</div>
+       </div>
+       <div class="chart-figure">${figure}</div>
+     </div>`;
+}
+
+/** Toggle `value` in `list`, refusing to empty it — an empty chart is a dead end. */
+function toggleChip(list, value) {
+  const at = list.indexOf(value);
+  if (at >= 0) { if (list.length > 1) list.splice(at, 1); }
+  else list.push(value);
+  return list;
+}
+
 function renderMacro() {
-  const rateRows = REGION_ORDER.map((region) => {
+  // Germany is dropped here and only here: its "policy rate" is the ECB's,
+  // mirrored, so listing it was the same number twice. It stays in the payload
+  // because the Regional Snapshot's Germany view still needs a rate to show.
+  const rateRows = REGION_ORDER.filter((region) => {
+    const cb = (DATA.macro.policy_rates || {})[region] || {};
+    return !cb.mirror_of;
+  }).map((region) => {
     const cb = (DATA.macro.policy_rates || {})[region] || {};
     return [regionName(region), pctPlain(cb.rate_pct) + ctxTag(cb.context), cb.as_of || dash()];
   });
@@ -794,7 +1099,7 @@ function renderMacro() {
     const idx = regimeIndex == null ? quarters.length - 1 : regimeIndex;
     const selected = quarters[idx];
     regimeBlock =
-      `<h2>Growth / Inflation Regime Map</h2>` +
+      `<h2 class="mt">Growth / Inflation Regime Map</h2>` +
       `<p class="regime-explain">
          <strong>Which way each economy is heading — not where it is.</strong>
          A region's position is how much its growth rate and its inflation rate
@@ -812,6 +1117,7 @@ function renderMacro() {
   }
 
   document.getElementById("panel-macro").innerHTML =
+    macroChartBlock() +
     regimeBlock +
     `<h2 class="mt">GDP Growth</h2>` +
     note(DATA.macro.gdp_definition || "") +
@@ -822,8 +1128,26 @@ function renderMacro() {
     table(["Region", "CPI YoY", "QoQ annualised", "Period", "As of"], infRows) +
 
     `<h2 class="mt">Central Bank Policy Rates</h2>` +
-    note("Source: BIS Data Portal (CBPOL), all regions on one endpoint; Germany mirrors the ECB. A policy rate legitimately sits unchanged for months, so an older date is not a stale figure.") +
+    note("Source: BIS Data Portal (CBPOL), all regions on one endpoint. Germany is not listed: it has no independent policy rate, and showing the ECB's figure under a German heading would be the same number twice. A policy rate legitimately sits unchanged for months, so an older date is not a stale figure.") +
     table(["Region", "Policy Rate", "As of"], rateRows);
+
+  // Every control on this panel re-runs the whole render, so all listeners are
+  // (re-)attached here rather than once at boot.
+  document.querySelectorAll("[data-macro-region]").forEach((b) =>
+    b.addEventListener("click", () => {
+      toggleChip(macroSel.regions, b.getAttribute("data-macro-region"));
+      renderMacro();
+    }));
+  document.querySelectorAll("[data-macro-series]").forEach((b) =>
+    b.addEventListener("click", () => {
+      toggleChip(macroSel.series, b.getAttribute("data-macro-series"));
+      renderMacro();
+    }));
+  document.querySelectorAll("[data-macro-period]").forEach((b) =>
+    b.addEventListener("click", () => {
+      macroSel.period = b.getAttribute("data-macro-period");
+      renderMacro();
+    }));
 
   const slider = document.getElementById("regime-slider");
   if (slider) {
@@ -842,33 +1166,47 @@ function renderCurrencies() {
     chartableRows(`fx:${fx.id}`, fx.name, fx.history, cells, headers.length).forEach((r) => rows.push(r));
   });
 
-  const hedges = DATA.fx_hedging || [];
-  let hedgeHtml = "";
-  if (hedges.length) {
-    const caveats = (hedges[0].caveats || []).map((c) => `<li>${c}</li>`).join("");
-    hedgeHtml =
-      `<h2 class="mt">Cost of Hedging back to CHF</h2>` +
+  // Replaced the "cost of hedging back to CHF" table on 2026-09-21. That was a
+  // policy-rate differential labelled as a hedging cost: it left out the
+  // cross-currency basis and used policy rates where forwards price off OIS,
+  // so it was a floor that read like an estimate. This is the thing that
+  // actually moves currencies over long horizons instead.
+  const rr = DATA.real_rates || {};
+  const rrRows = (rr.rows || []).map((r) => {
+    const label = regionName(r.region) + (r.is_home ? ` <span class="ccy">(home)</span>` : "");
+    if (r.real_rate_pct == null) {
+      return [label, pctPlain(r.nominal_2y_pct), pctPlain(r.cpi_yoy_pct, 1),
+              `<span class="stub">no ${r.missing_leg}</span>`, dash()];
+    }
+    const d = r.differential_vs_home_pct;
+    return [
+      label,
+      pctPlain(r.nominal_2y_pct),
+      pctPlain(r.cpi_yoy_pct, 1) + (r.cpi_basis ? ` <span class="ccy">${r.cpi_basis}</span>` : ""),
+      `<strong class="${r.real_rate_pct >= 0 ? "up" : "down"}">${r.real_rate_pct.toFixed(2)}%</strong>`,
+      r.is_home
+        ? `<span class="ccy">—</span>`
+        : (d != null
+            ? `<span class="${d >= 0 ? "up" : "down"}"><strong>${d >= 0 ? "+" : ""}${d.toFixed(2)}pp</strong></span>`
+            : dash()),
+    ];
+  });
+  let realHtml = "";
+  if (rrRows.length) {
+    const caveats = (rr.caveats || []).map((c) => `<li>${c}</li>`).join("");
+    realHtml =
+      `<h2 class="mt">Real Rate Differentials vs. ${regionName(rr.home_region || "CH")}</h2>` +
       `<div class="approx-warning">
-         <strong>Approximation, not a market quote.</strong> This is
-         ${hedges[0].method || ""}. Cross-currency basis swaps are interbank OTC
-         instruments with no free feed, so this is the covered-interest-parity
-         proxy — the dominant driver of hedging cost, but not the traded price.
+         <strong>A long-horizon driver, not a signal.</strong> ${rr.method || ""}
          <ul>${caveats}</ul>
        </div>` +
-      table(["Exposure", "Foreign policy rate", "CHF policy rate", "Approx. annual cost"],
-        hedges.map((h) => [
-          h.name,
-          pctPlain(h.foreign_rate_pct),
-          pctPlain(h.chf_rate_pct),
-          h.cost_pct != null
-            ? `<span class="${h.direction === "cost" ? "down" : "up"}"><strong>${h.cost_pct > 0 ? "−" : "+"}${Math.abs(h.cost_pct).toFixed(2)}%</strong></span> <span class="ccy">per year, ${h.direction === "cost" ? "paid to hedge" : "earned by hedging"}</span>`
-            : dash(),
-        ]));
+      table([`Region`, `Nominal ${rr.rate_leg || "2y"}`, `Inflation (${rr.inflation_leg || "CPI YoY"})`,
+             `Real rate`, `vs. ${regionName(rr.home_region || "CH")}`], rrRows);
   }
 
   document.getElementById("panel-currencies").innerHTML =
     `<h2>Currencies</h2>` + note("Click a trend to open a chart.") +
-    tableWithRaw(headers, rows) + hedgeHtml;
+    tableWithRaw(headers, rows) + realHtml;
 }
 
 function renderCommodities() {
@@ -916,8 +1254,12 @@ function renderValuation() {
       ? `<span class="has-tip" data-tip="Damodaran implied equity risk premium${e.as_of ? `, as of ${e.as_of}` : ""}"><strong>${e.erp_pct.toFixed(2)}%</strong></span>${ctxTag(e.context)}`
       : dash();
 
+    // Europe's multiples are a cap-weighted aggregate, not a median, so the
+    // row says which it is rather than letting the column heading imply one.
+    const scopeTag = v.multiples_is_aggregate
+      ? ` <span class="ccy">Europe, cap-weighted</span>` : "";
     rows.push([
-      regionName(region), v.name || "", capeCell,
+      regionName(region), (v.name || "") + scopeTag, capeCell,
       multCell(v, "pe"), multCell(v, "pb"), multCell(v, "ps"), multCell(v, "ev_ebitda"),
       erpCell,
       v.multiples_as_of || e.as_of || v.cape_as_of || dash(),
@@ -932,13 +1274,14 @@ function renderValuation() {
   });
 
   const erpCovered = REGION_ORDER.filter((r) => ((DATA.equity_risk_premia || {})[r] || {}).erp_pct != null).length;
+  const multCovered = REGION_ORDER.filter((r) => ((DATA.valuation || {})[r] || {}).multiples).length;
 
   document.getElementById("panel-valuation").innerHTML =
     `<h2>Valuation</h2>` +
-    note(`Three different bases sit on this row, and they are not comparable with each other. <strong>CAPE</strong> is cyclically adjusted — price over ten years of inflation-adjusted earnings — and is US-only by design, because it needs a long earnings history that exists for the S&amp;P 500 and not for the other indices. <strong>P/E, P/B, P/S and EV/EBITDA</strong> are Damodaran's country aggregates: the <strong>median</strong> across listed companies in each country, on <strong>trailing</strong> figures, not cyclically adjusted, and only from 2020 on because earlier vintages of the source publish means instead. <strong>ERP</strong> is the implied equity risk premium for that country's risk bucket, so the Aaa sovereigns share a figure. ${erpCovered} of ${REGION_ORDER.length} regions have an ERP. Hover CAPE or ERP for its own as-of date, which differs from the multiples' vintage.`) +
+    note(`Three different bases sit on this row, and they are not comparable with each other. <strong>CAPE</strong> is cyclically adjusted — price over ten years of inflation-adjusted earnings — and is US-only by design, because it needs a long earnings history that exists for the S&amp;P 500 and not for the other indices. <strong>P/E, P/B, P/S and EV/EBITDA</strong> are Damodaran's country aggregates: the <strong>median</strong> across listed companies in each country, on <strong>trailing</strong> figures, not cyclically adjusted, and only from 2020 on because earlier vintages of the source publish means instead. <strong>ERP</strong> is the implied equity risk premium for that country's risk bucket, so the Aaa sovereigns share a figure. ${erpCovered} of ${REGION_ORDER.length} regions have an ERP and ${multCovered} have multiples. One row differs in kind: <strong>Europe</strong> is a cap-weighted aggregate across the region rather than a median across one country, because no euro-area median exists and STOXX Europe 600 is itself pan-European — a different statistic, marked on the row, and not comparable with the medians above and below it. Hover CAPE or ERP for its own as-of date, which differs from the multiples' vintage.`) +
     tableWithRaw(["Region", "Index", "CAPE", "P/E", "P/B", "P/S", "EV/EBITDA", "ERP", "As of"], rows) +
 
-    `<p class="section-note"><strong>Known gaps on this tab.</strong> CAPE is US-only and will stay that way — it needs a long cyclically-adjusted earnings history that exists for the S&amp;P 500 and not elsewhere. The country multiples start in 2020, because Damodaran's earlier files publish means rather than medians. Still unsourced: dividend yields, forward (rather than trailing) multiples, and any Eurozone-level figure at all. Filling these is the main outstanding job on this tab — see <code>data/DATA-CATALOG.csv</code>.</p>`;
+    `<p class="section-note"><strong>Known gaps on this tab.</strong> CAPE is US-only and will stay that way — it needs a long cyclically-adjusted earnings history that exists for the S&amp;P 500 and not elsewhere. The country multiples start in 2020, because Damodaran's earlier files publish means rather than medians. Europe carries no P/S, because the regional source publishes none. Still unsourced: dividend yields, forward (rather than trailing) multiples, and any true euro-area aggregate — the Europe row is wider than the euro area, deliberately. See <code>data/DATA-CATALOG.csv</code>.</p>`;
 }
 
 
@@ -1093,7 +1436,6 @@ function regimeChart(quarterDate) {
 // dataviz skill. Blue = negative, red = positive, gray = uncorrelated.
 // ---------------------------------------------------------------------------
 let corrWindow = null;
-let corrTableView = false;
 
 function corrPalette() {
   const cs = getComputedStyle(document.documentElement);
@@ -1140,11 +1482,14 @@ function correlationBlock() {
   const pal = corrPalette();
 
   const buttons = windows.map((k) =>
-    `<button class="period-btn${k === w ? " active" : ""}" data-corr-window="${k}">${k}d</button>`
+    // The window keys are WEEK counts (window_weeks), and the payload has said
+    // so since storage went weekly -- this label read "52d" until 2026-09-21,
+    // the last daily-grain residue on the page.
+    `<button class="period-btn${k === w ? " active" : ""}" data-corr-window="${k}">${k}W</button>`
   ).join("");
 
   let grid = "";
-  if (!corrTableView) {
+  {
     const head = `<tr><th class="corner"></th>${m.labels.map((l) => `<th class="col-head"><span>${l}</span></th>`).join("")}</tr>`;
     const body = m.labels.map((rowLabel, i) => {
       const cells = m.matrix[i].map((v, j) => {
@@ -1155,15 +1500,6 @@ function correlationBlock() {
       return `<tr><th class="row-head">${rowLabel}</th>${cells}</tr>`;
     }).join("");
     grid = `<div class="table-wrap"><table class="corr-grid"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
-  } else {
-    const rows = [];
-    for (let i = 0; i < m.labels.length; i++) {
-      for (let j = i + 1; j < m.labels.length; j++) {
-        const v = m.matrix[i][j];
-        rows.push([m.labels[i], m.labels[j], v === null ? dash() : `${v >= 0 ? "+" : ""}${v.toFixed(3)}`]);
-      }
-    }
-    grid = table(["Asset A", "Asset B", "Correlation"], rows);
   }
 
   const legend = `
@@ -1175,9 +1511,7 @@ function correlationBlock() {
 
   return `<h2 class="mt">Cross-Asset Correlation</h2>` +
     note(`${corr.note || ""} Window: ${m.window_weeks} weeks, ${m.start} to ${m.as_of} (n=${m.n_obs}).`) +
-    `<div class="period-bar">${buttons}
-       <button class="period-btn${corrTableView ? " active" : ""}" data-corr-table="1">${corrTableView ? "Heatmap view" : "Table view"}</button>
-     </div>` + legend + grid;
+    `<div class="period-bar">${buttons}</div>` + legend + grid;
 }
 
 function renderCrossAsset() {
@@ -1257,43 +1591,57 @@ function renderSnapshot(region) {
   const equityLines = indices.map((idx) =>
     snapLine(`<span class="has-tip" data-tip="${indexTip(idx)}">${idx.name}</span>`,
              fmtNum(idx.level, (idx.level || 0) > 100 ? 1 : 4), idx.chg_ytd_pct,
-             `1W ${fmtPct(idx.chg_1w_pct)} · 1Y ${fmtPct(idx.chg_1y_pct)} · vol ${idx.realized_vol_13w_pct != null ? idx.realized_vol_13w_pct.toFixed(1) + "%" : "—"}`));
+             `1W ${fmtPct(idx.chg_1w_pct)} · 1Y ${fmtPct(idx.chg_1y_pct)} · vol ${idx.realized_vol_13w_pct != null ? idx.realized_vol_13w_pct.toFixed(1) + "%" : "—"}${idx.as_of ? " · " + idx.as_of : ""}`));
 
   const rateLines = CURVE_TENORS.map((k) =>
     t[k] != null ? snapLine(k, pctPlain(t[k]), null) : "").concat([
     curve["2s10s_bp"] != null ? snapLine("2s10s", fmtBp(curve["2s10s_bp"]), null) : "",
     real && (real.tenors || {})["10Y"] != null
-      ? snapLine("10y real", pctPlain(real.tenors["10Y"]), null, real.basis || "") : "",
+      ? snapLine("10y real", pctPlain(real.tenors["10Y"]), null,
+                 [real.basis, real.as_of].filter(Boolean).join(" \u00b7 ")) : "",
+    curve.as_of ? snapLine("Curve as of", `<span class="ccy">${curve.as_of}</span>`, null) : "",
   ]);
 
   const expTenors = exp.tenors || {};
   const expKey = Object.keys(expTenors).find((k) => expTenors[k] != null);
   const macroLines = [
-    snapLine("Policy rate", pctPlain(cb.rate_pct), null, cb.name || ""),
+    snapLine("Policy rate", pctPlain(cb.rate_pct), null,
+             [cb.name, cb.as_of].filter(Boolean).join(" \u00b7 ")),
     snapLine("CPI YoY", pctPlain(inf.yoy_pct, 1), null,
              [inf.period_label, inf.qoq_ann_pct != null
-               ? `latest quarter annualised ${inf.qoq_ann_pct.toFixed(1)}%` : ""]
+               ? `latest quarter annualised ${inf.qoq_ann_pct.toFixed(1)}%` : "",
+               inf.basis]
                .filter(Boolean).join(" \u00b7 ")),
     snapLine("Real GDP YoY", pctPlain(gdp.yoy_pct, 1), null,
              [gdp.period_label, gdp.qoq_ann_pct != null
                ? `latest quarter annualised ${gdp.qoq_ann_pct.toFixed(1)}%` : "annual series"]
                .filter(Boolean).join(" \u00b7 ")),
+    // Regions with no market-implied source are simply omitted now, rather
+    // than carrying a permanent "not sourced" line.
     expKey
       ? snapLine("Implied inflation", pctPlain(expTenors[expKey]), null,
                  `${expKey.replace(/_/g, " ")} · ${exp.basis || ""}`)
-      : snapLine("Implied inflation", `<span class="stub">not sourced</span>`, null, ""),
+      : "",
   ];
 
   const mult = val.multiples || {};
   const valLines = [
-    val.cape != null ? snapLine("CAPE", val.cape.toFixed(1), null, val.name || "") : "",
-    mult.pe ? snapLine("P/E (trailing)", mult.pe.value.toFixed(1), null, "Median across listed companies") : "",
+    val.cape != null ? snapLine("CAPE", val.cape.toFixed(1), null,
+                                [val.name, val.cape_as_of].filter(Boolean).join(" \u00b7 ")) : "",
+    mult.pe ? snapLine("P/E (trailing)", mult.pe.value.toFixed(1), null,
+                       [val.multiples_is_aggregate ? "Cap-weighted aggregate, Europe"
+                                                   : "Median across listed companies",
+                        val.multiples_as_of].filter(Boolean).join(" \u00b7 ")) : "",
     mult.pb ? snapLine("P/B", mult.pb.value.toFixed(2), null) : "",
     mult.ev_ebitda ? snapLine("EV/EBITDA", mult.ev_ebitda.value.toFixed(1), null) : "",
     erp.erp_pct != null ? snapLine("Equity risk premium", `${erp.erp_pct.toFixed(2)}%`, null, erp.method || "") : "",
-    cc.total_pct != null
-      ? snapLine("Cost of capital", `${cc.total_pct.toFixed(2)}%${cc.complete ? "" : "*"}`, null,
-                 cc.complete ? "All three legs sourced" : `Partial — no ${(cc.missing_labels || []).join(", ").toLowerCase()}`)
+    cc.cost_of_equity != null
+      ? snapLine("Cost of equity", `${cc.cost_of_equity.toFixed(2)}%`, null,
+                 (cc.formulae || {}).cost_of_equity || "")
+      : "",
+    cc.cost_of_debt != null
+      ? snapLine("Cost of debt", `${cc.cost_of_debt.toFixed(2)}%`, null,
+                 (cc.formulae || {}).cost_of_debt || "")
       : "",
   ];
 
@@ -1309,7 +1657,12 @@ function renderSnapshot(region) {
     snapBlock("Valuation &amp; cost of capital", valLines) +
     snapBlock("Currency", fxLines) +
     `</div>` +
-    `<p class="section-note">Commodities are global and live on their own tab. Percentages beside a level are year-to-date.</p>`;
+    `<p class="section-note">Commodities are global and live on their own tab.
+      Percentages beside a level are year-to-date. <strong>Each figure carries
+      its own date</strong>, and they differ by design: equity and curve levels
+      are last Friday's close, CPI is the month it measures, GDP the quarter,
+      and valuation multiples are annual. A macro figure is labelled by the
+      PERIOD it covers, not the day it was filed.</p>`;
 }
 
 function setupTabs() {

@@ -55,6 +55,17 @@ EQUITY_INDICES = [
     {"id": "ftse100", "region": "UK", "name": "FTSE 100", "currency": "GBP", "yahoo": "^FTSE",
      "weighting": "Float-adjusted market-cap weighted",
      "basis": "Price return — dividends are not included"},
+    {"id": "ftse_allshare", "region": "UK", "name": "FTSE All-Share", "currency": "GBP",
+     "yahoo": "^FTAS",
+     "weighting": "Float-adjusted market-cap weighted, ~600 constituents",
+     "basis": "Price return — dividends are not included"},
+    # AIM is the London growth market: small, illiquid and far more volatile
+    # than the All-Share it sits outside. Kept separate for that reason.
+    {"id": "ftse_aim", "region": "UK", "name": "FTSE AIM All-Share", "currency": "GBP",
+     "yahoo": "^FTAI",
+     "weighting": "Float-adjusted market-cap weighted",
+     "basis": "Price return — dividends are not included. AIM is London's "
+              "growth market: smaller and less liquid than the main market"},
     {"id": "stoxx600", "region": "EZ", "name": "STOXX Europe 600", "currency": "EUR", "yahoo": "^STOXX",
      "weighting": "Free-float market-cap weighted",
      "basis": "Price return — dividends are not included"},
@@ -62,8 +73,21 @@ EQUITY_INDICES = [
      "weighting": "Free-float market-cap weighted",
      "basis": "TOTAL RETURN — the DAX reinvests dividends, so its level is not "
               "comparable with the price-return indices beside it"},
+    # Also a performance index, same as the DAX it sits below.
+    {"id": "mdax", "region": "DE", "name": "MDAX", "currency": "EUR", "yahoo": "^MDAXI",
+     "weighting": "Free-float market-cap weighted, the 50 mid-caps ranking "
+                  "below the DAX",
+     "basis": "TOTAL RETURN — like the DAX, the MDAX reinvests dividends, so "
+              "its level is not comparable with the price-return indices here"},
     {"id": "smi", "region": "CH", "name": "SMI", "currency": "CHF", "yahoo": "^SSMI",
      "weighting": "Free-float market-cap weighted (constituents capped at 18%)",
+     "basis": "Price return — dividends are not included"},
+    # The broad Swiss market against the SMI's 20 blue chips. `^SSHI` is the
+    # only ticker Yahoo serves for it -- `SSHI.SW` and `^SPI` both 404.
+    {"id": "spi", "region": "CH", "name": "Swiss All Share (SPI)", "currency": "CHF",
+     "yahoo": "^SSHI",
+     "weighting": "Free-float market-cap weighted, essentially every listed "
+                  "Swiss company",
      "basis": "Price return — dividends are not included"},
     # Yahoo serves the CSI 300 index itself (000300.SS / 399300.SZ) with only
     # 1d/5d of history — no daily series — so the mainland-listed, CNY-priced
@@ -107,6 +131,11 @@ CURRENCIES = [
     {"id": "eurchf", "name": "EUR/CHF", "yahoo": "EURCHF=X"},
     {"id": "usdcny", "name": "USD/CNY", "yahoo": "USDCNY=X"},
     {"id": "eurnok", "name": "EUR/NOK", "yahoo": "EURNOK=X"},
+    # Carried for the equity tab's currency conversion rather than for its own
+    # sake: the Hang Seng is the one tracked index whose currency had no cross
+    # here, so without this it could not be shown in anything but HKD. NOK
+    # needs no entry -- USD/NOK is eurnok / eurusd, both already tracked.
+    {"id": "usdhkd", "name": "USD/HKD", "yahoo": "USDHKD=X"},
 ]
 
 # ---------------------------------------------------------------------------
@@ -392,12 +421,23 @@ INFLATION_EXPECTATIONS = {
                    "swap, which would be the market-implied equivalent, is "
                    "still not available free.",
            "tenors": {"1y": "1", "2y": "2", "5y": "lt"}},
-    "DE": {"source": None, "kind": "unavailable", "note": "See Eurozone — no free euro-area ILS feed."},
-    "CH": {"source": None, "kind": "unavailable", "note": "No CHF inflation-linked bond market of usable size."},
-    "CN": {"source": None, "kind": "unavailable", "note": "No accessible CNY inflation-linked market data."},
-    "JP": {"source": None, "kind": "unavailable", "note": "JGBi breakevens are not published in a free machine-readable feed."},
-    "NO": {"source": None, "kind": "unavailable", "note": "No NOK inflation-linked bond market."},
 }
+
+# DE, CH, CN, JP and NO were carried here as `unavailable` placeholder entries
+# so the table could show an empty row with a reason. Removed 2026-09-21 at
+# Marco's request: five permanently blank rows are five rows you learn to
+# scroll past, and the same reasoning already lives in DATA-CATALOG.csv where
+# it belongs. They never had stored data or a fetcher -- db/registry skipped
+# any `unavailable` entry outright -- so nothing was purged with them.
+#
+# WHY EACH IS BLANK, kept here so the question is not re-asked:
+#   DE  reads the euro area figure; there is no free euro-area ILS feed.
+#   CH  PERMANENT. The Swiss Confederation issues no inflation-linked debt at
+#       all, so there is no breakeven to compute. Do not re-attempt.
+#   NO  PERMANENT. Same reason: Norway issues no inflation-linked debt.
+#   CN  no accessible CNY inflation-linked market data.
+#   JP  JGBi breakevens are not published in a free machine-readable feed.
+INFLATION_EXPECTATIONS_UNSOURCED = ("DE", "CH", "CN", "JP", "NO")
 
 # ---------------------------------------------------------------------------
 # 7. GDP — real, chain-linked volumes, national currency (NOT PPP),
@@ -587,17 +627,73 @@ CORPORATE_SPREADS_TO_GOVT = [
 ]
 
 # Regions with no free corporate spread on ANY basis, and why. These read as
+# ---------------------------------------------------------------------------
+# 7c-bis. CONSTRUCTED investment-grade spreads for the euro and sterling.
+#
+# No free euro or sterling IG spread is published — see fetch/sources.py's
+# iShares banner for the enumeration that establishes this rather than assuming
+# it. What follows is built from two stated legs: an IG bond ETF's yield to
+# worst, less the government curve interpolated to that ETF's own duration.
+#
+# It is NOT an option-adjusted spread, so it sits in the non-OAS column beside
+# Germany's Bundesbank-derived one and must never be compared with the US OAS.
+# Unlike Germany's, the two legs come from DIFFERENT publishers (BlackRock and
+# the ECB/BoE), which this project normally refuses for a spread. It is
+# accepted here only because the alternative is no euro or sterling figure at
+# all, and because both legs are plain yields on a stated duration rather than
+# model outputs whose methodologies could diverge invisibly. The UI says so.
+#
+# The euro government leg is the ECB's AAA curve (G_N_A), NOT the all-ratings
+# curve (G_N_C) used for the Eurozone sovereign row. Measured 2026-09-21, AAA
+# gives 93bp and all-ratings 68bp, and 93bp is where the euro IG index actually
+# trades — because the all-ratings blend already contains peripheral sovereign
+# risk, which is not corporate credit risk and must not net out of this.
+#
+# Duration is stored as its own series rather than hardcoded: it drifts as the
+# index rolls, and a fixed assumption would silently decay.
+CONSTRUCTED_CREDIT_SPREADS = [
+    {
+        "region": "EZ",
+        "name": "Euro investment grade, spread to government",
+        "etf": {"ticker": "IEAC", "fund": "iShares Core € Corp Bond UCITS ETF",
+                "yield_series_id": "credit.EZ.ig_ytw",
+                "duration_series_id": "credit.EZ.ig_duration"},
+        # (years, series_id) — the curve points the duration is interpolated
+        # between. IEAC sits near 4.3y, so 4y and 5y bracket it tightly.
+        "government": [
+            (4.0, "curve.EZ.aaa_4Y", "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_4Y"),
+            (5.0, "curve.EZ.aaa_5Y", "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_5Y"),
+        ],
+        "government_label": "ECB euro area AAA government curve",
+        "note": "iShares Core € Corp Bond (IEAC) yield to worst, less the ECB "
+                "AAA euro government curve at the fund's own duration. A "
+                "yield-to-worst spread, not an option-adjusted one, and its "
+                "two legs come from different publishers — so it is an "
+                "estimate of where euro IG trades, not a published index.",
+    },
+    {
+        "region": "UK",
+        "name": "Sterling investment grade, spread to government",
+        "etf": {"ticker": "SLXX", "fund": "iShares Core £ Corp Bond UCITS ETF",
+                "yield_series_id": "credit.UK.ig_ytw",
+                "duration_series_id": "credit.UK.ig_duration"},
+        # Reuses the BoE GLC points already stored for the curve panel. SLXX
+        # sits near 5.45y, so this interpolates just inside the 5y point.
+        "government": [
+            (5.0, "curve.UK.5Y", None),
+            (10.0, "curve.UK.10Y", None),
+        ],
+        "government_label": "BoE nominal gilt curve",
+        "note": "iShares Core £ Corp Bond (SLXX) yield to worst, less the BoE "
+                "nominal gilt curve interpolated to the fund's own duration. A "
+                "yield-to-worst spread, not an option-adjusted one, and its "
+                "two legs come from different publishers — so it is an "
+                "estimate of where sterling IG trades, not a published index.",
+    },
+]
+
 # unavailable rather than pending: each was checked and closed, not skipped.
 CORPORATE_SPREAD_UNAVAILABLE = {
-    "UK": "No free sterling corporate bond index exists on any basis. The "
-          "benchmark is iBoxx/ICE, licensed. BoE effective lending rates are "
-          "bank loan rates to largely unrated borrowers, not bond spreads, and "
-          "are explicitly rejected as a proxy.",
-    "EZ": "No free euro INVESTMENT-GRADE series exists (FRED release 209 "
-          "enumerated in full: euro coverage is four high-yield series). ECB "
-          "MIR is bank lending rates, not bond spreads; ECB STEP is a real "
-          "credit spread but at overnight-to-91-day maturities and was last "
-          "updated 2026-05-12. Both rejected.",
     "CH": "The SNB's rendoblid rating buckets would have been exactly right "
           "and died with the same 2025 cut that moved the curve.",
     "CN": "No free onshore corporate curve beyond ChinaBond's AAA financial "
@@ -615,13 +711,11 @@ CORPORATE_SPREAD_UNAVAILABLE = {
           "commercial.",
 }
 
-COST_OF_CAPITAL_NOTE = (
-    "Real risk-free (10y inflation-linked) + investment-grade credit spread + "
-    "equity risk premium. A real discount rate, because the risk-free leg is "
-    "real — do not compare it with a nominal yield. Legs are summed only where "
-    "each is sourced for that region; a partial stack shows what it has and "
-    "says which legs are missing."
-)
+# The note lives in transform/cost_of_capital.NOTE, beside the formulae it
+# describes. It used to be duplicated here and had drifted badly out of date --
+# it still claimed a real inflation-linked risk-free leg long after the code
+# moved to the nominal 10y, and app.js quietly worked around it by hardcoding a
+# different note of its own. One definition, in one place, read by both.
 
 # ---------------------------------------------------------------------------
 # 7c. Liquidity / lending conditions.
@@ -634,15 +728,16 @@ COST_OF_CAPITAL_NOTE = (
 LIQUIDITY_INDICATORS = []
 
 # ---------------------------------------------------------------------------
-# 7d. FX hedging cost, from a CHF investor's seat — the two pairs Marco named.
-# See transform/fx_hedging.py for why this is an approximation and what it
-# leaves out; the caveats must travel with the number to the UI.
+# 7d. Real short-rate differentials, from a CHF investor's seat.
+#
+# Replaced the FX hedging-cost table on 2026-09-21. That table was a policy-
+# rate differential labelled as a hedging cost, excluding the cross-currency
+# basis and using policy rates where forwards price off OIS — a floor that read
+# like an estimate. See transform/real_rates.py for what replaced it and for
+# the two arguable choices it makes (2y rather than policy rate, CPI rather
+# than expected inflation).
 # ---------------------------------------------------------------------------
-FX_HEDGING = [
-    {"id": "usd_chf", "name": "USD exposure hedged to CHF", "foreign_region": "US", "foreign_ccy": "USD"},
-    {"id": "eur_chf", "name": "EUR exposure hedged to CHF", "foreign_region": "EZ", "foreign_ccy": "EUR"},
-]
-FX_HEDGING_HOME_REGION = "CH"
+REAL_RATE_HOME_REGION = "CH"
 
 # ---------------------------------------------------------------------------
 # 7e. Cross-asset set for the rolling correlation heatmap.
@@ -683,7 +778,12 @@ CORRELATION_WINDOWS = [52, 104]
 VALUATION_PROXIES = [
     {"region": "US", "name": "S&P 500", "cape_source": "shiller"},
     {"region": "UK", "name": "FTSE 100", "cape_source": None},
-    {"region": "EZ", "name": "STOXX 600", "cape_source": None},
+    # Labelled Europe, not Eurozone, and deliberately: the multiples behind it
+    # are Damodaran's pan-EUROPEAN aggregate, and STOXX Europe 600 is itself
+    # pan-European (17 countries, the UK and Switzerland among them). A
+    # EUROZONE aggregate still does not exist and is still descoped.
+    {"region": "EZ", "name": "STOXX Europe 600", "valuation_scope": "Europe",
+     "cape_source": None},
     {"region": "DE", "name": "DAX", "cape_source": None},
     {"region": "CH", "name": "SMI", "cape_source": None},
     {"region": "CN", "name": "CSI 300 / Hang Seng", "cape_source": None},
@@ -698,6 +798,51 @@ VALUATION_PROXIES = [
 # is the same error as reading the Bundesbank curve as the ECB's. Both EZ rows
 # are `descoped` in DATA-CATALOG.csv, not planned.
 DAMODARAN_REGIONS = ["UK", "DE", "CH", "CN", "JP", "NO"]
+
+# Which regions take their MULTIPLES from countrystats.xls. The US joined on
+# 2026-09-21: the file has always carried a "United States" row on exactly the
+# same median basis, and its absence here was a config gap that left the S&P
+# 500 showing CAPE and nothing else. It is deliberately NOT in
+# DAMODARAN_REGIONS above, which is the country-risk-premium list -- the US ERP
+# comes from histimpl.xls and its rating-based CRP is 0.00 by construction.
+VALUATION_MULTIPLE_REGIONS = ["US"] + DAMODARAN_REGIONS
+
+# Europe, for the STOXX 600 row, from Damodaran's REGIONAL industry-average
+# files rather than countrystats. Two things about this that must reach the UI:
+#
+#   1. It is EUROPE, not the euro area. That is the right match here -- STOXX
+#      Europe 600 spans 17 countries including the UK and Switzerland -- but it
+#      means the row is labelled "Europe" and not "Eurozone". The old
+#      `descoped` reasoning stands for a EUROZONE aggregate, which still does
+#      not exist; this is a different, wider aggregate that does.
+#   2. It is a DIFFERENT STATISTIC from every other row. countrystats publishes
+#      medians across companies; these files publish cap-weighted aggregates
+#      (US median trailing P/E 22.6 against an aggregate 26.6, and an unweighted
+#      mean of 57.9 which is why the plain "Trailing PE" column is not used).
+#      Cap-weighted is the right analogue for an INDEX multiple, but it is not
+#      comparable with the medians beside it, so the basis travels with the
+#      figure -- see `basis` in the valuation payload.
+#
+# The aggregate row is labelled "Grand Total" in some of these files and
+# "Total Market" in others, so the fetcher matches either. There is no P/S
+# column in any of them, so Europe carries no P/S.
+DAMODARAN_EUROPE_FILES = {
+    "pe": {"file": "peEurope", "sheet": "Industry Averages", "header": 7,
+           "column": "Aggregate Mkt Cap/ Trailing Net Income (only money making firms)"},
+    "pb": {"file": "pbvEurope", "sheet": "Industry Averages", "header": 7,
+           "column": "PBV"},
+    "ev_ebitda": {"file": "vebitdaEurope", "sheet": "Industry Averages", "header": 8,
+                  "column": "EV/EBITDA"},
+}
+DAMODARAN_EUROPE_REGION = "EZ"
+VALUATION_BASIS = {
+    "median": "Median across listed companies in that country (Damodaran "
+              "countrystats). Not cyclically adjusted, so not comparable to "
+              "the US CAPE beside it.",
+    "aggregate": "Cap-weighted aggregate across listed companies in Europe "
+                 "(Damodaran regional files) — a different statistic from the "
+                 "medians in the other rows, and not comparable with them.",
+}
 
 # The aggregated multiples taken from countrystats.xls. `column` is the bare
 # metric as Damodaran spells it; the fetcher matches the median-basis variant
