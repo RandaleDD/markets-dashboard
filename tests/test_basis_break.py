@@ -31,6 +31,13 @@ PRICE = registry.Series(
     series_id="test.price", category="Test", region="US", description="a price",
     unit="x", cadence="weekly", source="stub", fetcher="stub", bounded=True)
 
+# A series whose stored values are ALREADY percentages. The unit is what marks
+# it (registry.Series.is_rate), and it changes which scale the check reasons on.
+RATE = registry.Series(
+    series_id="test.cpi", category="Test", region="EZ", description="a revisable rate",
+    unit="% YoY", cadence="monthly_national", source="stub", fetcher="stub",
+    bounded=True, revisable=True)
+
 DATES = ["2025-01-01", "2025-04-01", "2025-07-01", "2025-10-01", "2026-01-01", "2026-04-01"]
 BASE = [100.0, 101.0, 102.0, 103.0, 104.0, 105.0]
 
@@ -101,6 +108,89 @@ class BasisBreakTest(unittest.TestCase):
         store.insert_observations(self.conn, [
             (PRICE.series_id, d, d, v) for d, v in zip(DATES, BASE)])
         self.assertEqual(quality.check_basis_break(self.conn, PRICE).raised, 0)
+
+
+class RateBasisBreakTest(unittest.TestCase):
+    """
+    A rate series is judged on percentage points and on how much of its history
+    moved -- never on a ratio.
+
+    On 2026-09-19 the euro area's August HICP was revised 3.3 -> 3.2, an
+    entirely ordinary 0.1pp correction of a single print. Measured as a ratio
+    that is -3.03%, which sailed past BASIS_BREAK_PCT and raised a flag that
+    stayed open for two days claiming the series had been spliced. Meanwhile
+    the real event on record -- cpi.DE the week before, when Eurostat changed
+    dataflow AND ECOICOP version -- was ALSO about 0.1pp. Magnitude alone
+    cannot tell the two apart. The share of history restated can: 0.3% against
+    84%.
+    """
+
+    # 36 monthly points at a plausible inflation rate, on one basis. Every date
+    # must sort BEFORE the restatement vintage below: `newest_vintage` is a
+    # max() over the vintage column, and a first print carries its own date as
+    # its vintage, so a fixture running past the vintage would make the check
+    # treat a first print as the newest vintage and measure nothing.
+    DATES = [f"{y}-{m:02d}-01" for y in (2023, 2024, 2025) for m in range(1, 13)]
+    BASE = [2.0 + (i % 7) * 0.1 for i in range(36)]
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.conn = store.connect(Path(self.tmp.name) / "t.db")
+        store.init_db(self.conn)
+        store.upsert_catalog(self.conn, [{
+            "series_id": RATE.series_id, "category": RATE.category, "region": RATE.region,
+            "description": RATE.description, "unit": RATE.unit,
+            "periodicity": RATE.periodicity, "source": RATE.source,
+            "max_age_days": 70, "status": "ok", "notes": None}])
+        store.insert_observations(self.conn, [
+            (RATE.series_id, d, d, v) for d, v in zip(self.DATES, self.BASE)])
+
+    def tearDown(self):
+        self.conn.close()
+        self.tmp.cleanup()
+
+    def restate(self, dates, delta_pp, vintage="2026-09-19"):
+        store.insert_observations(self.conn, [
+            (RATE.series_id, d, vintage, self.BASE[self.DATES.index(d)] + delta_pp)
+            for d in dates])
+
+    def test_the_series_is_recognised_as_a_rate(self):
+        self.assertTrue(RATE.is_rate)
+        self.assertFalse(GDP.is_rate, "a level must not take the rate path")
+
+    def test_an_ordinary_one_print_revision_is_not_flagged(self):
+        """cpi.EZ, 2026-09-19: 3.3 -> 3.2 on the newest month and nothing else."""
+        self.restate(self.DATES[-1:], -0.1)
+        findings = quality.check_basis_break(self.conn, RATE)
+        self.assertEqual(findings.raised, 0)
+        self.assertTrue(findings.evaluated,
+                        "must still evaluate, or an open flag could never close")
+        self.assertEqual(findings.found, frozenset())
+
+    def test_a_large_one_print_revision_is_flagged(self):
+        """0.1pp is noise; 0.6pp on a 2% rate is somebody changing the measure."""
+        self.restate(self.DATES[-1:], 0.6)
+        self.assertEqual(quality.check_basis_break(self.conn, RATE).raised, 1)
+
+    def test_most_of_history_restated_is_flagged_even_when_small(self):
+        """
+        The cpi.DE case: a methodology change moved 299 of 355 points by about
+        0.1pp each. Too small for the magnitude test, and exactly what the
+        share test exists to catch.
+        """
+        self.restate(self.DATES[6:], 0.1)
+        findings = quality.check_basis_break(self.conn, RATE)
+        self.assertEqual(findings.raised, 1)
+        detail = self.conn.execute(
+            "SELECT detail FROM data_quality_flags WHERE flag_type='basis_break'"
+        ).fetchone()[0]
+        self.assertIn("pp", detail, "a rate's flag must be worded in percentage points")
+        self.assertNotIn("%,", detail, "a ratio has no meaning on a rate series")
+
+    def test_a_restatement_of_the_whole_history_is_not_a_break(self):
+        """No seam: every point is on the new basis."""
+        self.restate(self.DATES, 0.9)
+        self.assertEqual(quality.check_basis_break(self.conn, RATE).raised, 0)
 
 
 class OutlierWindowTest(unittest.TestCase):

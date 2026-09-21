@@ -98,6 +98,31 @@ MAD_TO_SIGMA = 0.6745
 # below the chain-link rescalings that caused the problem (+0.548%, +0.700%).
 BASIS_BREAK_PCT = 0.25
 
+# The two tests above are RELATIVE, which is the right scale for a level and
+# the wrong one for a series that is already a rate in percentage points: a
+# routine 0.1pp revision to a 3.3% inflation print is -3.03% in ratio terms and
+# sails past BASIS_BREAK_PCT. That is exactly what happened to cpi.EZ on
+# 2026-09-19, when the euro area's August HICP went 3.3 -> 3.2 and raised a
+# flag for an ordinary revision of a single print.
+#
+# So a rate series is judged on two other tests, either of which is enough:
+#
+#   1. MAGNITUDE, in percentage points rather than as a ratio.
+#   2. SHARE of history restated. This one is load-bearing, because magnitude
+#      alone cannot separate the only two rate-series events on record -- both
+#      are about 0.1pp:
+#
+#        cpi.DE 2026-09-13   299 restated,  56 untouched   84%   REAL (Eurostat
+#                                                                changed dataflow
+#                                                                and ECOICOP version)
+#        cpi.EZ 2026-09-19     1 restated, 355 untouched  0.3%   ordinary revision
+#
+#      A methodology or base change restates a large block and leaves the rest;
+#      an ordinary revision touches the newest print. The share is what tells
+#      them apart, so dropping this test would silence the real one.
+RATE_BASIS_BREAK_PP = 0.5
+RATE_BASIS_BREAK_SHARE = 0.5
+
 # A real yield curve, including any inversion ever printed, spans well under
 # this between its shortest and longest tenor. Catches a stray 50.0 where 5.0
 # was meant without touching a genuine curve shape.
@@ -362,6 +387,15 @@ def check_basis_break(conn, series: registry.Series) -> Findings:
     (+0.700% / +0.711%, the two ratios agreeing to four decimals) and EZ
     (+0.548%), and stays silent on the same day's genuine revisions to DE
     (+0.019% / +0.122%), JP (+0.029% / +0.111%) and NO (-0.027% / -0.030%).
+
+    All of that describes a LEVEL. A series that is already a rate takes a
+    different pair of tests -- percentage points, and the share of history
+    restated -- because a ratio is the wrong scale when the denominator is a
+    2-3% inflation print. See RATE_BASIS_BREAK_PP for the calibration and for
+    the two real events it was fitted to. The check still runs on rate series
+    and still returns `evaluated=True`: returning NOT_EVALUATED instead would
+    strand any open flag forever, since `_reconcile` closes nothing on a check
+    that did not run.
     """
     if not series.revisable:
         return NOT_EVALUATED
@@ -397,21 +431,43 @@ def check_basis_break(conn, series: registry.Series) -> Findings:
     if not untouched:
         return whole
 
-    ratios = [new / old for new, old in revised.values() if old]
-    if not ratios:
-        return whole
-    median_ratio = float(np.median(ratios))
-    if abs(median_ratio - 1.0) * 100.0 < BASIS_BREAK_PCT:
-        return whole
+    if series.is_rate:
+        # A rate is judged on percentage points and on how much of the history
+        # moved, never on a ratio -- see RATE_BASIS_BREAK_PP above for why.
+        deltas = [abs(new - old) for new, old in revised.values()]
+        median_pp = float(np.median(deltas)) if deltas else 0.0
+        share = len(revised) / float(len(revised) + len(untouched))
+        by_size = median_pp >= RATE_BASIS_BREAK_PP
+        by_share = share >= RATE_BASIS_BREAK_SHARE
+        if not (by_size or by_share):
+            return whole
+        why = (f"a median {median_pp:.3f}pp" if by_size
+               else f"a median {median_pp:.3f}pp across {share * 100:.0f}% of its history")
+        detail = (
+            f"vintage {newest_vintage} restated the {len(revised)} most recent "
+            f"observation(s) by {why}, but left {len(untouched)} earlier "
+            f"observation(s) back to {min(untouched)} on the previous basis. "
+            f"This series is already a rate, so the concern is a methodology or "
+            f"index-base change restating part of the history and leaving the "
+            f"rest: the two halves are then not the same measure. Re-ingest the "
+            f"full history for this series.")
+    else:
+        ratios = [new / old for new, old in revised.values() if old]
+        if not ratios:
+            return whole
+        median_ratio = float(np.median(ratios))
+        if abs(median_ratio - 1.0) * 100.0 < BASIS_BREAK_PCT:
+            return whole
+        detail = (
+            f"vintage {newest_vintage} restated the {len(revised)} most recent "
+            f"observation(s) by a median {(median_ratio - 1) * 100:+.3f}%, but left "
+            f"{len(untouched)} earlier observation(s) back to {min(untouched)} on the "
+            f"previous basis. A uniform rescaling of only part of a series splices two "
+            f"bases together, and any growth rate spanning {oldest_revised} reports the "
+            f"rebasing as change. Re-ingest the full history for this series.")
 
     raised = int(store.raise_flag(
-        conn, series.series_id, oldest_revised, "basis_break",
-        f"vintage {newest_vintage} restated the {len(revised)} most recent "
-        f"observation(s) by a median {(median_ratio - 1) * 100:+.3f}%, but left "
-        f"{len(untouched)} earlier observation(s) back to {min(untouched)} on the "
-        f"previous basis. A uniform rescaling of only part of a series splices two "
-        f"bases together, and any growth rate spanning {oldest_revised} reports the "
-        f"rebasing as change. Re-ingest the full history for this series."))
+        conn, series.series_id, oldest_revised, "basis_break", detail))
     return Findings(raised=raised, found=frozenset({oldest_revised}), evaluated=True)
 
 
