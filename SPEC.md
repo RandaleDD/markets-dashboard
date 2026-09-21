@@ -85,6 +85,23 @@ and the correlation heatmap makes no diversification recommendation.
   government yield in the currency and duration of the cash flows — and it
   fills the table, since 7 of 8 regions publish a nominal 10y where only 2
   publish a real one.
+- **There is no "total" cost of capital, and no WACC.** The tab shows two
+  rates, each with its formula stated: cost of equity = risk-free + ERP, and
+  cost of debt = risk-free + IG credit spread. It used to show a single "Total"
+  that summed risk-free + credit spread + ERP, which is none of the three
+  things a reader would take it for — it counts the risk-free once and then
+  stacks two premia belonging to two different claims on the same firm. A real
+  WACC would need a leverage assumption and a tax rate, neither of which this
+  project sources, so it shows two well-defined numbers rather than one
+  invented one. A rate is blank unless BOTH its legs are sourced: a half-built
+  discount rate is worse than a blank, because it looks usable.
+- **Currency conversion on the equity tab converts everything or nothing.**
+  Selecting USD/GBP/EUR/CHF rebuilds levels, every return, drawdown and
+  volatility from the converted history — a return in another currency is a
+  different number, not the local number with a footnote. Percentile context is
+  dropped when converted, because it was measured on the local-currency
+  distribution. The selected currency is stated in a banner above both the
+  chart and the table, because it silently changes every figure on the tab.
 - Equity index *levels* deliberately carry no percentile annotation. A price
   percentile on a trending series is always near the 100th and says nothing;
   volatility and drawdown are mean-reverting, so those carry it instead.
@@ -114,11 +131,12 @@ actually uses today.
 | Euro-area inflation expectations | **ECB Survey of Professional Forecasters**, quarterly from 1999Q1 | Live, badged **survey**-based, never stacked with the market-implied rows. Not a substitute for the market measure: the EUR HICPx zero-coupon swap is still unpublished free. SPF has no rolling-horizon series, so the 1y and 2y are constructed from its calendar-year forecasts; the 5y slot holds its longer-term mean, whose tenor **moves between 4 and 5 years** by round and says so |
 | CH / CN / JP / NO inflation expectations | — | **No free source**, and CH and NO are permanent: neither government issues inflation-linked debt at all. China is refused on definition — the only measure is a PBoC diffusion index of respondents expecting higher prices, not a percentage |
 | Credit spreads (OAS) | ICE BofA OAS via FRED (US IG/HY, Euro HY, EM corporate) | Live. Capped at a rolling ~3 years by ICE licensing, so only the `full` percentile window resolves. **OAS is not free for any currency but the dollar**, and that is structural — see dead ends |
+| Euro & sterling IG spreads | **Constructed**: iShares IEAC / SLXX yield to worst, less a government curve interpolated to the fund's own duration (ECB AAA `G_N_A` for the euro, the stored BoE gilt curve for sterling) | Live from 2026-09-21. Nothing free publishes these — see dead ends — so they are built rather than found, and they are **yield-to-worst spreads, not OAS**, sitting in the non-OAS column and never beside the US figure. Reading 93bp and 108bp at launch, where those indices actually trade. Two departures from house rules, both deliberate and both stated in the UI: the two legs come from DIFFERENT publishers, and the series has **no history** — it deepens one weekly point at a time from the day it shipped. The euro leg is the AAA curve, not the all-ratings one used for the sovereign row: all-ratings already contains peripheral sovereign risk, which is not corporate risk and must not net out (93bp against 68bp) |
 | Corporate spread to government (non-OAS) | FRED `BAMLC0A0CMEY` less the stored US 10y; **Bundesbank BBSIS** corporate less general government | Live for US and DE only, in its own labelled Cost of Capital column. A **different quantity** from an OAS — not option-adjusted, not duration-matched — so it is never summed into the stack or counted toward coverage. The US is computed on both bases so the column is internally consistent (80bp OAS against 73bp non-OAS on 2026-09-10). UK/EZ/CH/CN/JP/NO read unavailable, each with a recorded reason |
 | Liquidity / lending | — | **Dropped 2026-08-29.** The Fed's SLOOS was the only region with a keyless feed, and a single-country lending panel was not being used |
 | US equity valuation | Shiller CAPE (`ie_data.xls`); Damodaran implied ERP (FCFE) | Live. Shiller's file currently ends 2024-09, so it reports `stale` |
 | Non-US equity risk premia | Damodaran `ctryprem.xlsx` (rating-based country risk premium) | Live for UK/DE/CH/CN/JP/NO, annual, back to 2000 from the year-stamped archives. Stores the **country** premium, which is 0.00 for every Aaa sovereign; `db/export.py` adds the mature-market base (`erp.US`) back on for display. No Eurozone aggregate exists, so `erp.EZ` is descoped |
-| Non-US equity valuation | Damodaran `countrystats.xls` (median trailing P/E, P/B, P/S, EV/EBITDA) | Live for the same six regions, annual, **2020 onward only** — the 2012-2019 archives publish means rather than medians, and splicing the two would put a methodology break mid-series. Not cyclically adjusted, so not comparable to the US CAPE. `valuation.EZ` is descoped |
+| Equity valuation multiples | Damodaran `countrystats.xls` (median trailing P/E, P/B, P/S, EV/EBITDA) for seven regions; the regional `peEurope`/`pbvEurope`/`vebitdaEurope` files for Europe | Live, annual, **2020 onward only** — the 2012-2019 archives publish means rather than medians, and splicing the two would put a methodology break mid-series. Not cyclically adjusted, so not comparable to the US CAPE. **The US joined 2026-09-21**: `countrystats.xls` had always carried a "United States" row on the same median basis, and its absence was a config gap that left the S&P 500 showing CAPE and nothing else. **Europe joined the same day** for the STOXX Europe 600 row, and is a CAP-WEIGHTED AGGREGATE rather than a median — a different statistic, labelled as such on the row, and not comparable with the country rows (for the US the two bases read 26.6 and 22.6). A EUROZONE aggregate still does not exist and stays descoped; Europe is deliberately the wider set, which is what STOXX Europe 600 actually spans. Europe carries no P/S — the regional files publish none |
 
 Fifteen institutions and two acknowledged scrapes (ChinaBond, and nothing else since the TradingEconomics retirement), and still gaps. No single source covers this, free or
 paid short of a full commercial terminal — the spread of sources is by design.
@@ -360,6 +378,8 @@ wrong fails *silently*.
 | Damodaran `countrystats` | Archived as `countrystats<YY>.xls` for **2012-2024** — the catalog previously recorded this depth as unconfirmed; it is confirmed. But the file changed statistic in the 2020 vintage: 2012-2019 publish `Average of <metric>`, 2020+ publish `Median <metric>`, and the means run 3-10x higher (Germany trailing P/E 171.3 in 2013 vs 15.9 in 2024). **Only median-basis vintages are read**, so history starts 2020. Header row moves between rows 0, 1, 7 and 8; column count swings from 20 to 256 |
 | ONS | Observations are under `months`, dated `"1997 JAN"` — parse against an explicit month map, not a locale format |
 | Eurostat | JSON-stat: `value` is a sparse `{flat_index: number}` map and the time dimension carries `{period_label: index}`, so the two join by index, never by position |
+| iShares product screener | The euro and sterling IG credit legs. `country=gb` + `siteName=ishares-uk` + `userType=individual` is the ONLY combination returning 200 — `country=uk` 500s for every siteName, and `userType=professional` 500s. Always gzipped, so `Accept-Encoding: gzip` is mandatory or the body is binary noise. Values are `{"d": display, "r": raw}` pairs and `navAmountAsOf` is `{"d": "Sept 18, 2026", "r": 20260918}` — parse the raw yyyymmdd, never the prose. **It is a SNAPSHOT: one as-of date per fund, no history at all**, so the stored series begins the day it ships. Undocumented private endpoint; it will break without notice and must degrade to `None` when it does |
+| Damodaran regional files | `peEurope.xls` / `pbvEurope.xls` / `vebitdaEurope.xls`, sheet `Industry Averages`. Header row 7 for pe/pbv, 8 for vebitda. The aggregate row is `Grand Total` in some files and `Total Market` in others — including inconsistently within the regional set — so match either. These publish CAP-WEIGHTED AGGREGATES, not the medians `countrystats` publishes: for the US the two read 26.6 and 22.6, and the file's plain `Trailing PE` column is an unweighted mean reading 57.9 and must never be used. No P/S column exists in any of them |
 | SNB cube `gdprpq` (GDP) | **Do not assume one SNB cube behaves like another** — this one differs from `rendeiduebd` in two ways, both silent. (1) A query with **no `fromDate` returns HTTP 200 carrying only the last FIVE QUARTERS** (9 lines against 189). That is worse here than for the curve: GDP is quarterly, so `refetch_in_full()` is true and `ingest.fetch_one` passes `start=None` every run — `fetch_snb_gdp` therefore supplies its own floor (`_SNB_GDP_FLOOR`) rather than relying on a caller. (2) The `Date` column is a **quarter label** (`1980-Q2`), not the ISO date `rendeiduebd` and `plkopr` return, so it goes through `_period_start` before `_frame`. `D0(WMF)` is the level in chain-linked CHF millions (ref 2020); `D1(BBIPS)` is sport-event adjusted and `D1(BBIP)` is not |
 
 ### The BoE GLC archives
@@ -456,6 +476,31 @@ allowed to be 150 days stale but is stored weekly like a price.
 
 - **Stooq** serves a JavaScript proof-of-work anti-bot page instead of CSV on
   every path. Not solvable headlessly. Replaced by Yahoo.
+
+- **No free euro or sterling INVESTMENT-GRADE credit spread is published.**
+  Established rather than assumed, 2026-09-21: FRED's euro coverage is four
+  HIGH-YIELD series and it carries no sterling ICE BofA series of any kind; the
+  ECB has no corporate-bond dataflow at all, and all 115 public series in its
+  `FM` dataflow were enumerated with zero corporate among them. The `ER00` and
+  `IBOXX` codes that appear in `CL_PROVIDER_FM_ID` are internal — data queries
+  against them 404. ICE, iBoxx and Bloomberg license these indices and the ECB
+  licenses rather than republishes them. The BoE publishes only government,
+  commercial-bank-liability and OIS curves, no corporate. **What replaced the
+  gap is a CONSTRUCTION, not a find** — see `universe.CONSTRUCTED_CREDIT_SPREADS`.
+
+- **No free per-country euro sovereign yield exists above monthly.** The
+  spread panel's ECB `IRS` legs are the Maastricht convergence-criterion yield;
+  `D.` and `B.` frequencies return nothing, and Eurostat's `irt_lt_mcby_m`
+  mirror is the same monthly figure to the decimal. So that table will always
+  read behind the daily curves beside it, and sourcing France, Italy and Spain
+  from three national publishers would put a cross-publisher methodology gap
+  inside the spread. The aggregate `G_N_C − G_N_A` measure is the same quantity
+  at daily frequency and is shown beside it.
+
+- **S&P Global's index EPS workbook** (`sp-500-eps-est.xlsx`) is Akamai-blocked:
+  HTTP 403 even with a full browser UA and Referer. It would have been the
+  best index-level P/E source. `multpl.com` has the number but no CSV, no API
+  and no stated terms.
 
 - **Eurostat cannot serve a sport-event-adjusted GDP.** Checked 2026-09-21:
   `namq_10_gdp`'s `s_adj` codelist is exactly `{NSA, SA, CA, SCA}`, and the
@@ -598,7 +643,6 @@ allowed to be 150 days stale but is stored weekly like a price.
 - Intraday / real-time / daily data.
 - PMI / economic surprise index.
 - Energy-transition/infrastructure-specific layer.
-- CHF-converted equity returns (local currency only).
 - Non-US free-cash-flow yield, dividend yields, and forward (as opposed to
   trailing) multiples — no free source found. Non-US EV/EBITDA left this list
   on 2026-08-29: Damodaran's `countrystats.xls` publishes it, and it is now

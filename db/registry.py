@@ -488,6 +488,10 @@ def all_series() -> list[Series]:
             fetch_kwargs={"region": region},
             archive_kwargs={"region": region, "archive": True},
             bounded=False))
+    # Multiples cover one MORE region than the country-risk-premium loop above:
+    # the US is in countrystats on the same median basis, but its ERP comes
+    # from histimpl.xls and its rating-based CRP is 0.00 by construction.
+    for region in universe.VALUATION_MULTIPLE_REGIONS:
         for m in universe.VALUATION_MULTIPLES:
             out.append(Series(
                 series_id=f"valuation.{region}.{m['id']}", category="Valuation",
@@ -500,6 +504,22 @@ def all_series() -> list[Series]:
                 fetch_kwargs={"region": region, "column": m["column"]},
                 archive_kwargs={"region": region, "column": m["column"], "archive": True},
                 bounded=False))
+
+    # Europe, for the STOXX 600 row. A cap-weighted aggregate rather than a
+    # median, so the description says so and the export carries a `basis`.
+    for mid, cfg in universe.DAMODARAN_EUROPE_FILES.items():
+        name = next((m["name"] for m in universe.VALUATION_MULTIPLES if m["id"] == mid), mid)
+        out.append(Series(
+            series_id=f"valuation.{universe.DAMODARAN_EUROPE_REGION}.{mid}",
+            category="Valuation", region=universe.DAMODARAN_EUROPE_REGION,
+            description=f"Europe cap-weighted aggregate {name} (NOT a median "
+                        f"like the country rows, and NOT cyclically adjusted)",
+            unit="ratio (x)", cadence="annual",
+            source=f"Damodaran/NYU Stern, {cfg['file']}.xls",
+            fetcher="fetch_damodaran_region_multiple",
+            fetch_kwargs={"book": cfg["file"], "sheet": cfg["sheet"],
+                          "header": cfg["header"], "column": cfg["column"]},
+            bounded=False))
 
     # --- Credit spreads and liquidity ---------------------------------------
     for cs in universe.CREDIT_SPREADS:
@@ -532,6 +552,36 @@ def all_series() -> list[Series]:
                 source=f"{publisher}, {leg['series']}", fetcher=fetcher,
                 fetch_kwargs={arg: leg["series"]},
                 bounded=(leg["source"] == "fred")))
+
+    # Legs of the CONSTRUCTED euro and sterling IG spreads. The ETF yield and
+    # its duration are two series from one snapshot endpoint; the government
+    # points are ordinary curve series, and the UK's are already registered by
+    # the curve panel so they carry series_key None and are skipped here.
+    for cs in universe.CONSTRUCTED_CREDIT_SPREADS:
+        etf = cs["etf"]
+        for sid, field, what, unit in (
+                (etf["yield_series_id"], "yieldToWorst", "yield to worst", "%"),
+                (etf["duration_series_id"], "effectiveDuration", "effective duration",
+                 "years")):
+            out.append(Series(
+                series_id=sid, category="Credit spread", region=cs["region"],
+                description=f"{etf['fund']} ({etf['ticker']}) {what} — the "
+                            f"corporate leg of {cs['name'].lower()}",
+                unit=unit, cadence="weekly",
+                source=f"iShares product screener, {etf['ticker']}",
+                fetcher="fetch_ishares_fund",
+                fetch_kwargs={"ticker": etf["ticker"], "field": field},
+                bounded=False))
+        for years, sid, key in cs["government"]:
+            if key is None:
+                continue  # already registered by the curve panel
+            out.append(Series(
+                series_id=sid, category="Yield curve", region=cs["region"],
+                description=f"{cs['government_label']}, {years:g}y spot — a "
+                            f"government leg of {cs['name'].lower()}",
+                unit="%", cadence="weekly", source=f"ECB, {key}",
+                fetcher="fetch_ecb", fetch_kwargs={"series_key": key},
+                bounded=True))
 
     for li in universe.LIQUIDITY_INDICATORS:
         out.append(Series(

@@ -23,7 +23,7 @@ TOP_LEVEL = {
     "equity_indices", "currencies", "commodities", "macro", "yield_curves",
     "real_yield_curves", "inflation_expectations", "eurozone_spreads",
     "credit_spreads", "corporate_spreads_to_govt",
-    "corporate_spread_unavailable", "liquidity", "fx_hedging", "regime",
+    "corporate_spread_unavailable", "liquidity", "real_rates", "regime",
     "correlation",
     "cost_of_capital", "cost_of_capital_note", "valuation",
     "equity_risk_premia", "source_status", "data_quality",

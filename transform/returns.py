@@ -104,6 +104,39 @@ def _round_or_none(x, ndigits=2):
     return round(x, ndigits) if x is not None and not (isinstance(x, float) and np.isnan(x)) else None
 
 
+def monthly_history(df: pd.DataFrame, years: float = 5.0, carry: bool = True) -> list:
+    """
+    A series on a MONTHLY grid, for the macro chart, which puts quarterly GDP,
+    monthly CPI and weekly policy rates on one axis.
+
+    Each month takes the last observation dated within it. With `carry`, months
+    with no observation of their own repeat the last known value -- a policy
+    rate that has not moved since March is still that rate in April, and a
+    quarterly GDP growth rate is the prevailing reading until the next print.
+    That is what makes a stepped policy-rate line correct rather than a
+    convenience.
+
+    Leading months BEFORE the series' first observation are dropped rather than
+    filled: there is nothing to carry forward, and a NaN there would reach the
+    payload and fail tests/test_export_shape's no-NaN check.
+    """
+    if df is None or df.empty:
+        return []
+    frame = df.dropna(subset=["value"]).sort_values("date")
+    if frame.empty:
+        return []
+    monthly = (frame.set_index("date").resample("MS")["value"].last())
+    if carry:
+        monthly = monthly.ffill()
+    monthly = monthly.dropna()
+    if monthly.empty:
+        return []
+    start = monthly.index.max() - pd.DateOffset(days=int(365.25 * years))
+    monthly = monthly[monthly.index >= start]
+    return [[d.strftime("%Y-%m-%d"), round(float(v), 4)]
+            for d, v in monthly.items()]
+
+
 def compact_history(df: pd.DataFrame, years: float = 5.0) -> list:
     """
     History for the interactive chart: every stored week, out to `years`.

@@ -27,12 +27,18 @@ import pandas as pd
 from db import registry, store
 from fetch import universe
 from transform.correlation import rolling_correlation_matrix
+from transform.cost_of_capital import NOTE as COST_OF_CAPITAL_NOTE
 from transform.cost_of_capital import stack_cost_of_capital
 from transform.curves import curve_shape, latest_tenor_values
-from transform.fx_hedging import approx_hedging_cost
+from transform.real_rates import (CAVEATS as REAL_RATE_CAVEATS,
+                                  INFLATION_LEG_LABEL,
+                                  METHOD as REAL_RATE_METHOD,
+                                  RATE_LEG_LABEL, differential,
+                                  real_rate)
 from transform.percentile import has_any, percentile_context
 from transform.regime import AXIS_DEFINITION, regime_coordinates
 from transform.returns import (ANNUALISE, WEEKS_PER_QUARTER, compact_history,
+                               monthly_history,
                                compute_return_metrics)
 
 logger = logging.getLogger("markets_dashboard.db.export")
@@ -59,6 +65,32 @@ def _registry_cadences() -> dict[str, str]:
 
 def _cadence_of(series_id: str, default: str = "weekly") -> str:
     return _registry_cadences().get(series_id, default)
+
+
+def _interp_curve(points, target):
+    """
+    A curve value at `target` years, linearly interpolated between the two
+    stored points that bracket it.
+
+    `points` is [(years, value), ...]; any leg that failed to fetch arrives as
+    None and is dropped, so a missing point degrades to None rather than to a
+    wrong number. Beyond the ends it clamps rather than extrapolating -- a
+    duration outside the bracket means the config needs a new point, not a
+    guess off the end of the curve.
+    """
+    known = sorted((y, v) for y, v in points if v is not None)
+    if not known or target is None:
+        return None
+    if len(known) == 1:
+        return known[0][1]
+    if target <= known[0][0]:
+        return known[0][1]
+    if target >= known[-1][0]:
+        return known[-1][1]
+    for (y0, v0), (y1, v1) in zip(known, known[1:]):
+        if y0 <= target <= y1:
+            return v0 + (v1 - v0) * ((target - y0) / (y1 - y0)) if y1 != y0 else v0
+    return None
 
 
 def _series_status(df, cadence="weekly"):
@@ -254,7 +286,7 @@ def empty_payload(is_sample: bool) -> dict:
         "corporate_spreads_to_govt": [],
         "corporate_spread_unavailable": {},
         "liquidity": [],
-        "fx_hedging": [],
+        "real_rates": {},
         "regime": {"axis_definition": "", "regions": {}},
         "correlation": {"windows": {}, "note": ""},
         "cost_of_capital": {},
@@ -348,6 +380,13 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         status[f"cbrate:{cb['region']}"] = st
         out["macro"]["policy_rates"][cb["region"]] = {
             "name": cb["name"], "rate_pct": _latest(df), "as_of": as_of,
+            # Which region's rate this actually IS, when it is not its own.
+            # Germany has no independent policy rate, so the macro table drops
+            # mirrored rows rather than printing the ECB's number twice -- but
+            # the entry stays here because the Germany snapshot still shows a
+            # rate. Carrying the fact in the payload keeps the frontend from
+            # hardcoding "skip DE".
+            "mirror_of": cb.get("mirror_of"),
             "context": _ctx(df) if df is not None else None}
 
     # --- Macro: inflation (YoY series, annualised QoQ from the index series) ---
@@ -418,6 +457,46 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         }
     out["macro"]["gdp_definition"] = universe.GDP_DEFINITION
 
+    # --- History for the macro chart, on one MONTHLY grid.
+    #
+    # Three series of three different native frequencies have to share an x
+    # axis: policy rates are stored weekly, CPI is monthly, GDP quarterly. A
+    # monthly grid with carry-forward is the honest common denominator -- it
+    # invents no observation, it repeats the prevailing one, which is what a
+    # policy rate between meetings and a GDP print between quarters actually
+    # are. That is also why the policy-rate line is drawn stepped.
+    #
+    # GDP and CPI are carried as YoY GROWTH, not as the stored levels: the
+    # chart is about growth and inflation, and all three series are then in
+    # percent and can honestly share one axis.
+    #
+    # Nested under `macro` rather than added as a top-level key deliberately:
+    # tests/test_export_shape asserts the top-level key set by exact equality.
+    macro_history = {"gdp_yoy": {}, "cpi_yoy": {}, "policy_rate": {}}
+    for region in universe.REGIONS:
+        gdp_cfg = universe.GDP_GROWTH.get(region, {})
+        gdp_freq = gdp_cfg.get("freq", "Q")
+        gdp_growth = _growth_series(gdp_frames.get(region), PERIODS_PER_YEAR[gdp_freq])
+        if gdp_growth is not None:
+            macro_history["gdp_yoy"][region] = monthly_history(gdp_growth)
+        cpi_yoy = cpi_frames.get(region)
+        if cpi_yoy is not None:
+            macro_history["cpi_yoy"][region] = monthly_history(cpi_yoy)
+        # Germany mirrors the ECB, same as the table above.
+        cb = next((c for c in universe.CENTRAL_BANKS if c["region"] == region), None)
+        rate_region = (cb or {}).get("mirror_of", region)
+        rates = hist.get(f"policy_rate.{rate_region}")
+        if rates is not None:
+            macro_history["policy_rate"][region] = monthly_history(rates)
+    out["macro"]["history"] = macro_history
+    out["macro"]["history_note"] = (
+        "Monthly grid. GDP and CPI are year-on-year growth derived from the "
+        "stored level series; policy rates are the prevailing rate. Months "
+        "with no new observation repeat the last one, which is why the "
+        "policy-rate line is stepped — a rate that has not moved is still the "
+        "rate. Series are shown on their own publication lag, so the newest "
+        "GDP point is a quarter behind the newest policy rate.")
+
     # --- Growth / inflation regime coordinates (pure derivation) ---
     out["regime"]["axis_definition"] = AXIS_DEFINITION
     for region in universe.REGIONS:
@@ -472,6 +551,49 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "context": _ctx(spread_hist) if spread_hist is not None else None,
         })
 
+    # A SAME-DAY euro sovereign risk measure, beside the monthly per-country
+    # panel above. The panel's legs are the ECB's Maastricht convergence yield,
+    # which is published monthly as a month average and has no daily or weekly
+    # variant -- I checked D. and B. frequencies, and Eurostat's mirror is the
+    # same monthly figure -- so it will always read a month or more behind the
+    # daily curves elsewhere on this tab. No single publisher offers free daily
+    # per-country euro sovereign yields, and taking FR/IT/ES from three
+    # national publishers would put a cross-publisher methodology gap inside
+    # the spread.
+    #
+    # What IS available daily from one publisher at one vintage is the gap
+    # between the ECB's two euro area curves: all-issuers-all-ratings (G_N_C)
+    # less AAA-only (G_N_A). That is the euro area's sovereign risk premium in
+    # aggregate -- the same quantity the per-country panel measures one issuer
+    # at a time -- and it moves every day.
+    # Both legs at 5y. The tenors MUST match: a 10y all-issuer yield against a
+    # 5y AAA one would measure the slope of the curve as well as the credit
+    # gap, and the slope is the larger of the two.
+    all_df = hist.get("curve.EZ.5Y")
+    aaa_df = hist.get("curve.EZ.aaa_5Y")
+    risk_hist = None
+    if all_df is not None and aaa_df is not None:
+        merged = all_df.merge(aaa_df, on="date", suffixes=("_all", "_aaa"))
+        if not merged.empty:
+            risk_hist = pd.DataFrame({
+                "date": merged["date"],
+                "value": (merged["value_all"] - merged["value_aaa"]) * 100.0})
+    risk_level = _latest(risk_hist)
+    risk_st, risk_as_of = _series_status(risk_hist)
+    status["eurozone_risk_premium"] = risk_st if risk_level is not None else "stubbed"
+    out["eurozone_spreads"]["aggregate_risk_premium"] = {
+        "spread_bp": round(risk_level, 1) if risk_level is not None else None,
+        "as_of": risk_as_of,
+        "cadence": "weekly",
+        "name": "Euro area sovereign risk premium (aggregate)",
+        "basis": "ECB all-issuers euro area curve less the ECB AAA curve. "
+                 "Both legs are the same publisher at the same vintage, and "
+                 "unlike the per-country rows below it is current rather than "
+                 "monthly. Both legs are 5-year spot rates, so this measures "
+                 "the credit gap alone and not the slope of the curve.",
+        "context": _ctx(risk_hist) if risk_hist is not None else None,
+    }
+
     # --- Valuation (CAPE + Damodaran country multiples) and ERP ---
     cape_df = hist.get("valuation.US.cape")
     cape_st, cape_as_of = _series_status(cape_df, "monthly")
@@ -509,9 +631,16 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "cape_context": (_ctx(cape_df) if is_us and cape_df is not None else None),
             "multiples": multiples or None,
             "multiples_as_of": mult_as_of,
-            "multiples_basis": ("Median across listed companies in the country, trailing. "
-                                "NOT cyclically adjusted, so not comparable to US CAPE."
-                                if multiples else None),
+            # Europe's multiples are a cap-weighted aggregate while every other
+            # row is a median across companies. Both are legitimate, they are
+            # not the same statistic, and for the US the two read 26.6 and 22.6
+            # -- so the basis has to travel with the figure rather than be
+            # implied by the column heading.
+            "multiples_basis": (universe.VALUATION_BASIS[
+                "aggregate" if region == universe.DAMODARAN_EUROPE_REGION else "median"]
+                if multiples else None),
+            "multiples_is_aggregate": (region == universe.DAMODARAN_EUROPE_REGION
+                                       and bool(multiples)),
             "note": None if (is_us or multiples) else
                     "Damodaran publishes member states only, with no Eurozone aggregate "
                     "(DATA-CATALOG.csv: valuation.EZ is descoped, not pending).",
@@ -609,6 +738,38 @@ def build_payload(conn, is_sample: bool = False) -> dict:
                      "above and the two must not be compared directly.",
             "note": cs.get("note"), "as_of": as_of,
         })
+
+    # --- The CONSTRUCTED euro and sterling IG spreads. Same column as above,
+    # one extra step: the government leg is interpolated to the ETF's own
+    # duration rather than taken at a fixed tenor, because an ETF's duration
+    # drifts as its index rolls. See universe.CONSTRUCTED_CREDIT_SPREADS for
+    # why two publishers are tolerated here and nowhere else. ---
+    for cs in universe.CONSTRUCTED_CREDIT_SPREADS:
+        etf = cs["etf"]
+        ytw = _latest(hist.get(etf["yield_series_id"]))
+        duration = _latest(hist.get(etf["duration_series_id"]))
+        points = [(years, _latest(hist.get(sid))) for years, sid, _ in cs["government"]]
+        govt_level = _interp_curve(points, duration)
+        spread = (round(ytw - govt_level, 2)
+                  if ytw is not None and govt_level is not None else None)
+        st, as_of = _series_status(hist.get(etf["yield_series_id"]))
+        status[f"credit_to_govt:{cs['region']}"] = st if spread is not None else "stubbed"
+        if spread is not None:
+            stack_to_govt[cs["region"]] = spread
+        out["corporate_spreads_to_govt"].append({
+            "region": cs["region"], "name": cs["name"],
+            "spread_bp": round(spread * 100) if spread is not None else None,
+            "corporate_yield_pct": ytw,
+            "government_yield_pct": round(govt_level, 3) if govt_level is not None else None,
+            "duration_years": round(duration, 2) if duration is not None else None,
+            "constructed": True,
+            "basis": "Yield to worst less the government curve at the same "
+                     "duration. NOT option-adjusted, and its two legs come "
+                     "from different publishers — an estimate of where the "
+                     "index trades, not a published index.",
+            "note": cs.get("note"), "as_of": as_of,
+        })
+
     out["corporate_spread_unavailable"] = dict(universe.CORPORATE_SPREAD_UNAVAILABLE)
 
     # --- Liquidity / lending conditions ---
@@ -647,19 +808,47 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         status[f"correlation:{w}w"] = "ok" if m["labels"] and m["n_obs"] else "stubbed"
         out["correlation"]["windows"][str(w)] = m
 
-    # --- FX hedging cost (CHF investor) ---
-    chf_rate = (out["macro"]["policy_rates"].get(universe.FX_HEDGING_HOME_REGION, {}) or {}).get("rate_pct")
-    for h in universe.FX_HEDGING:
-        foreign = (out["macro"]["policy_rates"].get(h["foreign_region"], {}) or {}).get("rate_pct")
-        calc = approx_hedging_cost(foreign, chf_rate)
-        status[f"fxhedge:{h['id']}"] = "ok" if calc["cost_pct"] is not None else "stubbed"
-        out["fx_hedging"].append({
-            "id": h["id"], "name": h["name"], "foreign_ccy": h["foreign_ccy"],
-            "foreign_rate_pct": foreign, "chf_rate_pct": chf_rate, **calc,
+    # --- Real 2y rate differentials, from a CHF seat. See
+    # transform/real_rates.py for why the 2y and why CPI. ---
+    def _real(region):
+        two_year = (out["yield_curves"].get(region, {}).get("tenors", {}) or {}).get("2Y")
+        cpi = (out["macro"]["inflation"].get(region, {}) or {}).get("yoy_pct")
+        return two_year, cpi, real_rate(two_year, cpi)
+
+    home = universe.REAL_RATE_HOME_REGION
+    _, _, home_real = _real(home)
+    out["real_rates"] = {
+        "home_region": home,
+        "method": REAL_RATE_METHOD,
+        "caveats": list(REAL_RATE_CAVEATS),
+        "rate_leg": RATE_LEG_LABEL,
+        "inflation_leg": INFLATION_LEG_LABEL,
+        "rows": [],
+    }
+    for region in universe.REGIONS:
+        two_year, cpi, real = _real(region)
+        inflation = out["macro"]["inflation"].get(region, {}) or {}
+        status[f"realrate:{region}"] = "ok" if real is not None else "stubbed"
+        out["real_rates"]["rows"].append({
+            "region": region,
+            "nominal_2y_pct": two_year,
+            "cpi_yoy_pct": cpi,
+            "cpi_basis": inflation.get("basis"),
+            "real_rate_pct": real,
+            "differential_vs_home_pct": (None if region == home
+                                         else differential(real, home_real)),
+            "is_home": region == home,
+            # China alone has no 2y point on its published curve, so say which
+            # leg is missing rather than leaving a bare dash.
+            "missing_leg": (None if real is not None else
+                            "2y government yield" if two_year is None else
+                            "CPI year-on-year"),
+            "as_of": (out["yield_curves"].get(region, {}) or {}).get("as_of"),
+            "cpi_as_of": inflation.get("period_label") or inflation.get("as_of"),
         })
 
     # --- Cost-of-capital stack (real risk-free + IG spread + ERP) ---
-    out["cost_of_capital_note"] = universe.COST_OF_CAPITAL_NOTE
+    out["cost_of_capital_note"] = COST_OF_CAPITAL_NOTE
     for region in universe.REGIONS:
         # NOMINAL 10y, not real. Damodaran's implied ERP -- which now feeds
         # every region -- is computed against the nominal 10y Treasury, so
@@ -670,12 +859,21 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         # a real one.
         nominal = (out["yield_curves"].get(region, {}).get("tenors", {}) or {}).get("10Y")
         erp = (out["equity_risk_premia"].get(region, {}) or {}).get("erp_pct")
-        stack = stack_cost_of_capital(nominal, stack_credit.get(region), erp,
+        # The constructed euro/sterling spreads are a different basis from an
+        # OAS, so they feed the cost of DEBT (which is a yield, and tolerates a
+        # yield-difference spread) only where no OAS exists for that region.
+        credit = stack_credit.get(region)
+        if credit is None:
+            credit = stack_to_govt.get(region)
+        stack = stack_cost_of_capital(nominal, credit, erp,
                                       credit_spread_to_govt=stack_to_govt.get(region))
         status[f"costcap:{region}"] = ("ok" if stack["complete"]
-                                       else "partial" if stack["total_pct"] is not None
+                                       else "partial" if stack["has_any"]
                                        else "stubbed")
-        out["cost_of_capital"][region] = stack
+        # A region that can build neither discount rate is dropped rather than
+        # shown as a row of dashes.
+        if stack["has_any"]:
+            out["cost_of_capital"][region] = stack
 
     out["source_status"] = status
     tally = {}

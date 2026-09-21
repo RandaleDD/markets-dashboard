@@ -593,3 +593,24 @@ td.commentary {
 .snap-hero .hero-stat .hv { font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .snap-curve { margin-left: auto; }
 .snap-curve svg { display: block; }
+
+/* Currency conversion banner on the equity tab. Deliberately loud: the
+   selected currency changes every number on the tab, and a reader coming back
+   to the page later has no other way to tell the figures are not local. */
+.ccy-banner {
+  margin: 10px 0 2px;
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.ccy-banner-slim { margin: 16px 0 0; padding: 7px 12px; font-size: 0.76rem; }
+/* Keep the currency chips from being mistaken for another period row. */
+.control-group-ccy { padding-left: 14px; border-left: 1px solid var(--border); }
+.control-group-ccy .chip.active {
+  background: var(--accent); color: var(--surface-1); border-color: var(--accent);
+}

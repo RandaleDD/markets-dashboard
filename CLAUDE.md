@@ -40,41 +40,42 @@ checkout is how the Actions runner gets yesterday's data instead of
 re-bootstrapping. `bootstrap.py` is a one-time seed, never on the schedule.
 
 ## Current status
-Last verified live run (2026-09-13): **109/124 `ok`, 7 `partial`, 1 `stale`,
-7 `stubbed`, 0 `failed`.** Database: 153 tracked series. Data quality:
-152 fresh, 1 stale, 0 missing; 4 open flags.
-`site/data/latest.json` is 932 KB.
+Last verified live run (2026-09-21): **125/133 `ok`, 5 `partial`, 1 `stale`,
+2 `stubbed`, 0 `failed`.** Database: 171 tracked series, 160k observations.
+`site/data/latest.json` is ~1.14 MB.
 
-The 2026-09-13 re-sourcing pass closed three long-standing gaps and corrected
-two wrong entries in SPEC.md's dead-ends list. The Swiss curve moved to the SNB
-(`rendeiduebd` — the curve was never retired, it moved cubes), which **removed
-the project's only unofficial source**; the China curve came online from
-ChinaBond's server-rendered endpoints; China GDP went annual to quarterly; CPI
-moved off one BIS dataflow onto each country's own statistics office; CH and NO
-GDP left FRED for Eurostat; a non-OAS corporate spread column arrived for US and
-DE; and the euro area gained a survey-based inflation expectation from the ECB
-SPF.
+The 2026-09-21 pass did eight requested changes and closed three long-standing
+gaps in the process:
 
-None of the non-`ok` states is a to-do list:
+- **Swiss GDP** moved to SECO's sport-event-adjusted series (SNB `gdprpq`,
+  `D1(BBIPS)`) — FIFA/UEFA/IOC book licensing revenue in Switzerland, so the
+  unadjusted series spikes in tournament quarters.
+- **US and Europe valuation multiples** now exist. The US was a CONFIG gap, not
+  a data gap: `countrystats.xls` always had a "United States" row. Europe comes
+  from Damodaran's regional files for the STOXX Europe 600 row and is a
+  cap-weighted aggregate, a different statistic from the country medians and
+  labelled as one.
+- **Euro and sterling IG credit spreads** are CONSTRUCTED (iShares ETF yield to
+  worst less a duration-matched government curve), because nothing free
+  publishes them. 93bp and 108bp at launch. No history — they deepen weekly
+  from 2026-09-21.
+
+Known limits, none of them a to-do list:
 
 - **1 stale** — Shiller's CAPE file, ending 2024-09.
-- **7 stubbed** — five regions' inflation expectations (CH and NO permanently:
-  neither government issues inflation-linked debt; CN refused on definition, the
-  only measure being a diffusion index rather than a percentage; DE reads the EZ
-  figure) and the two Eurozone equity panels, which are `descoped` because
-  Damodaran publishes member states with no bloc aggregate.
-- **7 partial** — every cost-of-capital stack except the US still lacks its IG
-  credit leg. That gap is now **closed as unfixable rather than pending**: OAS is
-  not published free for any currency but the dollar, and the reason is
-  structural (SPEC.md, dead ends). Germany has a non-OAS spread instead, in its
-  own labelled column, which deliberately does not count toward `complete`.
-- **4 open flags** — US CPI missing 2025-10 (the release the shutdown delayed;
-  FRED is missing it too), a 34-week hole in the BoE's real and inflation 2y
-  points, and Shiller's CAPE.
-
-The China curve is the **only remaining scrape**. Chasing the stubbed set again
-is wasted effort unless a new source appears; SPEC.md's dead ends list what has
-been tried, including the several things this pass proved were wrong.
+- **2 stubbed** — Switzerland and China have no IG credit spread and no
+  prospect of one (SNB's rating buckets died with the 2025 cut; China has no
+  broad onshore IG corporate curve).
+- **5 partial** — cost-of-capital stacks missing one of their two rates. CH,
+  CN, JP and NO have a cost of equity but no credit spread; EZ has a cost of
+  debt but no ERP (no euro-area aggregate exists).
+- **Euro sovereign spreads are monthly and always will be.** The ECB `IRS`
+  legs have no daily variant and no single publisher offers free daily
+  per-country euro sovereign yields. A daily aggregate measure
+  (`G_N_C − G_N_A`, 29bp) sits beside them.
+- **Open flags**: US CPI missing 2025-10, a 34-week hole in the BoE's real and
+  inflation 2y points, Shiller's CAPE, and a `basis_break` on `cpi.EZ` raised
+  2026-09-19 that predates this work and is **not yet investigated**.
 
 Re-run `python3 pipeline.py --mode live` to refresh these numbers before
 trusting them — this section is a snapshot and goes stale on its own.
@@ -234,6 +235,30 @@ trusting them — this section is a snapshot and goes stale on its own.
   cadence and the 10y alone is topped up from the SNB's RSS feed (`R10`) to
   stay current between batches. `curve.CH.*` is no longer `irregular` and gap
   detection applies normally.
+- **The euro and sterling IG credit spreads are CONSTRUCTED, not sourced.**
+  An iShares ETF's yield to worst less a government curve interpolated to that
+  ETF's own duration. Nothing free publishes these — SPEC.md's dead ends has
+  the enumeration that proves it rather than assuming it. Three things follow:
+  they are **yield-to-worst spreads, not OAS**, and must never share a column
+  with the US figure; their two legs come from **different publishers**, which
+  this project otherwise refuses for a spread; and they have **no history**,
+  because the iShares endpoint is a snapshot — they deepen one weekly point at
+  a time from 2026-09-21. The euro government leg is the ECB **AAA** curve
+  (`G_N_A`), not the all-ratings curve the Eurozone sovereign row uses: the
+  all-ratings blend already contains peripheral sovereign risk, which is not
+  corporate credit risk and must not net out of a corporate spread (93bp
+  against 68bp). Two curves, two purposes, each right for its own.
+- **`ER00`, `IBOXX*` and friends appear in ECB codelists but 404 on data.**
+  `CL_PROVIDER_FM_ID` enumerates ~120 licensed index codes the ECB does not
+  disseminate. A code existing in a codelist is not a series existing.
+- **Damodaran publishes two different statistics and they must not be mixed.**
+  `countrystats.xls` gives the MEDIAN across companies in a country;
+  `peEurope`/`pbvEurope`/`vebitdaEurope` give CAP-WEIGHTED AGGREGATES across a
+  region. For the US those read 22.6 and 26.6, and the regional files' plain
+  `Trailing PE` column is an unweighted mean reading 57.9 — never use it. The
+  aggregate row is `Grand Total` in some files and `Total Market` in others.
+  The valuation payload carries a per-region `basis` so the difference travels
+  with the figure.
 - **A source switch that changes what a series MEANS cannot be fixed by
   appending**, and `tools/purge_series.py` is the hand-run repair for it. New
   rows only displace old ones on dates they share, so differing grids
