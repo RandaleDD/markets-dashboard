@@ -686,7 +686,7 @@ def fetch_eurostat(dataset: str, filters: dict | None = None,
         label = by_position.get(int(flat_index))
         if label is None:
             continue
-        dates.append(_eurostat_period(label))
+        dates.append(_period_start(label))
         nums.append(value)
     if not dates:
         logger.warning("Eurostat %s: no observations matched the time dimension", dataset)
@@ -694,8 +694,13 @@ def fetch_eurostat(dataset: str, filters: dict | None = None,
     return _frame(dates, nums)
 
 
-def _eurostat_period(label: str):
-    """'2026-Q2' -> the quarter's first day; '2026-07' and '2026' also handled."""
+def _period_start(label: str):
+    """
+    '2026-Q2' -> the quarter's first day; '2026-07' and '2026' also handled.
+
+    Shared by Eurostat's JSON-stat time dimension and the SNB's `gdprpq` cube,
+    which both label an observation by its PERIOD rather than by a date.
+    """
     text = str(label).strip()
     if "Q" in text:
         year, quarter = text.split("-Q")
@@ -727,11 +732,25 @@ def _eurostat_period(label: str):
 #   - Holidays appear as rows with an empty Value; _frame drops them.
 #   - Plain requests with the default User-Agent works. Do not send a browser
 #     UA; it is not needed here.
+#
+# Two MORE traps in the `gdprpq` GDP cube specifically, measured 2026-09-21.
+# They differ from the curve's, so do not assume one SNB cube behaves like
+# another:
+#   - No fromDate returns HTTP 200 with the LAST FIVE QUARTERS (9 lines against
+#     189). Worse here than for the curve: GDP is quarterly and therefore
+#     re-fetched in full every run with start=None, so the fetcher has to supply
+#     its own floor or the store would silently see five quarters forever.
+#   - The Date column is a QUARTER LABEL ('1980-Q2'), not the ISO date that
+#     `rendeiduebd` and `plkopr` return. _frame cannot parse it; it goes through
+#     _period_start first.
 # ---------------------------------------------------------------------------
 _SNB_CUBE_URL = "https://data.snb.ch/api/cube/{cube}/data/csv/en"
 _SNB_RSS_URL = "https://www.snb.ch/public/rss/en/interestRates"
 # The one cube tenor that gets topped up from the RSS feed (see fetch_snb_curve).
 _SNB_RSS_TENOR = "10J"
+# gdprpq's mandatory floor. The series begins 1980-Q2, so this asks for all of
+# it; the point is that SOMETHING must be sent (see the trap above).
+_SNB_GDP_FLOOR = "1980-01-01"
 
 
 def _snb_cube_rows(cube: str, dim_sel: str | None, start: str | None):
@@ -822,6 +841,50 @@ def fetch_snb_cpi(measure: str, start: str | None = None) -> pd.DataFrame | None
         return _frame(rows["Date"], rows["Value"])
     except Exception as exc:  # noqa: BLE001
         logger.warning("SNB CPI parse failed for %s: %s", measure, exc)
+        return None
+
+
+def fetch_snb_gdp(measure: str, start: str | None = None) -> pd.DataFrame | None:
+    """
+    Swiss real GDP from cube `gdprpq`. `measure` is the D1 code:
+    'BBIPS' is the SPORT-EVENT ADJUSTED series and 'BBIP' the ordinary one.
+
+    dimSel D0(WMF) picks the level in chain-linked CHF millions, reference year
+    2020 (D0(VVK) would be a precomputed QoQ percentage; the pipeline derives
+    its own growth from levels so every region stays on one definition).
+
+    Why the adjusted series is the one worth having: FIFA, UEFA and the IOC are
+    domiciled in Switzerland and book their licensing revenue here, so
+    tournament quarters carry a spike that is not Swiss economic activity.
+    Measured 2026-09-21, 2026-Q2 was +1.88% QoQ unadjusted against +1.54%
+    adjusted, and 2.63% YoY against 2.15%. The sign of the gap flips from
+    quarter to quarter, so it is not a level offset that cancels out of a
+    growth rate.
+
+    SECO compiles this, the SNB redistributes it, and the two agree exactly:
+    BBIPS is bit-identical to SECO's own `cssa` series (2026-Q2 =
+    207993.3110567 from both). The SNB is preferred here only because it reuses
+    the cube path already built for the curve and Swiss CPI, and answers in 8kB
+    bounded by fromDate where SECO's CSV is an unbounded 4.8MB.
+
+    Eurostat cannot serve this at any dimension combination: namq_10_gdp's
+    s_adj codelist is exactly {NSA, SA, CA, SCA} and has no sport-event concept.
+    """
+    if not measure:
+        return None
+    # start or the floor, never None -- see _SNB_GDP_FLOOR.
+    df = _snb_cube_rows("gdprpq", f"D0(WMF),D1({measure})", start or _SNB_GDP_FLOOR)
+    if df is None or "D1" not in df.columns:
+        return None
+    try:
+        rows = df[df["D1"].astype(str).str.strip() == measure]
+        if rows.empty:
+            logger.warning("SNB gdprpq: no rows for measure %s", measure)
+            return None
+        # '1980-Q2' -> 1980-04-01. This cube labels by period, unlike the others.
+        return _frame([_period_start(d) for d in rows["Date"]], rows["Value"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("SNB GDP parse failed for %s: %s", measure, exc)
         return None
 
 

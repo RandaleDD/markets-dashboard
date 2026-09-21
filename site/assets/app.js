@@ -775,8 +775,12 @@ function renderMacro() {
   });
   const gdpRows = REGION_ORDER.map((region) => {
     const g = (DATA.macro.gdp || {})[region] || {};
+    // Switzerland's figure is additionally sport-event adjusted (see the note
+    // above the table). The tag rides in the Region cell rather than in a
+    // column of its own so the header count stays at five for every region.
+    const gdpBasis = g.basis ? ` <span class="stub">${g.basis}</span>` : "";
     return [
-      regionName(region), pctPlain(g.yoy_pct, 1) + ctxTag(g.context),
+      regionName(region) + gdpBasis, pctPlain(g.yoy_pct, 1) + ctxTag(g.context),
       g.qoq_ann_pct != null
         ? pctPlain(g.qoq_ann_pct, 1) + ctxTag(g.qoq_ann_context)
         : `<span class="stub">n/a (annual series)</span>`,
@@ -1245,7 +1249,7 @@ function renderSnapshot(region) {
       ${hero("Policy rate", pctPlain(cb.rate_pct))}
       ${hero("10y", pctPlain(t["10Y"]))}
       ${hero("CPI YoY", pctPlain(inf.yoy_pct, 1))}
-      ${hero("Real GDP YoY", pctPlain(gdp.yoy_pct, 1))}
+      ${hero(gdp.basis ? `Real GDP YoY (${gdp.basis})` : "Real GDP YoY", pctPlain(gdp.yoy_pct, 1))}
       ${hero(lead ? lead.name + " YTD" : "Equities YTD", lead ? fmtPct(lead.chg_ytd_pct) : dash())}
       ${miniCurve(region)}
     </div>`;

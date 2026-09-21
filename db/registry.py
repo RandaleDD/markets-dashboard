@@ -371,6 +371,10 @@ def all_series() -> list[Series]:
                 "dataset": cfg["eurostat_dataset"],
                 "filters": cfg["eurostat_filters"]}, True
             source = f"Eurostat, {cfg['eurostat_dataset']}"
+        elif cfg["source"] == "snb":
+            fetcher, kwargs, bounded = "fetch_snb_gdp", {
+                "measure": cfg["snb_measure"]}, True
+            source = f"SNB, gdprpq ({cfg['snb_measure']})"
         else:
             fetcher, kwargs, bounded = "fetch_fred", {"series_id": cfg["series"]}, True
             source = f"FRED, {cfg['series']}"
