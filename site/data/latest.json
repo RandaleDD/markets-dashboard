@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-21T14:12:36.214605+00:00",
+  "generated_at": "2026-09-21T19:39:54.995056+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -64453,16 +64453,16 @@
       "region": "US",
       "name": "US investment grade credit spread",
       "grade": "IG",
-      "spread_bp": 78,
+      "spread_bp": 77,
       "basis": "Option-adjusted spread over government bonds \u2014 the extra yield the index pays, adjusted for issuers' rights to call bonds early.",
-      "as_of": "2026-09-17",
+      "as_of": "2026-09-18",
       "context": {
         "5y": null,
         "10y": null,
         "full": {
-          "pct": 16.6,
-          "z": -0.85,
-          "n": 163,
+          "pct": 13.4,
+          "z": -0.91,
+          "n": 164,
           "since": "2023-09-01"
         }
       }
@@ -64472,16 +64472,16 @@
       "region": "US",
       "name": "US high yield credit spread",
       "grade": "HY",
-      "spread_bp": 270,
+      "spread_bp": 268,
       "basis": "Option-adjusted spread over government bonds \u2014 the extra yield the index pays, adjusted for issuers' rights to call bonds early.",
-      "as_of": "2026-09-17",
+      "as_of": "2026-09-18",
       "context": {
         "5y": null,
         "10y": null,
         "full": {
-          "pct": 14.1,
-          "z": -0.98,
-          "n": 163,
+          "pct": 11.6,
+          "z": -1.02,
+          "n": 164,
           "since": "2023-09-01"
         }
       }
@@ -64491,16 +64491,16 @@
       "region": "EZ",
       "name": "Euro high yield credit spread",
       "grade": "HY",
-      "spread_bp": 269,
+      "spread_bp": 267,
       "basis": "Option-adjusted spread over government bonds \u2014 the extra yield the index pays, adjusted for issuers' rights to call bonds early.",
-      "as_of": "2026-09-17",
+      "as_of": "2026-09-18",
       "context": {
         "5y": null,
         "10y": null,
         "full": {
-          "pct": 19.6,
-          "z": -0.97,
-          "n": 163,
+          "pct": 16.5,
+          "z": -1.0,
+          "n": 164,
           "since": "2023-09-01"
         }
       }
@@ -64510,16 +64510,16 @@
       "region": "EM",
       "name": "EM corporate credit spread",
       "grade": "IG/HY blend",
-      "spread_bp": 137,
+      "spread_bp": 134,
       "basis": "Option-adjusted spread over government bonds \u2014 the extra yield the index pays, adjusted for issuers' rights to call bonds early.",
-      "as_of": "2026-09-17",
+      "as_of": "2026-09-18",
       "context": {
         "5y": null,
         "10y": null,
         "full": {
-          "pct": 3.7,
-          "z": -1.22,
-          "n": 163,
+          "pct": 1.8,
+          "z": -1.29,
+          "n": 164,
           "since": "2023-09-01"
         }
       }
@@ -64529,12 +64529,12 @@
     {
       "region": "US",
       "name": "US investment grade, spread to government",
-      "spread_bp": 72,
-      "corporate_yield_pct": 5.66,
+      "spread_bp": 79,
+      "corporate_yield_pct": 5.73,
       "government_yield_pct": 4.94,
       "basis": "Corporate yield less government yield. NOT option-adjusted and NOT duration-matched, so this is a different measure from the option-adjusted spreads above and the two must not be compared directly.",
       "note": "ICE BofA US Corporate effective yield less the 10y Treasury. Not option-adjusted and not duration-matched \u2014 a deliberately plainer measure than credit.US.ig_oas, computed so this column has a consistent basis across regions.",
-      "as_of": "2026-09-17"
+      "as_of": "2026-09-18"
     },
     {
       "region": "DE",
@@ -65489,11 +65489,11 @@
     "US": {
       "legs": {
         "risk_free": 4.94,
-        "credit_spread": 0.78,
+        "credit_spread": 0.77,
         "erp": 4.23
       },
       "cost_of_equity": 9.17,
-      "cost_of_debt": 5.72,
+      "cost_of_debt": 5.71,
       "formulae": {
         "cost_of_equity": "risk-free (nominal 10y) + equity risk premium",
         "cost_of_debt": "risk-free (nominal 10y) + IG credit spread"
@@ -65507,7 +65507,7 @@
       "missing_legs": [],
       "missing_labels": [],
       "supplementary": {
-        "credit_spread_to_govt": 0.72
+        "credit_spread_to_govt": 0.79
       }
     },
     "UK": {
@@ -66197,28 +66197,20 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-09-21T14:12:35.544265+00:00",
+    "generated_at": "2026-09-21T19:39:53.393867+00:00",
     "series": 171,
     "fresh": 170,
     "stale": 1,
     "missing": 0,
     "gapped": 3,
-    "observations": 160184,
+    "observations": 160189,
     "flags_raised_this_run": {},
     "flags_resolved_this_run": {},
     "open_flags": {
-      "basis_break": 1,
       "gap": 3,
       "stale": 1
     },
     "open_flag_examples": [
-      {
-        "series_id": "cpi.EZ",
-        "date": "2026-08-01",
-        "flag_type": "basis_break",
-        "detail": "vintage 2026-09-19 restated the 1 most recent observation(s) by a median -3.030%, but left 355 earlier observation(s) back to 1997-01-01 on the previous basis. A uniform rescaling of only part of a series splices two bases together, and any growth rate spanning 2026-08-01 reports the rebasing as change. Re-ingest the full history for this series.",
-        "raised_at": "2026-09-19T06:22:19.266285+00:00"
-      },
       {
         "series_id": "valuation.US.cape",
         "date": "2024-09-01",
