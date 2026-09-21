@@ -214,6 +214,19 @@ trusting them — this section is a snapshot and goes stale on its own.
   would silently return a corporate one. A query wider than 365 days returns
   HTTP 200 with a headers-only page, so zero rows means failure, and the
   backfill walks one calendar year per request.
+- **Swiss GDP is the SPORT-EVENT ADJUSTED series** (SNB cube `gdprpq`,
+  `D0(WMF),D1(BBIPS)`, which is SECO's `cssa`). FIFA, UEFA and the IOC are
+  domiciled in Switzerland and book their licensing revenue there, so the
+  ordinary series spikes in tournament quarters on revenue that is not Swiss
+  economic activity — 2026-Q2 printed 2.63% YoY unadjusted against 2.15%
+  adjusted, and the sign of the gap flips between quarters, so it does not
+  cancel out of a growth rate. Eurostat cannot serve this at any dimension
+  combination (SPEC.md, dead ends), which is why CH alone among the eight is
+  not on `namq_10_gdp`. It is the one region carrying an extra adjustment, so
+  it is the one region with a `basis` label beside its number in the GDP table.
+  The cube has two traps of its own, both unlike the Swiss curve's: no
+  `fromDate` silently returns five quarters, and dates arrive as `1980-Q2`
+  rather than ISO. See `fetch_snb_gdp`.
 - **Switzerland's curve is official again.** The SNB never retired it; it moved
   to cube `rendeiduebd` (`dimSel=D0(CHF)`, tenors in years-German — `10J`, not
   `10Y`), which retired the TradingEconomics scrape on 2026-09-13. The cube

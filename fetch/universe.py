@@ -429,21 +429,38 @@ GDP_GROWTH = {
            "eurostat_filters": {"geo": "EA20", "unit": "CLV15_MEUR",
                                 "s_adj": "SCA", "na_item": "B1GQ", "freq": "Q"}},
     "DE": {"source": "fred", "series": "CLVMNACSCAB1GQDE", "freq": "Q"},
-    # CH and NO went direct to Eurostat on 2026-09-13. The lag gain is about
-    # zero; the reason is that CLVMNACSCAB1GQCH self-reports "Source: Eurostat"
-    # with units "Millions of Chained 2010 Euros" -- Swiss GDP was never
-    # Swiss-sourced. It was Eurostat data passed through FRED with a euro FX
-    # conversion layer on top, and it is the exact series that produced the
-    # 2026-09-08 rebasing incident. Going direct removes the intermediary AND
-    # the currency conversion, and puts CH/NO on the same code path as EA/DE.
+    # CH went FRED -> Eurostat on 2026-09-13, then Eurostat -> SNB on
+    # 2026-09-21. The first move was about provenance: CLVMNACSCAB1GQCH
+    # self-reports "Source: Eurostat" with units "Millions of Chained 2010
+    # Euros", so Swiss GDP was never Swiss-sourced -- it was Eurostat data
+    # passed through FRED with a euro FX conversion layer on top, and it is the
+    # exact series that produced the 2026-09-08 rebasing incident.
     #
-    # CLV_I15 rather than EA/DE's CLV15_MEUR deliberately: it is a pure index
-    # with no currency in it at all, which is the whole point for two countries
-    # that do not use the euro. Both are chain-linked volume levels, so the
-    # growth rates derived from them are on identical definitions.
-    "CH": {"source": "eurostat", "eurostat_dataset": "namq_10_gdp", "freq": "Q",
-           "eurostat_filters": {"geo": "CH", "unit": "CLV_I15",
-                                "s_adj": "SCA", "na_item": "B1GQ", "freq": "Q"}},
+    # The second move is about what the number MEANS. FIFA, UEFA and the IOC are
+    # domiciled in Switzerland and book their licensing revenue here, so a
+    # tournament quarter carries a spike that is not Swiss economic activity.
+    # SECO compiles a sport-event-adjusted national accounts series precisely
+    # for this and quotes it as the headline; Eurostat cannot serve it at any
+    # dimension combination, because namq_10_gdp's s_adj codelist is exactly
+    # {NSA, SA, CA, SCA} and has no sport-event concept. Verified 2026-09-21:
+    # the Eurostat series this replaces reproduces the UNADJUSTED SNB series
+    # (BBIP) quarter for quarter, and 2026-Q2 was 2.63% YoY unadjusted against
+    # 2.15% adjusted.
+    #
+    # SNB rather than SECO's own CSV: identical numbers (BBIPS is bit-identical
+    # to SECO's `cssa`), but it reuses the cube path already built for the Swiss
+    # curve and Swiss CPI and answers in 8kB bounded by fromDate, where SECO's
+    # file is an unbounded 4.8MB. See fetch_snb_gdp for the two cube traps.
+    #
+    # The level is chain-linked CHF millions (ref 2020) where the Eurostat
+    # series was a 2015=100 index, so this switch REPLACED the stored history
+    # via tools/purge_series.py rather than appending to it.
+    "CH": {"source": "snb", "snb_measure": "BBIPS", "freq": "Q",
+           "basis": "sport-event adjusted",
+           "definition": "SNB gdprpq (SECO national accounts), Swiss real GDP, "
+                         "chain-linked volume, seasonally, calendar AND "
+                         "sport-event adjusted (CHF m, reference year 2020; "
+                         "level, YoY/QoQ derived downstream)."},
     "JP": {"source": "fred", "series": "JPNRGDPEXP", "freq": "Q"},
     "NO": {"source": "eurostat", "eurostat_dataset": "namq_10_gdp", "freq": "Q",
            "eurostat_filters": {"geo": "NO", "unit": "CLV_I15",
@@ -472,7 +489,11 @@ UK_GDP_NOWCAST = {
 }
 
 GDP_DEFINITION = ("Real (chain-linked volume), national currency, not PPP, "
-                  "seasonally adjusted. YoY and annualised QoQ derived from the level series.")
+                  "seasonally adjusted. YoY and annualised QoQ derived from the level series. "
+                  "Switzerland is additionally adjusted for major sporting events: FIFA, UEFA "
+                  "and the IOC are domiciled there and book their licensing revenue there, so "
+                  "the unadjusted series spikes in tournament quarters on revenue that is not "
+                  "Swiss economic activity.")
 
 # ---------------------------------------------------------------------------
 # 7b. Credit spreads — ICE BofA option-adjusted spreads via FRED.

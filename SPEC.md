@@ -100,7 +100,7 @@ actually uses today.
 | Prices / FX / commodities | Yahoo Finance via `yfinance` | Live — 12 indices, VIX, 8 FX pairs, 8 commodities (Brent and WTI both, named so neither reads as plain "oil"), 2 bond-return proxies (US and euro governments). Gold/copper is derived from two of these rather than sourced again |
 | Central bank policy rates | BIS Data Portal `CBPOL`, all 7 regions on one endpoint | Live. Norway consolidated off Norges Bank onto `D.NO` 2026-08-29; Germany mirrors the ECB rate |
 | CPI, all 8 regions | **Each country's own statistics office** — FRED (US), ONS (UK), Eurostat `prc_hicp_minr` (EZ/DE), SNB `plkopr` (CH), SSB table 14710 (NO); BIS `WS_LONG_CPI` for CN and JP only | Live. Moved off the single BIS dataflow 2026-09-13: BIS releases in the last week of each month and dates each print to the first of that month, so its newest figure ran 27–57 days old. Each region carries an explicit `basis` (US CPI-U, UK CPI, EA/DE HICP, CH LIK, CN CPI, JP CPI, NO KPI) because these cannot be put on one methodology — HICP does not exist for the US, China or Japan. Where a publisher prints only an index (US, NO) the annual rate is derived. China stays on BIS because the NBS returns 403 to non-browser clients from outside the mainland; Japan because e-Stat would buy 9 days for the price of an Actions secret |
-| GDP growth | FRED level series for US/DE/JP; **Eurostat `namq_10_gdp`** for EZ/DE-adjacent, CH and NO; **ONS `abmi`/`pn2`** quarterly for the UK; **World Bank GEM** for China | Live, and all eight regions are now quarterly chain-linked on one definition. CH and NO left FRED 2026-09-13 because `CLVMNACSCAB1GQ*` self-reports "Source: Eurostat" with a euro FX conversion layer on top — it was never nationally sourced, and it is the series that caused the rebasing incident. The UK moved off its monthly GVA index, which is kept as `gdp.UK.monthly_nowcast`. China moved from annual to quarterly |
+| GDP growth | FRED level series for US/DE/JP; **Eurostat `namq_10_gdp`** for EZ and NO; **SNB cube `gdprpq`** (`D0(WMF),D1(BBIPS)`) for Switzerland; **ONS `abmi`/`pn2`** quarterly for the UK; **World Bank GEM** for China | Live, and all eight regions are quarterly chain-linked on one definition. CH and NO left FRED 2026-09-13 because `CLVMNACSCAB1GQ*` self-reports "Source: Eurostat" with a euro FX conversion layer on top — it was never nationally sourced, and it is the series that caused the rebasing incident. **CH then left Eurostat for the SNB on 2026-09-21, to get the SPORT-EVENT ADJUSTED series** — FIFA, UEFA and the IOC are domiciled in Switzerland and book their licensing revenue there, so the unadjusted series spikes in tournament quarters on revenue that is not Swiss activity (2026-Q2: 2.63% YoY unadjusted vs 2.15% adjusted). It is the one region carrying an extra adjustment, so it carries an explicit `basis` on the dashboard. The UK moved off its monthly GVA index, which is kept as `gdp.UK.monthly_nowcast`. China moved from annual to quarterly |
 | US yield curve, real yields, breakevens | FRED (`fredgraph.csv`, no API key) | Live — nominal `DGS*`, real `DFII5/10/30`, breakevens `T5YIE`/`T10YIE`/`T5YIFR` |
 | US 1y inflation expectation | Cleveland Fed `EXPINF*` via FRED | Live, badged **model**-implied — no 1y TIPS breakeven is published |
 | UK curve, real yields, implied inflation | Bank of England GLC workbooks | Live, all four tenors, **history back to 1979** from the one-time archive pull |
@@ -360,6 +360,7 @@ wrong fails *silently*.
 | Damodaran `countrystats` | Archived as `countrystats<YY>.xls` for **2012-2024** — the catalog previously recorded this depth as unconfirmed; it is confirmed. But the file changed statistic in the 2020 vintage: 2012-2019 publish `Average of <metric>`, 2020+ publish `Median <metric>`, and the means run 3-10x higher (Germany trailing P/E 171.3 in 2013 vs 15.9 in 2024). **Only median-basis vintages are read**, so history starts 2020. Header row moves between rows 0, 1, 7 and 8; column count swings from 20 to 256 |
 | ONS | Observations are under `months`, dated `"1997 JAN"` — parse against an explicit month map, not a locale format |
 | Eurostat | JSON-stat: `value` is a sparse `{flat_index: number}` map and the time dimension carries `{period_label: index}`, so the two join by index, never by position |
+| SNB cube `gdprpq` (GDP) | **Do not assume one SNB cube behaves like another** — this one differs from `rendeiduebd` in two ways, both silent. (1) A query with **no `fromDate` returns HTTP 200 carrying only the last FIVE QUARTERS** (9 lines against 189). That is worse here than for the curve: GDP is quarterly, so `refetch_in_full()` is true and `ingest.fetch_one` passes `start=None` every run — `fetch_snb_gdp` therefore supplies its own floor (`_SNB_GDP_FLOOR`) rather than relying on a caller. (2) The `Date` column is a **quarter label** (`1980-Q2`), not the ISO date `rendeiduebd` and `plkopr` return, so it goes through `_period_start` before `_frame`. `D0(WMF)` is the level in chain-linked CHF millions (ref 2020); `D1(BBIPS)` is sport-event adjusted and `D1(BBIP)` is not |
 
 ### The BoE GLC archives
 
@@ -455,6 +456,14 @@ allowed to be 150 days stale but is stored weekly like a price.
 
 - **Stooq** serves a JavaScript proof-of-work anti-bot page instead of CSV on
   every path. Not solvable headlessly. Replaced by Yahoo.
+
+- **Eurostat cannot serve a sport-event-adjusted GDP.** Checked 2026-09-21:
+  `namq_10_gdp`'s `s_adj` codelist is exactly `{NSA, SA, CA, SCA}`, and the
+  SDMX codelist carries no sport-event concept at all — there is no dimension
+  combination that reaches it, so this is a structural absence rather than a
+  code that was missed. The adjustment is a SECO construction, and only SECO
+  and its redistributors publish it. Switzerland's GDP therefore sits on the
+  SNB rather than on the same endpoint as the euro area and Norway.
 - **FRED's OECD-sourced national series are frozen.** They still return
   HTTP 200 — which is exactly why the staleness check exists. `*CPIALLMINMEI`
   stops 2025-03/04 (JP: 2021-06), `CPALTT01*` stops 2024-12, `NAEXKP01*Q657S`

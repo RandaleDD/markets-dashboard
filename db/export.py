@@ -409,6 +409,10 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "qoq_ann_context": (_ctx(_growth_series(df, short_lag, annualise=4))
                                 if short_lag else None),
             "freq": freq,
+            # Any adjustment this region carries that the others do not, so the
+            # caveat travels WITH the figure rather than being implied by a
+            # shared note. Switzerland is sport-event adjusted; nobody else is.
+            "basis": cfg.get("basis"),
             "as_of": as_of,
             "period_label": _period_label(as_of, freq),
         }
