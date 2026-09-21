@@ -148,6 +148,35 @@ def sync(conn, path: Path | None = None) -> dict:
         seen.add(series_id)
         fill(row, series_id)
 
+    # Duplicate identifiers are silent and permanent without this. `seen` above
+    # stops a THIRD row ever being appended, so once a pair exists both rows are
+    # refreshed forever and the sync stays idempotent -- there is nothing in the
+    # output to notice. They arise when a series is registered and the pipeline
+    # runs before its reviewed row is hand-written: the append below adds one,
+    # and the author then adds the other. Seven pairs accumulated that way
+    # between 2026-09-13 and 2026-09-19.
+    #
+    # It is not cosmetic. db/catalog.read_csv_rows builds {identifier: row} by
+    # dict comprehension, so the LAST row wins -- and the appended one sits
+    # below the hand-written one, which means the generated description and
+    # endpoint are what reach series_catalog while the reviewed prose is
+    # discarded.
+    #
+    # Warning rather than removing: this module owns the coverage columns and
+    # never removes a row. tests/test_catalog_sync asserts the committed
+    # catalog has none, so a recurrence fails the suite rather than waiting to
+    # be noticed here.
+    duplicates = sorted({sid for sid in seen
+                         if sid and sum(1 for r in rows
+                                        if (r.get(ID_COLUMN) or "").strip() == sid) > 1})
+    for series_id in duplicates:
+        logger.warning("Catalog has %d rows for %s; the LAST one wins when "
+                       "series_catalog is built, so the reviewed prose is being "
+                       "discarded. Delete the row whose notes begin 'Added "
+                       "automatically'.",
+                       sum(1 for r in rows if (r.get(ID_COLUMN) or "").strip() == series_id),
+                       series_id)
+
     # Series the database holds that the catalog never listed.
     added = []
     for series_id, entry in series.items():

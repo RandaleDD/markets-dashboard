@@ -132,5 +132,35 @@ class CatalogSync(unittest.TestCase):
         self.assertIn("cpi.US.index", self.read())
 
 
+class CommittedCatalogTest(unittest.TestCase):
+    """
+    Invariants of the real data/DATA-CATALOG.csv, not of a fixture.
+
+    The sync tests above run against a temp file, so nothing there can see the
+    one thing that actually went wrong: seven identifiers ended up on two rows
+    each between 2026-09-13 and 2026-09-19. It happens when a series is
+    registered and the pipeline runs before its reviewed row is hand-written --
+    catalog_sync appends a generated row, the author then writes the real one,
+    and nothing ever removes either.
+
+    That is invisible from the sync's own output, because `seen` prevents a
+    third row and both existing rows are refreshed on every run. It is also not
+    cosmetic: db/catalog.read_csv_rows keys a dict by identifier, so the LAST
+    row wins and the generated metadata displaces the reviewed prose in
+    series_catalog. test_no_row_is_ever_dropped above cannot catch it either --
+    it compares dict-collapsed sets of identifiers.
+    """
+
+    def test_every_identifier_appears_exactly_once(self):
+        with catalog_sync.CATALOG_CSV.open(newline="", encoding="utf-8-sig") as fh:
+            ids = [(r.get("Identifier") or "").strip()
+                   for r in csv.DictReader(fh)
+                   if (r.get("Identifier") or "").strip()]
+        dupes = sorted({i for i in ids if ids.count(i) > 1})
+        self.assertEqual(dupes, [], "duplicate rows: the last one silently wins "
+                                    "when series_catalog is built, discarding the "
+                                    "reviewed prose on the other")
+
+
 if __name__ == "__main__":
     unittest.main()

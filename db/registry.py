@@ -127,6 +127,22 @@ class Series:
         """True when the source publishes faster than the dashboard stores."""
         return self.cadence in DOWNSAMPLED_TO_WEEKLY
 
+    @property
+    def is_rate(self) -> bool:
+        """
+        True when the stored values are ALREADY percentages rather than a level.
+
+        Named here rather than tested inline because it changes which scale a
+        check may reason on: a relative change is the right measure for a level
+        and the wrong one for a rate, where the denominator is small and an
+        ordinary revision looks enormous in ratio terms. See
+        db/quality.check_basis_break, which is the only caller today.
+
+        Among the revisable series this is exactly the six CPI "% YoY" rates;
+        the GDP and CPI-index series are levels.
+        """
+        return self.unit.strip().startswith("%")
+
 
 # Which fetcher each curve source uses, and whether it can be asked for a
 # window. Mirrors pipeline.py's old _fetch_curve_tenor dispatcher, which the

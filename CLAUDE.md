@@ -73,9 +73,9 @@ Known limits, none of them a to-do list:
   legs have no daily variant and no single publisher offers free daily
   per-country euro sovereign yields. A daily aggregate measure
   (`G_N_C − G_N_A`, 29bp) sits beside them.
-- **Open flags**: US CPI missing 2025-10, a 34-week hole in the BoE's real and
-  inflation 2y points, Shiller's CAPE, and a `basis_break` on `cpi.EZ` raised
-  2026-09-19 that predates this work and is **not yet investigated**.
+- **4 open flags**: US CPI missing 2025-10, a 34-week hole in the BoE's real
+  and inflation 2y points, and Shiller's CAPE. All three are real and none is
+  fixable here.
 
 Re-run `python3 pipeline.py --mode live` to refresh these numbers before
 trusting them — this section is a snapshot and goes stale on its own.
@@ -259,6 +259,26 @@ trusting them — this section is a snapshot and goes stale on its own.
   aggregate row is `Grand Total` in some files and `Total Market` in others.
   The valuation payload carries a per-region `basis` so the difference travels
   with the figure.
+- **`check_basis_break` uses a different scale for a rate than for a level.**
+  A level is judged on the RELATIVE size of a partial restatement
+  (`BASIS_BREAK_PCT`, 0.25%); a series whose unit is already a percentage
+  (`registry.Series.is_rate` — the six CPI `% YoY` series) is judged on
+  percentage points AND on the share of history restated. The ratio test is
+  meaningless on a rate: a routine 0.1pp revision to a 3.3% inflation print is
+  −3.03%, which is how `cpi.EZ` spent two days flagged for an ordinary
+  correction. The SHARE half is the load-bearing one — the only two rate-series
+  events on record are both ~0.1pp, and what separates the real one (`cpi.DE`,
+  Eurostat's ECOICOP v2 switch, 84% of history restated) from the false one
+  (`cpi.EZ`, 0.3%) is how much moved, not how far.
+- **`data/DATA-CATALOG.csv` identifiers must be unique**, and
+  `tests/test_catalog_sync.py` now enforces it against the committed file. Seven
+  pairs accumulated in Sep 2026: registering a series and running the pipeline
+  before hand-writing its reviewed row makes `catalog_sync` append a generated
+  one, and nothing ever removes it. It is invisible from the sync's own output
+  — both rows get refreshed forever — and `db/catalog.read_csv_rows` keys a
+  dict by identifier, so the LAST row wins and the generated metadata silently
+  displaces the reviewed prose in `series_catalog`. **Write the reviewed row
+  before the first run, not after.**
 - **A source switch that changes what a series MEANS cannot be fixed by
   appending**, and `tools/purge_series.py` is the hand-run repair for it. New
   rows only displace old ones on dates they share, so differing grids
