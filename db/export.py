@@ -37,6 +37,7 @@ from transform.real_rates import (CAVEATS as REAL_RATE_CAVEATS,
                                   real_rate)
 from transform.percentile import has_any, percentile_context
 from transform.regime import AXIS_DEFINITION, regime_coordinates
+from transform.growth import growth_series, latest_growth
 from transform.returns import (ANNUALISE, WEEKS_PER_QUARTER, compact_history,
                                monthly_history,
                                compute_return_metrics)
@@ -106,20 +107,14 @@ def _latest(df):
     return float(df.iloc[-1]["value"]) if df is not None and not df.empty else None
 
 
-def _pct_change(df, lag, annualise=1):
-    """Growth over `lag` periods, optionally annualised (lag=1 quarter -> **4)."""
-    if df is None or len(df) <= lag:
-        return None
-    prior = float(df.iloc[-1 - lag]["value"])
-    if not prior:
-        return None
-    ratio = float(df.iloc[-1]["value"]) / prior
-    if ratio <= 0:
-        return None
-    return round((ratio ** annualise - 1) * 100, 2)
+def _pct_change(df, lag, freq, annualise=1):
+    """Growth over `lag` periods of `freq`, optionally annualised (lag=1
+    quarter -> **4). The lag is calendar, not positional: None when the base
+    period is missing (see transform/growth)."""
+    return latest_growth(df, lag, freq, annualise)
 
 
-def _growth_series(df, lag, annualise=1):
+def _growth_series(df, lag, freq, annualise=1):
     """
     The full history of `_pct_change`, as its own [date, value] frame.
 
@@ -130,14 +125,12 @@ def _growth_series(df, lag, annualise=1):
     on the LEVEL is always ~100th and says nothing -- the same reason index
     levels deliberately carry no percentile. The growth RATE is stationary
     enough for a percentile to mean something.
+
+    `lag` counts periods of `freq`, matched by calendar period: a date whose
+    base period is missing is dropped. A positional shift across US CPI's
+    missing 2025-10 measured 13 months and published 4.0% YoY for a true 3.7%.
     """
-    if df is None or len(df) <= lag:
-        return None
-    out = df.dropna(subset=["value"]).sort_values("date").copy()
-    ratio = out["value"] / out["value"].shift(lag)
-    out["value"] = (ratio.where(ratio > 0) ** annualise - 1.0) * 100.0
-    out = out.dropna(subset=["value"])
-    return out if not out.empty else None
+    return growth_series(df, lag, freq, annualise)
 
 
 # Month abbreviations, spelled out rather than taken from strftime: %b is
@@ -403,7 +396,7 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         # nobody has to reconcile our arithmetic against the press release.
         derived_yoy = yoy_df is None
         if derived_yoy:
-            yoy_df = _growth_series(idx_df, 12)
+            yoy_df = _growth_series(idx_df, 12, "M")
         cpi_frames[region] = yoy_df
         age_id = f"cpi.{region}.index" if derived_yoy else f"cpi.{region}"
         st, as_of = _series_status(yoy_df, _cadence_of(age_id, "monthly"))
@@ -411,7 +404,7 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         out["macro"]["inflation"][region] = {
             "yoy_pct": round(_latest(yoy_df), 2) if _latest(yoy_df) is not None else None,
             # 3 monthly observations = one quarter, compounded to a yearly rate.
-            "qoq_ann_pct": _pct_change(idx_df, 3, annualise=4),
+            "qoq_ann_pct": _pct_change(idx_df, 3, "M", annualise=4),
             "as_of": as_of,
             "period_label": _period_label(as_of, "M"),
             # Which index this region's number actually is. These are NOT one
@@ -420,7 +413,7 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "basis": cpi_cfg.get("basis"),
             "yoy_is_derived": derived_yoy,
             "context": _ctx(yoy_df) if yoy_df is not None else None,
-            "qoq_ann_context": _ctx(_growth_series(idx_df, 3, annualise=4)),
+            "qoq_ann_context": _ctx(_growth_series(idx_df, 3, "M", annualise=4)),
         }
 
     # --- Macro: GDP (real, chain-linked, local currency, SA) ---
@@ -436,16 +429,16 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         # such thing, so it stays None.
         short_lag = 1 if freq == "Q" else 3 if freq == "M" else None
         out["macro"]["gdp"][region] = {
-            "yoy_pct": _pct_change(df, PERIODS_PER_YEAR[freq]),
-            "qoq_ann_pct": (_pct_change(df, short_lag, annualise=4)
+            "yoy_pct": _pct_change(df, PERIODS_PER_YEAR[freq], freq),
+            "qoq_ann_pct": (_pct_change(df, short_lag, freq, annualise=4)
                             if short_lag else None),
             # GDP was the one figure on the dashboard carrying no percentile,
             # so an implausible print -- Switzerland's +7.8% annualised in
             # 2026-Q2 -- read exactly like an ordinary one. Measured against
             # the region's own derived-growth history, an outlier now says so
             # on its face.
-            "context": _ctx(_growth_series(df, PERIODS_PER_YEAR[freq])),
-            "qoq_ann_context": (_ctx(_growth_series(df, short_lag, annualise=4))
+            "context": _ctx(_growth_series(df, PERIODS_PER_YEAR[freq], freq)),
+            "qoq_ann_context": (_ctx(_growth_series(df, short_lag, freq, annualise=4))
                                 if short_lag else None),
             "freq": freq,
             # Any adjustment this region carries that the others do not, so the
@@ -476,7 +469,8 @@ def build_payload(conn, is_sample: bool = False) -> dict:
     for region in universe.REGIONS:
         gdp_cfg = universe.GDP_GROWTH.get(region, {})
         gdp_freq = gdp_cfg.get("freq", "Q")
-        gdp_growth = _growth_series(gdp_frames.get(region), PERIODS_PER_YEAR[gdp_freq])
+        gdp_growth = _growth_series(gdp_frames.get(region), PERIODS_PER_YEAR[gdp_freq],
+                                    gdp_freq)
         if gdp_growth is not None:
             macro_history["gdp_yoy"][region] = monthly_history(gdp_growth)
         cpi_yoy = cpi_frames.get(region)
