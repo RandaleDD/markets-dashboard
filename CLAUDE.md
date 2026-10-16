@@ -40,9 +40,16 @@ checkout is how the Actions runner gets yesterday's data instead of
 re-bootstrapping. `bootstrap.py` is a one-time seed, never on the schedule.
 
 ## Current status
-Last verified live run (2026-09-21): **125/133 `ok`, 5 `partial`, 1 `stale`,
-2 `stubbed`, 0 `failed`.** Database: 171 tracked series, 160k observations.
-`site/data/latest.json` is ~1.14 MB.
+Last verified live run (2026-10-16, `--no-publish`): **126/135 `ok`, 5
+`partial`, 2 `stale` (Shiller CAPE, JP CPI via BIS), 2 `stubbed`, 0 `failed`.**
+Database: 173 tracked series, 162k observations. `site/data/latest.json` is
+~1.45 MB (~140 KB gzipped). The ChinaBond curve scrape failed that run and
+was carried on stored data.
+
+2026-10-16 added the **Price Levels** chart (Macroeconomics tab): eight
+headline NSA price indices rebased to 100 at one common month, 3M–20Y, in
+local currency or CHF. CH and NO are on Eurostat HICP for it (`hicp.*.index`);
+see SPEC.md's sourcing table for the basis per region.
 
 The 2026-09-21 pass did eight requested changes and closed three long-standing
 gaps in the process:
@@ -293,6 +300,13 @@ trusting them — this section is a snapshot and goes stale on its own.
   assets for 10 minutes, so unversioned URLs can pair fresh HTML with stale JS
   and render a panel blank with nothing wrong in the code.
   `stamp_asset_versions()` maintains these; don't strip them by hand.
+- **The price-level chart rebases on ONE common month, matched by date.**
+  `slicePeriod` cuts each line back from its own last date, and the regions'
+  latest releases differ by up to two months, so `dateChart`'s default slice
+  would give each region a different base. `priceLevelBlock` picks the base
+  itself and passes `presliced`. Its windows are in MONTHS (`PL_PERIOD_MONTHS`;
+  YTD is based on the prior December), because a day-count "3M" on month-start
+  dates quietly becomes two months.
 - Equity index *levels* deliberately carry no percentile annotation — a price
   percentile on a trending series is always near 100th and says nothing.
   Volatility and drawdown carry it instead. This is accepted, not a gap.

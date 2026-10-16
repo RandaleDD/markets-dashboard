@@ -376,6 +376,55 @@ INFLATION_CPI = {
            "definition": "Japan headline CPI."},
 }
 
+# Price LEVELS, compared across regions on the Macroeconomics tab.
+#
+# A different question from the YoY table above, so a different choice of
+# index. The table shows the print each market trades (LIK, KPI); a chart that
+# lays eight price levels side by side should put as many of them as possible
+# on ONE methodology. HICP is that methodology wherever it exists: Eurostat
+# publishes it for Switzerland (from 2004-12) and Norway (from 2000-01) on the
+# same prc_hicp_minr dataflow as EZ/DE, and the UK's ONS CPI is HICP
+# methodology already (Eurostat stopped carrying the UK after Brexit). That is
+# five of eight. The US, Japan and China have no HICP and stay national -- and
+# the US and Japan include imputed owner-occupier rent, which HICP excludes,
+# so the chart says so rather than implying a common basket.
+#
+# All eight are headline, all-items and NOT seasonally adjusted. The chart
+# rebases each to 100 at a common month, so the differing base years
+# (2025=100, 1982-84=100, ...) do not matter.
+PRICE_LEVEL_HICP = {
+    "CH": {"eurostat_dataset": "prc_hicp_minr", "geo": "CH",
+           "cadence": "monthly_national",
+           "definition": "Swiss HICP, all-items (Eurostat) — NOT the national "
+                         "LIK shown in the CPI table."},
+    "NO": {"eurostat_dataset": "prc_hicp_minr", "geo": "NO",
+           "cadence": "monthly_national",
+           "definition": "Norwegian HICP, all-items (Eurostat) — NOT the "
+                         "national KPI shown in the CPI table."},
+}
+
+PRICE_LEVELS = {
+    "US": {"series": "cpi.US.index", "basis": "CPI-U (national)", "currency": "USD",
+           "definition": "US CPI-U, all items, NSA. Includes owners' equivalent "
+                         "rent (~a quarter of the basket), which HICP excludes."},
+    "UK": {"series": "cpi.UK.index", "basis": "CPI (HICP method)", "currency": "GBP",
+           "definition": "UK CPI, all items — the ONS's HICP-methodology index."},
+    "EZ": {"series": "cpi.EZ.index", "basis": "HICP", "currency": "EUR",
+           "definition": "Euro area HICP, all items."},
+    "DE": {"series": "cpi.DE.index", "basis": "HICP", "currency": "EUR",
+           "definition": "German HICP, all items."},
+    "CH": {"series": "hicp.CH.index", "basis": "HICP", "currency": "CHF",
+           "definition": PRICE_LEVEL_HICP["CH"]["definition"]},
+    "NO": {"series": "hicp.NO.index", "basis": "HICP", "currency": "NOK",
+           "definition": PRICE_LEVEL_HICP["NO"]["definition"]},
+    "CN": {"series": "cpi.CN.index", "basis": "CPI (national)", "currency": "CNY",
+           "definition": "China headline CPI, index level as compiled by the "
+                         "BIS (WS_LONG_CPI)."},
+    "JP": {"series": "cpi.JP.index", "basis": "CPI (national)", "currency": "JPY",
+           "definition": "Japan headline CPI, all items. Includes imputed "
+                         "owner-occupier rent, which HICP excludes."},
+}
+
 # Inflation expectations. Every entry states its tenor and its index basis,
 # because these are NOT comparable across regions otherwise: UK linkers
 # reference RPI, which historically runs ~0.8-1.0pp above CPI, so an
@@ -857,3 +906,8 @@ VALUATION_MULTIPLES = [
 
 # Chart lookback windows offered by the frontend.
 CHART_PERIODS = ["3M", "YTD", "1Y", "2Y", "3Y", "5Y"]
+# The price-level chart alone goes further back: the gaps between countries'
+# price levels open up over decades, not quarters. Monthly data, so 20 years
+# is ~240 points per region.
+PRICE_LEVEL_PERIODS = CHART_PERIODS + ["10Y", "20Y"]
+PRICE_LEVEL_YEARS = 20
