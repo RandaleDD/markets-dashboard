@@ -216,6 +216,26 @@ const SERIES_VARS = ["--series-1", "--series-2", "--series-3", "--series-4",
                      "--series-5", "--series-6", "--series-7", "--series-8"];
 const seriesColor = (i) => `var(${SERIES_VARS[i % SERIES_VARS.length]})`;
 
+// Colour follows the series, never its position in the selection. Indexing by
+// position repainted every surviving line whenever one was switched off, so
+// the same series changed colour under the reader. Each chart keeps a sticky
+// key -> slot map: a series keeps its slot while it stays selected, a new one
+// takes the lowest free slot (so the most distinct colours are used first),
+// and a slot is released only when its series is switched off.
+const colorSlots = {};
+function stableColors(chart, keys) {
+  const m = colorSlots[chart] || (colorSlots[chart] = new Map());
+  [...m.keys()].forEach((k) => { if (!keys.includes(k)) m.delete(k); });
+  keys.forEach((k) => {
+    if (m.has(k)) return;
+    const used = new Set(m.values());
+    let slot = 0;
+    while (used.has(slot) && slot < SERIES_VARS.length) slot++;
+    m.set(k, slot % SERIES_VARS.length);
+  });
+  return (k) => seriesColor(m.get(k));
+}
+
 const CHART_W = 900, CHART_H = 300, CH_L = 60, CH_R = 16, CH_T = 16, CH_B = 34;
 
 function niceTicks(min, max, count) {
@@ -272,10 +292,12 @@ function chartLegend(lines) {
  * That is not decoration: a policy rate holds its value until the day it
  * changes, so sloping between two meetings would draw rate moves that never
  * happened. `opts.noteHtml` overrides the caption for charts that are not
- * price levels.
+ * price levels. `opts.presliced` skips the per-line window cut, for a caller
+ * that has already put every line on a common window (see priceLevelBlock).
  */
 function dateChart(lines, period, rebase, opts) {
-  const cut = lines.map((l) => ({ ...l, pts: slicePeriod(l.points, period) }))
+  const presliced = opts && opts.presliced;
+  const cut = lines.map((l) => ({ ...l, pts: presliced ? l.points : slicePeriod(l.points, period) }))
                    .filter((l) => l.pts.length > 1);
   if (!cut.length) return `<div class="chart-empty">Not enough history for ${period}.</div>`;
 
@@ -609,15 +631,16 @@ function renderEquities() {
   // currency does NOT remove the need: levels still differ by orders of
   // magnitude between, say, the Nikkei and the SMI.
   const rebase = chosen.length > 1;
-  const lines = chosen.map((id, i) => {
+  const colorOf = stableColors("equities", chosen);
+  const lines = chosen.map((id) => {
     const idx = inCurrency(all.find((x) => x.id === id), ccy);
-    return { label: idx.name, points: idx.history || [], color: seriesColor(i) };
+    return { label: idx.name, points: idx.history || [], color: colorOf(id) };
   });
 
   const periods = DATA.chart_periods || ["3M", "YTD", "1Y", "2Y", "3Y", "5Y"];
   const indexChips = all.map((idx) => {
     const on = chosen.includes(idx.id);
-    const c = on ? seriesColor(chosen.indexOf(idx.id)) : "";
+    const c = on ? colorOf(idx.id) : "";
     return `<button class="chip${on ? " active" : ""}" data-eq-id="${idx.id}"${on ? ` data-swatch style="--chip-color:${c}"` : ""}>${idx.name}</button>`;
   }).join("");
   const periodChips = periods.map((p) =>
@@ -783,16 +806,17 @@ function curveDateBounds() {
 
 function curvePanel() {
   const regions = curveSel.regions.length ? curveSel.regions : ["US"];
-  const lines = regions.map((r, i) => ({
+  const colorOf = stableColors("curves", regions);
+  const lines = regions.map((r) => ({
     label: regionName(r) + (((DATA.yield_curves || {})[r] || {}).unofficial ? " (unofficial source)" : ""),
     values: curveValuesOn(r, curveSel.date),
-    color: seriesColor(i),
+    color: colorOf(r),
   }));
   const chips = REGION_ORDER.map((r) => {
     const has = (DATA.yield_curves || {})[r];
     if (!has) return "";
     const on = regions.includes(r);
-    const c = on ? seriesColor(regions.indexOf(r)) : "";
+    const c = on ? colorOf(r) : "";
     return `<button class="chip${on ? " active" : ""}" data-curve-region="${r}"${on ? ` data-swatch style="--chip-color:${c}"` : ""}>${regionName(r)}</button>`;
   }).join("");
   const b = curveDateBounds();
@@ -1006,6 +1030,11 @@ function macroChartBlock() {
   // One line per (region, series) pair. Naming both in the label matters: with
   // several of each selected the legend is the only thing telling them apart.
   const lines = [];
+  const pairs = [];
+  regions.forEach((region) => series.forEach((key) => {
+    if (((hist[key] || {})[region] || []).length >= 2) pairs.push(`${region}|${key}`);
+  }));
+  const colorOf = stableColors("macro", pairs);
   regions.forEach((region) => {
     series.forEach((key) => {
       const meta = MACRO_SERIES.find((m) => m.key === key);
@@ -1013,7 +1042,7 @@ function macroChartBlock() {
       if (points.length < 2) return;
       lines.push({
         label: regions.length > 1 ? `${regionName(region)} — ${meta.label}` : meta.label,
-        points, step: meta.step, color: seriesColor(lines.length),
+        points, step: meta.step, color: colorOf(`${region}|${key}`),
       });
     });
   });
@@ -1054,6 +1083,122 @@ function toggleChip(list, value) {
   if (at >= 0) { if (list.length > 1) list.splice(at, 1); }
   else list.push(value);
   return list;
+}
+
+// ---------------------------------------------------------------------------
+// Price levels across regions
+//
+// Every line is rebased to 100 at ONE common month. That is the whole point
+// and it is not what dateChart does by itself: slicePeriod cuts each line back
+// from its OWN last date, and releases end on different months (Japan runs two
+// behind the US), so each line would otherwise set its 100 on a different
+// month and the comparison would be quietly off by those months' inflation.
+// The window is therefore anchored on the newest release among the selected
+// regions, and the base is the first month on or after its start that EVERY
+// selected line has -- the US has no October 2025 print, and skipping a
+// month for everyone beats inventing one for the US. Lines are trimmed to
+// start at that base and handed to dateChart `presliced`, so its own per-line
+// cut cannot move anyone's start again.
+// ---------------------------------------------------------------------------
+let plSel = { regions: null, ccy: "Local", period: "5Y" };
+const PL_PERIOD_MONTHS = { "3M": 3, "1Y": 12, "2Y": 24, "3Y": 36, "5Y": 60, "10Y": 120, "20Y": 240 };
+
+function monthsBetween(a, b) {
+  const [ya, ma] = a.split("-").map(Number), [yb, mb] = b.split("-").map(Number);
+  return (yb - ya) * 12 + (mb - ma);
+}
+
+function priceLevelBlock() {
+  const pl = (DATA.macro || {}).price_levels;
+  if (!pl) return "";
+  const view = plSel.ccy === "CHF" ? "chf" : "local";
+  const hist = (pl.history || {})[view] || {};
+  const meta = pl.regions || {};
+  const available = REGION_ORDER.filter((r) => (hist[r] || []).length > 1);
+  if (!available.length) return "";
+  if (!plSel.regions) plSel.regions = available.slice();
+  let regions = plSel.regions.filter((r) => available.includes(r));
+  if (!regions.length) regions = [available[0]];
+
+  // Months, not days: these are month-start dates, and a 91-day "3M" cutoff
+  // lands on the 2nd and silently makes it a two-month window. YTD is based on
+  // the previous December, the convention for a year-to-date price change.
+  const end = regions.map((r) => hist[r][hist[r].length - 1][0]).sort().pop();
+  const [ey, em] = end.split("-").map(Number);
+  const back = plSel.period === "YTD" ? em : (PL_PERIOD_MONTHS[plSel.period] || 12);
+  const cut = new Date(Date.UTC(ey, em - 1 - back, 1));
+  const cutISO = cut.toISOString().slice(0, 10);
+
+  // A region whose history starts after the window opens cannot be put on the
+  // common base; it is left out and named, rather than moving everyone's base.
+  const tooShort = regions.filter((r) => hist[r][0][0] > cutISO);
+  const drawn = regions.filter((r) => !tooShort.includes(r));
+  const shared = drawn.length
+    ? hist[drawn[0]].map((p) => p[0]).filter((d) => d >= cutISO &&
+        drawn.every((r) => hist[r].some((p) => p[0] === d)))
+    : [];
+  const base = shared[0];
+
+  const colorOf = stableColors("prices", regions);
+  const lines = base ? drawn.map((r) => ({
+    label: `${regionName(r)} <span class="ccy">${(meta[r] || {}).basis || ""}</span>`,
+    points: hist[r].filter((p) => p[0] >= base), color: colorOf(r),
+  })).filter((l) => l.points.length > 1) : [];
+
+  const chip = (attr, value, label, on, color) =>
+    `<button class="chip${on ? " active" : ""}" data-${attr}="${value}"` +
+    `${on && color ? ` data-swatch style="--chip-color:${color}"` : ""}>${label}</button>`;
+  const regionChips = available.map((r) =>
+    chip("pl-region", r, regionName(r), regions.includes(r),
+         regions.includes(r) ? colorOf(r) : null)).join("");
+  const ccyChips = ["Local", "CHF"].map((c) =>
+    chip("pl-ccy", c, c === "Local" ? "Local currency" : "In CHF", plSel.ccy === c)).join("");
+  const periodChips = (pl.periods || DATA.chart_periods || []).map((pd) =>
+    chip("pl-period", pd, pd, pd === plSel.period)).join("");
+
+  const shortNote = tooShort.length
+    ? ` Not shown for ${plSel.period}: ` + tooShort.map((r) =>
+        `${regionName(r)} (${(meta[r] || {}).basis || "index"} starts ${monthLabel(hist[r][0][0])})`).join(", ") + "."
+    : "";
+  const caption = base
+    ? `<strong>Indexed to 100 at ${monthLabel(base)}</strong> for every line. ${pl.note || ""}` +
+      (view === "chf" ? ` ${pl.chf_note || ""}` : "") + shortNote
+    : "";
+  const figure = lines.length
+    ? dateChart(lines, plSel.period, true, { noteHtml: caption, presliced: true })
+    : `<div class="chart-empty">Not enough history for ${plSel.period}.${shortNote}</div>`;
+
+  // Change over the window, base to each region's own latest month. The
+  // annualised rate uses the months actually elapsed, so a region whose newest
+  // print is older is not marked down for it; under a year it is left blank,
+  // because an annualised few months of a NOT seasonally adjusted index is
+  // mostly the season.
+  const rows = base ? drawn.map((r) => {
+    const pts = hist[r].filter((p) => p[0] >= base);
+    const last = pts[pts.length - 1];
+    const ratio = last[1] / pts[0][1];
+    const months = monthsBetween(base, last[0]);
+    const ann = months >= 12 ? (Math.pow(ratio, 12 / months) - 1) * 100 : null;
+    return [regionName(r), `<span class="ccy">${(meta[r] || {}).basis || ""}</span>`,
+            // Uncoloured: green for "prices rose 25%" would read as good news.
+            `${ratio >= 1 ? "+" : ""}${pctPlain((ratio - 1) * 100, 1)}`,
+            ann == null ? dash() : pctPlain(ann, 1),
+            monthLabel(last[0])];
+  }) : [];
+
+  return `<h2 class="mt">Price Levels</h2>` +
+    note(`How far consumer prices have risen in each region since the start of the window${view === "chf" ? ", measured in Swiss francs" : ""}. A level, not a rate: a line at 120 means prices are 20% higher than at the base month.`) +
+    `<div class="chart-panel">
+       <div class="chart-controls">
+         <div class="control-group"><span class="control-label">Region</span>${regionChips}</div>
+         <div class="control-group"><span class="control-label">Measured in</span>${ccyChips}</div>
+         <div class="control-group"><span class="control-label">Period</span>${periodChips}</div>
+       </div>
+       <div class="chart-figure">${figure}</div>
+     </div>` +
+    (rows.length
+      ? table(["Region", "Basis", `Change since ${monthLabel(base)}`, "Annualised", "Latest month"], rows)
+      : "");
 }
 
 function renderMacro() {
@@ -1118,6 +1263,7 @@ function renderMacro() {
 
   document.getElementById("panel-macro").innerHTML =
     macroChartBlock() +
+    priceLevelBlock() +
     regimeBlock +
     `<h2 class="mt">GDP Growth</h2>` +
     note(DATA.macro.gdp_definition || "") +
@@ -1146,6 +1292,21 @@ function renderMacro() {
   document.querySelectorAll("[data-macro-period]").forEach((b) =>
     b.addEventListener("click", () => {
       macroSel.period = b.getAttribute("data-macro-period");
+      renderMacro();
+    }));
+  document.querySelectorAll("[data-pl-region]").forEach((b) =>
+    b.addEventListener("click", () => {
+      toggleChip(plSel.regions, b.getAttribute("data-pl-region"));
+      renderMacro();
+    }));
+  document.querySelectorAll("[data-pl-ccy]").forEach((b) =>
+    b.addEventListener("click", () => {
+      plSel.ccy = b.getAttribute("data-pl-ccy");
+      renderMacro();
+    }));
+  document.querySelectorAll("[data-pl-period]").forEach((b) =>
+    b.addEventListener("click", () => {
+      plSel.period = b.getAttribute("data-pl-period");
       renderMacro();
     }));
 

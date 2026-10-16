@@ -6,7 +6,16 @@
 
    Direction is teal-up / brick-down rather than green/red: at institutional
    weight the palette's own teal and brick carry the signal without the
-   traffic-light look, and both stay legible for red-green colour blindness. */
+   traffic-light look, and both stay legible for red-green colour blindness.
+
+   Chart series (--series-1..8) step OUTSIDE the house palette on purpose. Its
+   four accents and neutrals are all low-chroma blues/teals/greys; as series
+   they collapsed to look-alike pairs (worst normal-vision ΔE 1.9, teal vs
+   teal). The eight below were run through the dataviz validator: every
+   ADJACENT slot clears the CVD floor and the normal-vision floor in both
+   modes, and slots 1-4 clear them across ALL pairs, since a line keeps its slot when others
+   are switched off (stableColors in app.js) and any two may then meet.
+   Non-chart UI that used --series-1 now reads --accent instead. */
 :root {
   color-scheme: light;
   --surface-1:      #ffffff;
@@ -21,14 +30,14 @@
   --delta-down:     #8a4b43;   /* Alert Red */
   --accent:         #1e4e79;   /* Primary Deep Blue */
   --accent-soft:    #eaf0f6;
-  --series-1:       #1e4e79;
-  --series-2:       #2f666c;
-  --series-3:       #8a4b43;
-  --series-4:       #5d7084;
-  --series-5:       #7d858d;
-  --series-6:       #1f5a89;
-  --series-7:       #2d6c73;
-  --series-8:       #b8d6de;
+  --series-1:       #2b62b0;   /* blue */
+  --series-2:       #c08a00;   /* ochre */
+  --series-3:       #138a6c;   /* green-teal */
+  --series-4:       #a8403a;   /* brick */
+  --series-5:       #6b52b0;   /* violet */
+  --series-6:       #6f8a1c;   /* olive */
+  --series-7:       #c0559a;   /* magenta */
+  --series-8:       #3c95cf;   /* sky */
   --stub-bg:        #eef2f6;
   --stub-text:      #7a838e;
   --div-neg:        #1e4e79;
@@ -50,14 +59,14 @@
     --delta-down:     #c0837a;
     --accent:         #7fa8ce;
     --accent-soft:    #2c3742;
-    --series-1:       #7fa8ce;
-    --series-2:       #6aa8ae;
-    --series-3:       #c0837a;
-    --series-4:       #93a3b5;
-    --series-5:       #a8b0b8;
-    --series-6:       #5f97c6;
-    --series-7:       #5a9aa1;
-    --series-8:       #b8d6de;
+    --series-1:       #5b8ede;   /* blue */
+    --series-2:       #b88a10;   /* ochre */
+    --series-3:       #26a37f;   /* green-teal */
+    --series-4:       #c04c45;   /* brick */
+    --series-5:       #9078d4;   /* violet */
+    --series-6:       #869f2e;   /* olive */
+    --series-7:       #d06aa8;   /* magenta */
+    --series-8:       #4499cf;   /* sky */
     --stub-bg:        #2c3239;
     --stub-text:      #8f98a3;
     --div-neg:        #7fa8ce;
@@ -79,14 +88,14 @@
   --delta-down:     #c0837a;
   --accent:         #7fa8ce;
   --accent-soft:    #2c3742;
-  --series-1:       #7fa8ce;
-  --series-2:       #6aa8ae;
-  --series-3:       #c0837a;
-  --series-4:       #93a3b5;
-  --series-5:       #a8b0b8;
-  --series-6:       #5f97c6;
-  --series-7:       #5a9aa1;
-  --series-8:       #b8d6de;
+  --series-1:       #5b8ede;   /* blue */
+  --series-2:       #b88a10;   /* ochre */
+  --series-3:       #26a37f;   /* green-teal */
+  --series-4:       #c04c45;   /* brick */
+  --series-5:       #9078d4;   /* violet */
+  --series-6:       #869f2e;   /* olive */
+  --series-7:       #d06aa8;   /* magenta */
+  --series-8:       #4499cf;   /* sky */
   --stub-bg:        #2c3239;
   --stub-text:      #8f98a3;
   --div-neg:        #7fa8ce;
@@ -142,7 +151,7 @@ nav.tabs button {
 }
 nav.tabs button:hover { background: var(--stub-bg); }
 nav.tabs button.active {
-  background: var(--series-1);
+  background: var(--accent);
   color: #fff;
 }
 
@@ -234,8 +243,8 @@ tr.chart-row > td { padding: 0; background: var(--page-plane); }
 }
 .period-btn:hover { background: var(--stub-bg); }
 .period-btn.active {
-  background: var(--series-1);
-  border-color: var(--series-1);
+  background: var(--accent);
+  border-color: var(--accent);
   color: var(--surface-1);
 }
 .chart-head {
@@ -294,10 +303,10 @@ tr.chart-row > td { padding: 0; background: var(--page-plane); }
   white-space: nowrap;
 }
 .badge-market { background: var(--stub-bg); color: var(--delta-up); }
-.badge-model { background: var(--stub-bg); color: var(--series-1); }
+.badge-model { background: var(--stub-bg); color: var(--accent); }
 /* A survey mean, not a market or model rate — distinct at a glance so the
    three never read as one series. */
-.badge-survey { background: var(--stub-bg); color: var(--series-2); }
+.badge-survey { background: var(--stub-bg); color: var(--text-secondary); }
 
 h2.mt { margin-top: 30px; }
 .snap-head {
@@ -348,12 +357,12 @@ h2.mt { margin-top: 30px; }
 }
 .regime-chart .axis-unit { font-weight: 400; letter-spacing: 0; fill: var(--text-muted); }
 .regime-chart .quad-label { fill: var(--text-muted); font-size: 10px; opacity: 0.62; letter-spacing: 0.04em; font-style: italic; }
-.regime-pt circle { fill: var(--series-1); opacity: 0.85; }
+.regime-pt circle { fill: var(--accent); opacity: 0.85; }
 /* The trail reads as background: the eye should land on the current position
    first and follow the arrow back only if it asks where the region came from. */
-.regime-trail { stroke: var(--series-1); stroke-width: 1.2; opacity: 0.45; }
-.regime-arrowhead { fill: var(--series-1); opacity: 0.55; }
-.regime-pt circle.regime-prior { fill: none; stroke: var(--series-1); stroke-width: 1.4; opacity: 0.5; }
+.regime-trail { stroke: var(--accent); stroke-width: 1.2; opacity: 0.45; }
+.regime-arrowhead { fill: var(--accent); opacity: 0.55; }
+.regime-pt circle.regime-prior { fill: none; stroke: var(--accent); stroke-width: 1.4; opacity: 0.5; }
 .regime-pt text { fill: var(--text-primary); font-size: 11px; font-weight: 600; }
 .regime-pt.lagged circle { fill: var(--text-muted); opacity: 0.55; }
 .regime-pt.lagged circle.regime-prior { fill: none; stroke: var(--text-muted); }

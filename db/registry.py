@@ -370,6 +370,22 @@ def all_series() -> list[Series]:
             unit="index level", cadence=cadence, source=source, fetcher=fetcher,
             fetch_kwargs=kwargs, bounded=bounded, revisable=True))
 
+    # --- HICP index levels for the cross-region price-level chart ----------
+    # Only where the region's CPI row above is on a NATIONAL method that HICP
+    # also covers (CH, NO). Same dataflow and dimension codes as the EZ/DE
+    # index leg; see universe.PRICE_LEVEL_HICP for why these exist at all.
+    for region, cfg in universe.PRICE_LEVEL_HICP.items():
+        out.append(Series(
+            series_id=f"hicp.{region}.index", category="CPI", region=region,
+            description=f"{region} HICP, all-items, index level (price-level chart)",
+            unit="index level", cadence=cfg["cadence"],
+            source=f"Eurostat, {cfg['eurostat_dataset']} ({cfg['geo']}, I25)",
+            fetcher="fetch_eurostat",
+            fetch_kwargs={"dataset": cfg["eurostat_dataset"],
+                          "filters": {"geo": cfg["geo"], "coicop18": "TOTAL",
+                                      "unit": "I25", "freq": "M"}},
+            bounded=True, revisable=True))
+
     # --- GDP levels ---------------------------------------------------------
     for region, cfg in universe.GDP_GROWTH.items():
         cadence = cfg.get("cadence", "annual" if cfg.get("freq") == "A" else "quarterly")
