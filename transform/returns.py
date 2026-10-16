@@ -137,6 +137,54 @@ def monthly_history(df: pd.DataFrame, years: float = 5.0, carry: bool = True) ->
             for d, v in monthly.items()]
 
 
+# How CHF per one unit of each currency is built from the tracked pairs, as
+# (numerator legs, denominator legs). The pairs are quoted YYY per 1 XXX, so
+# usdchf is already CHF per USD; everything else goes through USD or EUR,
+# whichever has a direct CHF cross.
+_CHF_ROUTES = {
+    "USD": (["usdchf"], []),
+    "EUR": (["eurchf"], []),
+    "GBP": (["gbpusd", "usdchf"], []),
+    "JPY": (["usdchf"], ["usdjpy"]),
+    "CNY": (["usdchf"], ["usdcny"]),
+    "NOK": (["eurchf"], ["eurnok"]),
+}
+
+
+def chf_per_unit_monthly(hist: dict, ccy: str) -> "pd.Series | None":
+    """
+    CHF per one unit of `ccy`, as a MONTHLY AVERAGE of the stored weekly closes,
+    indexed by month start. None when a leg is missing.
+
+    An average rather than the month's last close because a CPI is itself a
+    monthly-average price: a basket priced across March converted at 31 March's
+    rate would put one day's FX move onto a whole month's prices. Each leg is
+    averaged only over the weeks where EVERY leg has a close, so a cross is
+    never built from two different sets of days.
+    """
+    if ccy == "CHF":
+        return None
+    route = _CHF_ROUTES.get(ccy)
+    if route is None:
+        return None
+    num, den = route
+    legs = []
+    for pair in num + den:
+        df = hist.get(f"fx.{pair}")
+        if df is None or df.empty:
+            return None
+        legs.append(df.dropna(subset=["value"]).set_index("date")["value"])
+    frame = pd.concat(legs, axis=1, join="inner")
+    if frame.empty:
+        return None
+    rate = frame.iloc[:, :len(num)].prod(axis=1)
+    for i in range(len(den)):
+        rate = rate / frame.iloc[:, len(num) + i]
+    rate = rate.replace([np.inf, -np.inf], np.nan).dropna()
+    monthly = rate.resample("MS").mean().dropna()
+    return monthly if not monthly.empty else None
+
+
 def compact_history(df: pd.DataFrame, years: float = 5.0) -> list:
     """
     History for the interactive chart: every stored week, out to `years`.

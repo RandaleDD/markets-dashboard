@@ -86,6 +86,25 @@ class ExportShape(unittest.TestCase):
     def test_curves_carry_every_region(self):
         self.assertEqual(set(self.payload["yield_curves"]), set(self.payload["regions"]))
 
+    def test_price_levels_carry_what_app_js_reads(self):
+        pl = self.payload["macro"]["price_levels"]
+        for key in ("periods", "regions", "history", "note", "chf_note"):
+            self.assertIn(key, pl)
+        local, chf = pl["history"]["local"], pl["history"]["chf"]
+        self.assertEqual(set(local), set(self.payload["regions"]))
+        for region, points in local.items():
+            self.assertIn("basis", pl["regions"][region])
+            # Month starts, ascending: the chart's common-base logic matches
+            # dates exactly across regions, so a mid-month date would never
+            # line up with anyone.
+            dates = [d for d, _ in points]
+            self.assertEqual(dates, sorted(dates))
+            self.assertTrue(all(d.endswith("-01") for d in dates), region)
+        # Switzerland measured in CHF is Switzerland -- nothing to convert.
+        self.assertEqual(chf["CH"], local["CH"])
+        # Every other region's CHF series is a different quantity, not a copy.
+        self.assertNotEqual(chf["US"], local["US"])
+
     def test_data_quality_block_is_populated(self):
         dq = self.payload["data_quality"]
         for key in ("series", "fresh", "stale", "missing", "observations"):
