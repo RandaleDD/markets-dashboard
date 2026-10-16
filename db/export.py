@@ -38,7 +38,7 @@ from transform.real_rates import (CAVEATS as REAL_RATE_CAVEATS,
 from transform.percentile import has_any, percentile_context
 from transform.regime import AXIS_DEFINITION, regime_coordinates
 from transform.returns import (ANNUALISE, WEEKS_PER_QUARTER, compact_history,
-                               monthly_history,
+                               chf_per_unit_monthly, monthly_history,
                                compute_return_metrics)
 
 logger = logging.getLogger("markets_dashboard.db.export")
@@ -496,6 +496,68 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         "policy-rate line is stepped — a rate that has not moved is still the "
         "rate. Series are shown on their own publication lag, so the newest "
         "GDP point is a quarter behind the newest policy rate.")
+
+    # --- Price levels, for the cross-region chart.
+    #
+    # The stored index LEVELS, not growth, on a monthly grid with NO carry:
+    # a missing month (US CPI 2025-10) is a gap in a level, and repeating the
+    # previous value would invent a month of zero inflation. The frontend
+    # rebases every line to 100 at one common month, so the differing base
+    # years never reach the reader.
+    #
+    # The CHF view is each local level times CHF per local unit, averaged over
+    # the month (see chf_per_unit_monthly). That is a different quantity --
+    # inflation plus the exchange rate -- and is shipped as its own series
+    # rather than derived in the browser, because the payload's FX history is
+    # weekly and five years deep while this chart reaches back twenty.
+    price_levels = {"periods": universe.PRICE_LEVEL_PERIODS, "regions": {},
+                    "history": {"local": {}, "chf": {}}}
+    for region, cfg in universe.PRICE_LEVELS.items():
+        df = hist.get(cfg["series"])
+        if cfg["series"].startswith("hicp."):
+            status[f"price_level:{region}"], _ = _series_status(
+                df, _cadence_of(cfg["series"], "monthly"))
+        if df is None or df.empty:
+            continue
+        # Half a year of slack beyond the longest chip: lines end on different
+        # months, and the region that ends EARLIEST must still reach back to
+        # the common base month the latest one sets.
+        local = monthly_history(df, years=universe.PRICE_LEVEL_YEARS + 0.5,
+                                carry=False)
+        if not local:
+            continue
+        _, as_of = _series_status(df, _cadence_of(cfg["series"], "monthly"))
+        price_levels["regions"][region] = {
+            "series_id": cfg["series"], "basis": cfg["basis"],
+            "currency": cfg["currency"], "definition": cfg["definition"],
+            "as_of": as_of, "period_label": _period_label(as_of, "M"),
+        }
+        price_levels["history"]["local"][region] = local
+        if cfg["currency"] == "CHF":
+            price_levels["history"]["chf"][region] = local
+            continue
+        fx = chf_per_unit_monthly(hist, cfg["currency"])
+        if fx is None:
+            continue
+        fx_by_month = {d.strftime("%Y-%m-%d"): float(v) for d, v in fx.items()}
+        chf = [[d, round(v * fx_by_month[d], 4)] for d, v in local if d in fx_by_month]
+        if len(chf) > 1:
+            price_levels["history"]["chf"][region] = chf
+    price_levels["note"] = (
+        "Headline all-items consumer prices, not seasonally adjusted, rebased "
+        "to 100 at a common month. HICP for the euro area, Germany, "
+        "Switzerland and Norway; the UK's CPI follows HICP methodology. The "
+        "US, Japan and China have no HICP and are national indices — the US "
+        "and Japan include imputed owner-occupier rent, which HICP excludes. "
+        "Switzerland and Norway are on HICP here, not the LIK/KPI in the "
+        "inflation table. Each line ends at its own latest release.")
+    price_levels["chf_note"] = (
+        "Measured in CHF: the local price index times CHF per unit of local "
+        "currency (the month's average of weekly closes). This mixes "
+        "inflation with exchange-rate moves. A line above Switzerland's means "
+        "prices there rose faster than Swiss prices once converted into "
+        "francs: that country got more expensive for someone holding CHF.")
+    out["macro"]["price_levels"] = price_levels
 
     # --- Growth / inflation regime coordinates (pure derivation) ---
     out["regime"]["axis_definition"] = AXIS_DEFINITION
