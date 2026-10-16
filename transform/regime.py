@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from transform.growth import growth_series
+
 AXIS_DEFINITION = ("Axes are the one-quarter change in the year-on-year rate, "
                    "in percentage points — direction of travel, not level. "
                    "Levels are shown alongside each point.")
@@ -31,13 +33,11 @@ QUADRANTS = {
 }
 
 
-def _yoy_from_levels(df: pd.DataFrame, periods_per_year: int) -> pd.DataFrame | None:
-    """Year-on-year percent change from a level series."""
-    if df is None or len(df) <= periods_per_year:
-        return None
-    out = df.dropna(subset=["value"]).sort_values("date").copy()
-    out["value"] = (out["value"] / out["value"].shift(periods_per_year) - 1.0) * 100.0
-    return out.dropna(subset=["value"])
+def _yoy_from_levels(df: pd.DataFrame, gdp_freq: str) -> pd.DataFrame | None:
+    """Year-on-year percent change from a level series, against the same
+    period a year earlier by calendar -- a missing base period drops the
+    point rather than silently widening the window (see transform/growth)."""
+    return growth_series(df, PERIODS_PER_YEAR.get(gdp_freq, 4), gdp_freq)
 
 
 def _to_quarterly(df: pd.DataFrame) -> pd.DataFrame | None:
@@ -63,7 +63,7 @@ def regime_coordinates(gdp_level_df, cpi_yoy_df, gdp_freq: str = "Q",
 
     Returns the most recent `quarters` aligned points, oldest first.
     """
-    gdp_yoy = _yoy_from_levels(gdp_level_df, PERIODS_PER_YEAR.get(gdp_freq, 4))
+    gdp_yoy = _yoy_from_levels(gdp_level_df, gdp_freq)
     g = _to_quarterly(gdp_yoy)
     c = _to_quarterly(cpi_yoy_df)
     if g is None or c is None:
