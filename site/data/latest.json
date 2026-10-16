@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-16T11:06:05.864943+00:00",
+  "generated_at": "2026-10-16T11:12:25.904652+00:00",
   "is_sample": false,
   "regions": [
     "US",
@@ -25325,25 +25325,25 @@
       "chg_ytd_pct": -9.7,
       "chg_1y_pct": -8.68,
       "drawdown_from_ath_pct": -12.36,
-      "realized_vol_4w_pct": 4.67,
-      "realized_vol_13w_pct": 3.76,
+      "realized_vol_4w_pct": 4.32,
+      "realized_vol_13w_pct": 3.36,
       "context": {
         "5y": {
-          "pct": 24.5,
-          "z": -0.76,
-          "n": 261,
+          "pct": 24.8,
+          "z": -0.75,
+          "n": 262,
           "since": "2021-10-22"
         },
         "10y": {
-          "pct": 55.9,
+          "pct": 56.0,
           "z": 0.12,
-          "n": 522,
+          "n": 523,
           "since": "2016-10-21"
         },
         "full": {
           "pct": 83.4,
           "z": 1.19,
-          "n": 1385,
+          "n": 1386,
           "since": "2000-03-17"
         }
       },
@@ -26387,6 +26387,10 @@
         [
           "2026-10-09",
           10.7041
+        ],
+        [
+          "2026-10-15",
+          10.6282
         ],
         [
           "2026-10-16",
@@ -37470,7 +37474,7 @@
     },
     "inflation": {
       "US": {
-        "yoy_pct": 4.0,
+        "yoy_pct": 3.74,
         "qoq_ann_pct": 3.63,
         "as_of": "2026-09-01",
         "period_label": "Sep 2026",
@@ -37479,40 +37483,40 @@
         "context": {
           "5y": {
             "pct": 61.7,
-            "z": -0.23,
+            "z": -0.33,
             "n": 60,
             "since": "2021-09-01"
           },
           "10y": {
             "pct": 76.7,
-            "z": 0.34,
+            "z": 0.22,
             "n": 120,
             "since": "2016-09-01"
           },
           "full": {
-            "pct": 70.6,
-            "z": 0.15,
+            "pct": 67.9,
+            "z": 0.09,
             "n": 1352,
             "since": "1914-01-01"
           }
         },
         "qoq_ann_context": {
           "5y": {
-            "pct": 51.7,
+            "pct": 50.8,
             "z": -0.19,
-            "n": 60,
+            "n": 59,
             "since": "2021-09-01"
           },
           "10y": {
-            "pct": 59.2,
+            "pct": 58.8,
             "z": 0.06,
-            "n": 120,
+            "n": 119,
             "since": "2016-09-01"
           },
           "full": {
             "pct": 58.4,
             "z": 0.04,
-            "n": 1361,
+            "n": 1360,
             "since": "1913-04-01"
           }
         }
@@ -40336,47 +40340,47 @@
           ],
           [
             "2025-11-01",
-            2.6794
+            2.7351
           ],
           [
             "2025-12-01",
-            2.7135
+            2.6771
           ],
           [
             "2026-01-01",
-            3.0567
+            2.3864
           ],
           [
             "2026-02-01",
-            2.869
+            2.4141
           ],
           [
             "2026-03-01",
-            3.4884
+            3.2564
           ],
           [
             "2026-04-01",
-            4.1342
+            3.8108
           ],
           [
             "2026-05-01",
-            4.4664
+            4.2487
           ],
           [
             "2026-06-01",
-            3.8844
+            3.5314
           ],
           [
             "2026-07-01",
-            3.5209
+            3.3648
           ],
           [
             "2026-08-01",
-            3.6936
+            3.3965
           ],
           [
             "2026-09-01",
-            4.0015
+            3.7377
           ]
         ],
         "UK": [
@@ -73461,75 +73465,75 @@
     "CN": {
       "tenors": {
         "2Y": null,
-        "5Y": 1.409,
-        "10Y": 1.686,
-        "30Y": 2.091
+        "5Y": 1.381,
+        "10Y": 1.648,
+        "30Y": 2.06
       },
       "context": {
         "5Y": {
           "5y": {
-            "pct": 4.3,
-            "z": -1.36,
+            "pct": 1.2,
+            "z": -1.41,
             "n": 257,
-            "since": "2021-10-15"
+            "since": "2021-10-22"
           },
           "10y": {
-            "pct": 2.1,
-            "z": -1.73,
+            "pct": 0.6,
+            "z": -1.77,
             "n": 517,
-            "since": "2016-10-14"
+            "since": "2016-10-21"
           },
           "full": {
-            "pct": 1.0,
-            "z": -2.14,
-            "n": 1067,
+            "pct": 0.3,
+            "z": -2.18,
+            "n": 1068,
             "since": "2006-03-03"
           }
         },
         "10Y": {
           "5y": {
-            "pct": 10.5,
-            "z": -1.28,
+            "pct": 4.3,
+            "z": -1.36,
             "n": 257,
-            "since": "2021-10-15"
+            "since": "2021-10-22"
           },
           "10y": {
-            "pct": 5.2,
-            "z": -1.71,
+            "pct": 2.1,
+            "z": -1.77,
             "n": 517,
-            "since": "2016-10-14"
+            "since": "2016-10-21"
           },
           "full": {
-            "pct": 2.5,
-            "z": -2.16,
-            "n": 1067,
+            "pct": 1.0,
+            "z": -2.21,
+            "n": 1068,
             "since": "2006-03-03"
           }
         },
         "30Y": {
           "5y": {
-            "pct": 15.2,
-            "z": -1.06,
+            "pct": 14.0,
+            "z": -1.11,
             "n": 257,
-            "since": "2021-10-15"
+            "since": "2021-10-22"
           },
           "10y": {
-            "pct": 7.5,
-            "z": -1.58,
+            "pct": 7.0,
+            "z": -1.62,
             "n": 517,
-            "since": "2016-10-14"
+            "since": "2016-10-21"
           },
           "full": {
-            "pct": 3.7,
-            "z": -2.17,
-            "n": 1067,
+            "pct": 3.4,
+            "z": -2.21,
+            "n": 1068,
             "since": "2006-03-03"
           }
         }
       },
       "2s10s_bp": null,
       "3m10y_bp": null,
-      "as_of": "2026-10-09",
+      "as_of": "2026-10-16",
       "source_note": "ChinaBond government bond yield curve (\u4e2d\u503a\u56fd\u503a\u6536\u76ca\u7387\u66f2\u7ebf), server-rendered HTML \u2014 a scrape, though an official CCDC/PBoC-affiliated one. History to 2006-03-01. There is no 2y point on this curve.",
       "cadence": "weekly",
       "lagged": false,
@@ -73537,10 +73541,6 @@
       "basis": null,
       "tenor_history": {
         "5Y": [
-          [
-            "2023-10-13",
-            2.5528
-          ],
           [
             "2023-10-20",
             2.5982
@@ -74160,13 +74160,13 @@
           [
             "2026-10-09",
             1.4089
+          ],
+          [
+            "2026-10-16",
+            1.3815
           ]
         ],
         "10Y": [
-          [
-            "2023-10-13",
-            2.6702
-          ],
           [
             "2023-10-20",
             2.7052
@@ -74786,13 +74786,13 @@
           [
             "2026-10-09",
             1.6864
+          ],
+          [
+            "2026-10-16",
+            1.648
           ]
         ],
         "30Y": [
-          [
-            "2023-10-13",
-            2.9952
-          ],
           [
             "2023-10-20",
             2.9962
@@ -75412,6 +75412,10 @@
           [
             "2026-10-09",
             2.0915
+          ],
+          [
+            "2026-10-16",
+            2.06
           ]
         ]
       }
@@ -80842,10 +80846,10 @@
       {
         "region": "US",
         "nominal_2y_pct": 4.82,
-        "cpi_yoy_pct": 4.0,
+        "cpi_yoy_pct": 3.74,
         "cpi_basis": "CPI-U",
-        "real_rate_pct": 0.82,
-        "differential_vs_home_pct": 1.34,
+        "real_rate_pct": 1.08,
+        "differential_vs_home_pct": 1.6,
         "is_home": false,
         "missing_leg": null,
         "as_of": "2026-10-14",
@@ -80908,7 +80912,7 @@
         "differential_vs_home_pct": null,
         "is_home": false,
         "missing_leg": "2y government yield",
-        "as_of": "2026-10-09",
+        "as_of": "2026-10-16",
         "cpi_as_of": "Aug 2026"
       },
       {
@@ -80990,27 +80994,27 @@
           "date": "2025-12-31",
           "delta_basis": "quarter",
           "growth_yoy": 2.05,
-          "inflation_yoy": 2.71,
+          "inflation_yoy": 2.68,
           "growth_delta": -0.55,
-          "inflation_delta": -0.3,
+          "inflation_delta": -0.34,
           "quadrant": "growth_down_infl_down"
         },
         {
           "date": "2026-03-31",
           "delta_basis": "quarter",
           "growth_yoy": 2.64,
-          "inflation_yoy": 3.49,
+          "inflation_yoy": 3.26,
           "growth_delta": 0.59,
-          "inflation_delta": 0.77,
+          "inflation_delta": 0.58,
           "quadrant": "growth_up_infl_up"
         },
         {
           "date": "2026-06-30",
           "delta_basis": "quarter",
           "growth_yoy": 2.19,
-          "inflation_yoy": 3.88,
+          "inflation_yoy": 3.53,
           "growth_delta": -0.45,
-          "inflation_delta": 0.4,
+          "inflation_delta": 0.28,
           "quadrant": "growth_down_infl_up"
         }
       ],
@@ -81864,11 +81868,11 @@
     },
     "CN": {
       "legs": {
-        "risk_free": 1.686,
+        "risk_free": 1.648,
         "credit_spread": null,
         "erp": 5.14
       },
-      "cost_of_equity": 6.83,
+      "cost_of_equity": 6.79,
       "cost_of_debt": null,
       "formulae": {
         "cost_of_equity": "risk-free (nominal 10y) + equity risk premium",
@@ -82449,13 +82453,13 @@
     "costcap:NO": "partial"
   },
   "data_quality": {
-    "generated_at": "2026-10-16T11:06:05.722412+00:00",
+    "generated_at": "2026-10-16T11:12:25.764612+00:00",
     "series": 173,
     "fresh": 170,
     "stale": 3,
     "missing": 0,
     "gapped": 3,
-    "observations": 161743,
+    "observations": 161747,
     "flags_raised_this_run": {},
     "flags_resolved_this_run": {},
     "open_flags": {
