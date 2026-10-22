@@ -456,8 +456,8 @@ _GLC_FILES = {
     "inflation": "GLC Inflation daily data current month.xlsx",
 }
 # The one-time deep archives. Roughly 89MB across the three, which is why they
-# are pulled by bootstrap.py ONCE and never by the daily run -- see
-# SPEC.md, "Why the database is committed". Each zip holds one workbook per era
+# are pulled by bootstrap.py ONCE and never by the weekly run -- see
+# SPEC.md, "BoE GLC archives". Each zip holds one workbook per era
 # (1979-1984, 1985-1989, ... 2025 to present).
 _GLC_ARCHIVES = {
     "nominal": _GLC_BASE + "glcnominalddata.zip",

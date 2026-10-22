@@ -26,10 +26,9 @@ logger = logging.getLogger("markets_dashboard.db")
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
-# The database lives in the repo working tree and IS COMMITTED, alongside
-# site/data/latest.json -- see SPEC.md. That is what makes the
-# GitHub Actions runner start each day from yesterday's accumulated history
-# instead of re-bootstrapping, and git's own commit history is the backup.
+# Gitignored. The published copy is on the single-commit `data` branch, which
+# publish.sync_data downloads before every live run (SPEC.md, "Where the data
+# lives"); data/history/ holds this machine's rolling snapshots.
 DEFAULT_DB_PATH = REPO_ROOT / "data" / "markets.db"
 
 

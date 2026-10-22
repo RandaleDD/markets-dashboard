@@ -5,9 +5,10 @@ Marco's personal markets dashboard: CHF-based, regions US/UK/EZ/DE/CH/CN/JP/NO
 Weekly append-only SQLite store → static site on GitHub Pages
 (https://randaledd.github.io/markets-dashboard/).
 
-**Why behind every rule: SPEC.md "Appendix — working notes"; read the entry
-before changing what it covers.** SPEC.md also has the authoritative sourcing
-table and the endpoint appendix (read before touching `fetch/sources.py`).
+**The why behind every rule is in SPEC.md (Scope, Architecture); read it
+before changing what a rule covers.** SPEC.md also has the authoritative
+sourcing table and the endpoint appendix (read before touching
+`fetch/sources.py`).
 `data/DATA-CATALOG.csv` = reviewed sourcing per series; 170 KB, grep it.
 
 ## Layout
