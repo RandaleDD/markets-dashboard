@@ -54,7 +54,7 @@ class PublishTest(unittest.TestCase):
         (seed / "site" / "assets" / "app.js").write_text("// code\n")
         (seed / ".gitignore").write_text("data/\nsite/data/\n")
         (seed / ".github" / "workflows").mkdir(parents=True)
-        (seed / ".github" / "workflows" / "pages.yml").write_text("name: deploy\n")
+        (seed / ".github" / "workflows" / "data-relay.yml").write_text("name: relay\n")
         git(seed, "add", "-A")
         git(seed, "commit", "--quiet", "-m", "code")
         git(seed, "remote", "add", "origin", str(self.remote))
@@ -141,7 +141,7 @@ class PublishTest(unittest.TestCase):
         self.assertIn(GENERATED_AT, self._remote_file("latest.json").decode())
         self.assertEqual(self._remote_file("DATA-COVERAGE.csv"), b"Identifier\nx\n")
         # ...plus the deploy workflow, without which a push here deploys nothing.
-        self.assertEqual(self._remote_file(".github/workflows/pages.yml"), b"name: deploy\n")
+        self.assertEqual(self._remote_file(".github/workflows/data-relay.yml"), b"name: relay\n")
 
     def test_second_run_with_no_new_data_pushes_nothing(self):
         self._publish()

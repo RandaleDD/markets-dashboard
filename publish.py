@@ -9,7 +9,7 @@ exactly ONE commit with no parent, replaced on every publish:
     markets.db.gz       the store, gzipped (deterministic: mtime=0)
     latest.json         what the site renders
     DATA-COVERAGE.csv   what the store holds, per series
-    .github/workflows/pages.yml   a copy of main's, so a push here deploys
+    .github/workflows/data-relay.yml   a copy of main's, so a push here deploys
 
 Main is code and reviewed prose only. Nothing online keeps old versions of the
 data, and nothing needs to: `observations` is append-only, so the current
@@ -62,7 +62,7 @@ DATA_FILES = {
     "DATA-COVERAGE.csv": "data/DATA-COVERAGE.csv",
 }
 DB_PATH = DATA_FILES["markets.db.gz"]
-PAGES_WORKFLOW = ".github/workflows/pages.yml"
+RELAY_WORKFLOW = ".github/workflows/data-relay.yml"
 HISTORY_DIR = "data/history"
 KEEP_SNAPSHOTS = 8
 
@@ -243,11 +243,11 @@ def _data_tree(root: Path) -> str:
             sha = _out(_git(root, "hash-object", "-w", str(src)))
             entries.append(f"100644 blob {sha}\t{published}\n")
     # GitHub reads a push-triggered workflow FROM THE PUSHED COMMIT. Without
-    # main's pages.yml in this tree, a push to `data` from the Mac would start
+    # main's data-relay.yml in this tree, a push to `data` from the Mac would start
     # no deploy at all. It is a copy; main's is the one that is edited.
-    workflow = _rev(root, f"HEAD:{PAGES_WORKFLOW}")
+    workflow = _rev(root, f"HEAD:{RELAY_WORKFLOW}")
     if workflow:
-        inner = _out(_git(root, "mktree", input=f"100644 blob {workflow}\tpages.yml\n"))
+        inner = _out(_git(root, "mktree", input=f"100644 blob {workflow}\tdata-relay.yml\n"))
         outer = _out(_git(root, "mktree", input=f"040000 tree {inner}\tworkflows\n"))
         entries.append(f"040000 tree {outer}\t.github\n")
     return _out(_git(root, "mktree", input="".join(entries)))

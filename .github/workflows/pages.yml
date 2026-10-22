@@ -4,30 +4,22 @@ name: Deploy dashboard to Pages
 # unless a workflow does it. The site is main's `site/` directory plus the
 # `latest.json` on the single-commit `data` branch (see publish.py).
 #
-# Triggers:
-#   - a push to main that touches the site (code),
-#   - a push to `data` from the Mac (new data), relayed to a run on main,
-#   - by hand.
-# A push to `data` runs the COPY of this file that publish.py puts in every
-# data commit (GitHub reads push workflows from the pushed commit), so edits
-# here reach that trigger on the next publish.
-# The Saturday run is not here: it pushes with GITHUB_TOKEN, which GitHub does
-# not allow to start another workflow, so weekly.yml deploys for itself.
+# Triggers: a push to main that touches the site, a dispatch from
+# data-relay.yml after a data publish from the Mac, or a manual run. The
+# Saturday run deploys from weekly.yml itself.
 on:
   push:
-    branches: [main, data]
+    branches: [main]
     paths:
       - "site/**"
       - "stamp_assets.py"
       - ".github/workflows/pages.yml"
-      - "latest.json" # the data branch's payload
   workflow_dispatch: {}
 
 permissions:
   contents: read
   pages: write
   id-token: write
-  actions: write # the relay below starts this workflow on main
 
 # Never let two deploys race; queue instead of cancelling, so a data refresh
 # that lands mid-deploy still gets published rather than being dropped.
@@ -36,19 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The github-pages environment only accepts deploys from main, so a run
-  # started by a push to `data` cannot deploy. It asks for a run on main
-  # instead: workflow_dispatch is the one event GITHUB_TOKEN may start.
-  relay:
-    if: github.ref == 'refs/heads/data'
-    runs-on: ubuntu-latest
-    steps:
-      - run: gh workflow run pages.yml --ref main --repo "$GITHUB_REPOSITORY"
-        env:
-          GH_TOKEN: ${{ github.token }}
-
   deploy:
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

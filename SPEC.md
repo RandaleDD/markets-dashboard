@@ -178,7 +178,7 @@ observations or flags reference them (`store.retire_unregistered`).
 `main` holds code and reviewed prose. The store, `latest.json` and
 `DATA-COVERAGE.csv` are gitignored and published on the **`data` branch: one
 parentless commit** (`markets.db.gz`, `latest.json`, `DATA-COVERAGE.csv`, plus
-a copy of `pages.yml`), replaced each publish. The store is append-only, so
+a copy of `data-relay.yml`), replaced each publish. The store is append-only, so
 the current file already holds every value and revision; old copies online
 served no purpose and caused merge conflicts on generated files. Main's
 history was rewritten 2026-10-22 to drop 44 committed DB versions (pre-rewrite
@@ -203,10 +203,12 @@ main's `site/` + the data branch's `latest.json`, re-stamped at deploy.
 
 - `weekly.yml` runs the pipeline (which publishes `data`) and deploys itself:
   a push made with `GITHUB_TOKEN` cannot start another workflow.
-- `pages.yml` deploys main on `site/**` pushes. A push to `data` runs the copy
-  in the data commit (GitHub reads push workflows from the pushed commit),
-  which only relays — `gh workflow run --ref main` — because the
-  `github-pages` environment accepts main only.
+- `pages.yml` deploys main on `site/**` pushes or dispatch. A push to `data`
+  runs `data-relay.yml` from the data commit (GitHub reads push workflows from
+  the pushed commit), which dispatches `pages.yml` on main because the
+  `github-pages` environment accepts main only. The relay has no `paths:`
+  filter: on a force-pushed parentless commit it matched nothing, and the
+  first Mac publish (2026-10-22) never deployed.
 - `publish.verify()` polls the live payload (cache-busted; Pages serves
   `max-age=600`) until it carries this run's `generated_at`.
 - Asset URLs always carry `?v=<hash>`: with 10-minute caching, unversioned URLs

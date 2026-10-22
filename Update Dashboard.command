@@ -16,6 +16,9 @@
 # bit set (chmod +x) or Finder will open it in a text editor instead.
 
 cd "$(dirname "$0")" || exit 1
+# macOS's system Python links LibreSSL, and urllib3 warns about it on every
+# start. Harmless here, and only noise in a plain-English log.
+export PYTHONWARNINGS="ignore"
 
 bold=$(tput bold 2>/dev/null); dim=$(tput dim 2>/dev/null)
 red=$(tput setaf 1 2>/dev/null); green=$(tput setaf 2 2>/dev/null)
@@ -64,7 +67,9 @@ python3 pipeline.py --mode live 2>&1 \
 # fetched?" is the entire point of the exercise and should not have to be
 # picked out of the log above.
 say "3/4  Checking the live site matches"
-if python3 publish.py --check 2>&1 | sed 's/^/  /'; then
+python3 publish.py --check 2>&1 | sed 's/^/  /'
+# As above: the status that matters is publish.py's, not sed's.
+if [ "${PIPESTATUS[0]}" -eq 0 ]; then
   ok "the live site is serving this run"
 else
   warn "the live site is still behind -- the deploy may simply be slow."

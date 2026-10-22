@@ -28,7 +28,7 @@ sourcing table and the endpoint appendix (read before touching
 
 - Main = code + reviewed prose. `data/markets.db`, `site/data/latest.json`,
   `data/DATA-COVERAGE.csv` are gitignored; they live on branch `data` as ONE
-  parentless commit (plus a copy of `pages.yml`), replaced each publish via
+  parentless commit (plus a copy of `data-relay.yml`), replaced each publish via
   `--force-with-lease` against `refs/markets/data-base`. Never commit them to
   main; never give `data` history. Local snapshots: `data/history/` (keeps 8).
 - `python3 pipeline.py --mode live`: downloads newer published store, ingests,
@@ -39,8 +39,10 @@ sourcing table and the endpoint appendix (read before touching
   Marco runs `Update Dashboard.command` (his double-click entry point — keep it
   working, output in plain English).
 - `weekly.yml` (Sat 06:00 UTC) runs the pipeline and deploys itself. `pages.yml`
-  deploys main on `site/**` pushes; a push to `data` only relays to a run on
-  main (the github-pages environment accepts main only).
+  deploys main on `site/**` pushes or dispatch; a push to `data` runs
+  `data-relay.yml`, which dispatches `pages.yml` on main (the github-pages
+  environment accepts main only; no `paths:` filter, which never matches a
+  force-pushed orphan commit).
 - `--mode` defaults to `sample` and writes the same `latest.json`: use
   `--mode live --export-only`. Publishing refuses `is_sample` payloads.
 - Preview: `cd site && python3 -m http.server 8000` (not `file://`). After
