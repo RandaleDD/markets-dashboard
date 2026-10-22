@@ -53,7 +53,7 @@ ok "all present"
 # the pipeline's log into English.
 say "2/4  Fetching this week's data and publishing it"
 printf "%s  Only what is newer than what you already have.%s\n" "$dim" "$off"
-printf "%s  The push and the site rebuild take a couple of minutes.%s\n\n" "$dim" "$off"
+printf "%s  The site rebuild after the push can take up to 10-15 minutes.%s\n\n" "$dim" "$off"
 python3 pipeline.py --mode live 2>&1 \
   | grep -E "Sync:|Ingest:|Quality:|Export:|Coverage written|Wrote|Publish:|status changed|ERROR" \
   | sed 's/^INFO [^:]*: /  /; s/^WARNING [^:]*: /  ! /; s/^ERROR [^:]*: /  x /'

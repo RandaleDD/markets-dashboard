@@ -66,9 +66,10 @@ RELAY_WORKFLOW = ".github/workflows/data-relay.yml"
 HISTORY_DIR = "data/history"
 KEEP_SNAPSHOTS = 8
 
-# A deploy is two GitHub Actions steps on a shared queue; measured at about a
-# minute, and the concurrency group can make it wait behind another one.
-VERIFY_TIMEOUT_S = 300
+# A Mac publish is relay -> dispatch -> deploy on a shared queue. Measured
+# 2026-10-22: the site updated somewhere between 5 and 11 minutes after the
+# push, so 300s reported a healthy deploy as a failure.
+VERIFY_TIMEOUT_S = 900
 VERIFY_INTERVAL_S = 10
 
 
