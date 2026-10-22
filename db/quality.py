@@ -399,6 +399,13 @@ def check_basis_break(conn, series: registry.Series) -> Findings:
     """
     if not series.revisable:
         return NOT_EVALUATED
+    if series.has_projections:
+        # A forecast series restates its recent tail every edition BY DESIGN:
+        # the IMF's October WEO moves every projection year and the last few
+        # actuals, and leaves the older history alone -- exactly the shape this
+        # check exists to catch in a level series, and a false alarm every six
+        # months here. Evaluated (so a stray open flag closes), never raised.
+        return Findings(evaluated=True)
 
     rows = conn.execute(
         "SELECT date, value, vintage_date FROM observations "

@@ -29,7 +29,17 @@ REGION_NAMES = {
     "CN": "China",
     "JP": "Japan",
     "NO": "Norway",
+    "IN": "India",
+    "BR": "Brazil",
 }
+
+# The Macroeconomics tab alone reaches further than the eight. India and Brazil
+# carry GDP, CPI, policy rates and IMF forecasts, and nothing else: no equity
+# index, curve, currency or valuation row is sourced for them, so they are
+# deliberately NOT in REGIONS, which every other tab and the Regional Snapshot
+# iterate. Adding them there would put two permanently empty pages in the
+# snapshot selector.
+MACRO_REGIONS = REGIONS + ["IN", "BR"]
 
 # ---------------------------------------------------------------------------
 # 1. Equity indices — source: Yahoo Finance via yfinance.
@@ -189,6 +199,9 @@ CENTRAL_BANKS = [
     {"region": "CN", "name": "People's Bank of China", "source": "bis", "bis_ref_area": "CN"},
     {"region": "JP", "name": "Bank of Japan", "source": "bis", "bis_ref_area": "JP"},
     {"region": "NO", "name": "Norges Bank (Key Policy Rate)", "source": "bis", "bis_ref_area": "NO"},
+    # Macro-only regions (see MACRO_REGIONS). Same BIS CBPOL endpoint.
+    {"region": "IN", "name": "Reserve Bank of India (Repo Rate)", "source": "bis", "bis_ref_area": "IN"},
+    {"region": "BR", "name": "Banco Central do Brasil (Selic)", "source": "bis", "bis_ref_area": "BR"},
 ]
 
 # ---------------------------------------------------------------------------
@@ -374,6 +387,16 @@ INFLATION_CPI = {
                          "non-browser clients from outside the mainland)."},
     "JP": {"source": "bis", "basis": "CPI", "ref_area": "JP",
            "definition": "Japan headline CPI."},
+    # Macro-only regions. BIS rather than MOSPI/IBGE for the same reason as
+    # China and Japan: one endpoint, both legs (YoY and index) in one response,
+    # already handled. BIS's history for both starts 2001-11 under the 25-year
+    # startPeriod.
+    "IN": {"source": "bis", "basis": "CPI (combined)", "ref_area": "IN",
+           "definition": "India all-India CPI (combined rural + urban), as "
+                         "compiled by the BIS (WS_LONG_CPI)."},
+    "BR": {"source": "bis", "basis": "IPCA", "ref_area": "BR",
+           "definition": "Brazil IPCA, the inflation-target index, as compiled "
+                         "by the BIS (WS_LONG_CPI)."},
 }
 
 # Price LEVELS, compared across regions on the Macroeconomics tab.
@@ -423,6 +446,14 @@ PRICE_LEVELS = {
     "JP": {"series": "cpi.JP.index", "basis": "CPI (national)", "currency": "JPY",
            "definition": "Japan headline CPI, all items. Includes imputed "
                          "owner-occupier rent, which HICP excludes."},
+    # No CHF view for these two: INR and BRL are not among the stored
+    # currencies, so the export skips their conversion and says so.
+    "IN": {"series": "cpi.IN.index", "basis": "CPI (national)", "currency": "INR",
+           "definition": "India all-India CPI (combined), index level as "
+                         "compiled by the BIS (WS_LONG_CPI)."},
+    "BR": {"series": "cpi.BR.index", "basis": "IPCA (national)", "currency": "BRL",
+           "definition": "Brazil IPCA, index level as compiled by the BIS "
+                         "(WS_LONG_CPI)."},
 }
 
 # Inflation expectations. Every entry states its tenor and its index basis,
@@ -551,9 +582,23 @@ GDP_GROWTH = {
                          "sport-event adjusted (CHF m, reference year 2020; "
                          "level, YoY/QoQ derived downstream)."},
     "JP": {"source": "fred", "series": "JPNRGDPEXP", "freq": "Q"},
-    "NO": {"source": "eurostat", "eurostat_dataset": "namq_10_gdp", "freq": "Q",
-           "eurostat_filters": {"geo": "NO", "unit": "CLV_I15",
-                                "s_adj": "SCA", "na_item": "B1GQ", "freq": "Q"}},
+    # MAINLAND Norway, from SSB, since 2026-10-22 -- not the total-economy
+    # Eurostat series it replaced. Total GDP includes offshore oil and gas
+    # extraction and ocean transport, whose value moves with energy prices:
+    # measured that day, total nominal GDP read +16.7% annualised for 2026-Q2
+    # (a GDP deflator of +13.6%) against +3.9% for the mainland, and it had
+    # swung between -13% and +24% over six quarters. Mainland GDP is the
+    # headline Statistics Norway and Norges Bank use. It is the second region
+    # carrying a `basis` tag, for the same reason as Switzerland's.
+    # Table 09190, Makrost bnpb.nr23_9fn, constant 2023 prices, SA. Stored
+    # history was purged and reseeded (tools/purge_series.py): a different
+    # quantity under the same id cannot be appended over.
+    "NO": {"source": "ssb", "table": "09190", "ssb_contents": "FastePriserSesJust",
+           "ssb_filters": {"Makrost": "bnpb.nr23_9fn"}, "freq": "Q",
+           "basis": "Mainland",
+           "definition": "Mainland Norway GDP (excluding offshore oil and gas "
+                         "and ocean transport), constant 2023 prices, NOK m, "
+                         "seasonally adjusted (SSB table 09190)."},
     # Quarterly at last. FRED has no free quarterly real GDP for China (its
     # candidates all 404, and the OECD series that used to carry it died in
     # 2023Q3), and the NBS returns HTTP 403 to non-browser clients from outside
@@ -563,6 +608,77 @@ GDP_GROWTH = {
     # Worst-case staleness drops from ~15 months to about T+6-8 weeks.
     "CN": {"source": "worldbank_gem", "country": "CHN",
            "indicator": "NYGDPMKTPSAKN", "freq": "Q"},
+    # Macro-only regions, from the OECD's quarterly national accounts rather
+    # than the World Bank GEM that serves China. Measured 2026-10-22, GEM had
+    # both at 2026Q1 -- ~294 days old, past the quarterly threshold the day
+    # they would land -- while the OECD had 2026Q2 for both. Calendar AND
+    # seasonally adjusted, which India's own statistics office does not publish
+    # (the OECD adjusts it). India is on MOSPI's 2022-23 base; Brazil's chain-
+    # linked volume is bit-identical to FRED's NGDPRSAXDCBRQ. China is not in
+    # the OECD dataflow at all (an empty response), so it stays on GEM.
+    "IN": {"source": "oecd_qna", "ref_area": "IND", "price_base": "Q", "freq": "Q",
+           "definition": "India real GDP, constant 2022-23 prices, INR millions, "
+                         "calendar and seasonally adjusted by the OECD (QNA)."},
+    "BR": {"source": "oecd_qna", "ref_area": "BRA", "price_base": "L", "freq": "Q",
+           "definition": "Brazil real GDP, chain-linked volume (ref. 1995), BRL "
+                         "millions, calendar and seasonally adjusted (OECD QNA)."},
+}
+
+# ---------------------------------------------------------------------------
+# 7a. GDP — NOMINAL (current prices), national currency, seasonally adjusted.
+#
+# Stored as levels, like the real series, and growth is derived downstream.
+# This is the published nominal series, NOT real growth plus CPI: nominal GDP
+# is deflated by the GDP deflator, which covers what the economy PRODUCES
+# (exports included, imports excluded), where CPI covers what households BUY.
+# The gap is large where the terms of trade move -- Norway's oil, China's
+# producer-price deflation -- and it is nominal growth, not real-plus-CPI,
+# that a 10-year yield is compared against.
+#
+# Same source as the region's real series wherever that source publishes
+# current prices, so the real/nominal pair shares one vintage. Switzerland is
+# again the SPORT-EVENT ADJUSTED series: cube `gdpap` is gdprpq's current-
+# prices sibling, with the same D0/D1 codes.
+# ---------------------------------------------------------------------------
+GDP_NOMINAL = {
+    "US": {"source": "fred", "series": "GDP", "freq": "Q",
+           "definition": "US nominal GDP, current dollars, SAAR (BEA via FRED)."},
+    "UK": {"source": "ons", "ons_series": "ybha", "ons_dataset": "pn2", "freq": "Q",
+           "ons_frequency": "quarters",
+           "definition": "ONS quarterly GDP at current market prices, seasonally "
+                         "adjusted (£m). Same pn2 dataset as the real series."},
+    "EZ": {"source": "eurostat", "eurostat_dataset": "namq_10_gdp", "freq": "Q",
+           "eurostat_filters": {"geo": "EA20", "unit": "CP_MEUR",
+                                "s_adj": "SCA", "na_item": "B1GQ", "freq": "Q"},
+           "definition": "Euro area (EA20) GDP at current prices, EUR millions, "
+                         "seasonally and calendar adjusted (Eurostat)."},
+    "DE": {"source": "fred", "series": "CPMNACSCAB1GQDE", "freq": "Q",
+           "definition": "German GDP at current prices, EUR millions, seasonally "
+                         "and calendar adjusted (Eurostat via FRED)."},
+    "CH": {"source": "snb", "snb_cube": "gdpap", "snb_measure": "BBIPS", "freq": "Q",
+           "basis": "sport-event adjusted",
+           "definition": "SNB gdpap (SECO national accounts), Swiss GDP at "
+                         "current prices, seasonally, calendar AND sport-event "
+                         "adjusted (CHF m)."},
+    "JP": {"source": "fred", "series": "JPNNGDP", "freq": "Q",
+           "definition": "Japan nominal GDP, JPY billions, seasonally adjusted "
+                         "(Cabinet Office via FRED)."},
+    "NO": {"source": "ssb", "table": "09190", "ssb_contents": "PriserSesJust",
+           "ssb_filters": {"Makrost": "bnpb.nr23_9fn"}, "freq": "Q",
+           "basis": "Mainland",
+           "definition": "Mainland Norway GDP at current prices, NOK m, "
+                         "seasonally adjusted (SSB table 09190), the same "
+                         "Mainland basis as the real series."},
+    "CN": {"source": "worldbank_gem", "country": "CHN",
+           "indicator": "NYGDPMKTPSACN", "freq": "Q",
+           "definition": "China GDP at current prices, CNY millions, seasonally "
+                         "adjusted (World Bank GEM)."},
+    "IN": {"source": "oecd_qna", "ref_area": "IND", "price_base": "V", "freq": "Q",
+           "definition": "India GDP at current prices, INR millions, calendar and "
+                         "seasonally adjusted by the OECD (QNA)."},
+    "BR": {"source": "oecd_qna", "ref_area": "BRA", "price_base": "V", "freq": "Q",
+           "definition": "Brazil GDP at current prices, BRL millions, calendar "
+                         "and seasonally adjusted (OECD QNA)."},
 }
 # The UK monthly GVA index, demoted from the GDP row above. It is more current
 # in information terms (July data on 11 September) and a genuinely useful
@@ -582,7 +698,9 @@ GDP_DEFINITION = ("Real (chain-linked volume), national currency, not PPP, "
                   "Switzerland is additionally adjusted for major sporting events: FIFA, UEFA "
                   "and the IOC are domiciled there and book their licensing revenue there, so "
                   "the unadjusted series spikes in tournament quarters on revenue that is not "
-                  "Swiss economic activity.")
+                  "Swiss economic activity. Norway is MAINLAND GDP, excluding offshore oil and "
+                  "gas, whose value swings with energy prices; its IMF forecasts are for the "
+                  "total economy.")
 
 # ---------------------------------------------------------------------------
 # 7b. Credit spreads — ICE BofA option-adjusted spreads via FRED.
@@ -911,3 +1029,71 @@ CHART_PERIODS = ["3M", "YTD", "1Y", "2Y", "3Y", "5Y"]
 # is ~240 points per region.
 PRICE_LEVEL_PERIODS = CHART_PERIODS + ["10Y", "20Y"]
 PRICE_LEVEL_YEARS = 20
+
+# ---------------------------------------------------------------------------
+# 13. IMF World Economic Outlook — forecasts, and GDP levels for the
+# cross-region GDP chart.
+#
+# One publisher, one vintage, every region including the euro area aggregate
+# (`EURO`) and the two macro-only regions -- which is the point: forecasts
+# from a mix of national sources would put each institution's own bias into
+# the comparison. The DataMapper API is keyless JSON. It returns EVERY country
+# whatever path is asked for, so the fetcher caches one response per indicator
+# per run and slices it.
+#
+# Each series holds actuals AND projections in one annual column, and the API
+# marks neither. The boundary comes from the edition ("World Economic Outlook
+# (October 2026)" in the indicators metadata): years from the edition's year
+# on are projections. The edition is stored as its own series,
+# `imf.weo_edition`, so the boundary is persisted with the data rather than
+# guessed in the export, and so that series' age is the IMF block's staleness
+# -- the data series themselves run to 2031 and are never "old".
+# ---------------------------------------------------------------------------
+IMF_WEO_COUNTRIES = {"US": "USA", "UK": "GBR", "EZ": "EURO", "DE": "DEU",
+                     "CH": "CHE", "CN": "CHN", "JP": "JPN", "NO": "NOR",
+                     "IN": "IND", "BR": "BRA"}
+IMF_WEO_INDICATORS = {
+    "NGDP_RPCH": {"key": "real_growth", "unit": "% change (annual)",
+                  "name": "real GDP growth, annual % change"},
+    "PCPIPCH":   {"key": "cpi_avg", "unit": "% change (annual average)",
+                  "name": "CPI inflation, annual average % change"},
+    "NGDPD":     {"key": "nominal_usd", "unit": "USD billions",
+                  "name": "nominal GDP, current prices, USD billions"},
+    # The euro area has NO PPP aggregate in the DataMapper: the groups it
+    # publishes PPPGDP for are ADVEC, AS5, DA, OEMDC, EU, WE, MECA and WEOWORLD
+    # (enumerated 2026-10-22), and EURO is not among them. The EU is a
+    # different membership, and summing members' PPP figures here would be a
+    # construction the IMF does not publish. A permanent gap, catalogued as
+    # `no source found`.
+    "PPPGDP":    {"key": "ppp", "unit": "international $ billions (PPP)",
+                  "name": "GDP at purchasing power parity, current international "
+                          "dollars, billions",
+                  "unavailable": ("EZ",)},
+}
+IMF_WEO_EDITION_SERIES = "imf.weo_edition"
+
+# The GDP DEFLATOR, from the IMF's SDMX API (api.imf.org, dataflow
+# IMF.RES/WEO) -- the same WEO, served by a second API. The DataMapper has
+# nominal GDP only in US DOLLARS, whose growth would include the IMF's
+# exchange-rate assumptions, and no deflator; SDMX has both national-currency
+# GDP and the deflator, but national-currency GDP for NO euro-area aggregate.
+# The deflator exists for all ten, so nominal growth forecasts are DERIVED,
+# one way for every region: (1 + real growth) x (1 + deflator growth) - 1.
+# Verified 2026-10-22: within 0.05pp of the IMF's own national-currency GDP
+# growth for the nine regions that have it (the residual is the DataMapper's
+# one-decimal rounding of real growth).
+#
+# SDMX's euro-area code is G163, not the DataMapper's EURO. The fetcher
+# refuses its response unless SDMX's real growth agrees with the DataMapper's
+# for every region (to the DataMapper's rounding), so a deflator from one
+# edition can never be paired with real growth from another while the two
+# APIs update on different days.
+IMF_SDMX_COUNTRIES = {**IMF_WEO_COUNTRIES, "EZ": "G163"}
+IMF_SDMX_INDICATORS = {
+    "NGDP_D": {"key": "deflator", "unit": "index (GDP deflator)",
+               "name": "GDP deflator, index"},
+}
+
+# GDP chart windows, in YEARS: the IMF series are annual, so a 3M or YTD chip
+# would be a single point.
+GDP_LEVEL_PERIODS = ["5Y", "10Y", "20Y", "30Y", "Max"]

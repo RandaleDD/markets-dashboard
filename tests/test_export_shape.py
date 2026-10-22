@@ -91,7 +91,9 @@ class ExportShape(unittest.TestCase):
         for key in ("periods", "regions", "history", "note", "chf_note"):
             self.assertIn(key, pl)
         local, chf = pl["history"]["local"], pl["history"]["chf"]
-        self.assertEqual(set(local), set(self.payload["regions"]))
+        # The macro tab's regions, not the dashboard's eight: India and Brazil
+        # are on the Price Levels chart too.
+        self.assertEqual(set(local), set(self.payload["macro"]["regions"]))
         for region, points in local.items():
             self.assertIn("basis", pl["regions"][region])
             # Month starts, ascending: the chart's common-base logic matches
@@ -104,6 +106,66 @@ class ExportShape(unittest.TestCase):
         self.assertEqual(chf["CH"], local["CH"])
         # Every other region's CHF series is a different quantity, not a copy.
         self.assertNotEqual(chf["US"], local["US"])
+
+    def test_macro_regions_extend_the_eight_and_nothing_else_does(self):
+        macro = self.payload["macro"]["regions"]
+        self.assertEqual(macro[:len(self.payload["regions"])], self.payload["regions"])
+        self.assertIn("IN", macro)
+        self.assertIn("BR", macro)
+        # Macro-only means macro-only: no snapshot region, curve or index.
+        self.assertNotIn("IN", self.payload["regions"])
+        self.assertNotIn("IN", self.payload["yield_curves"])
+
+    def test_gdp_rows_carry_nominal_growth(self):
+        gdp = self.payload["macro"]["gdp"]
+        self.assertEqual(set(gdp), set(self.payload["macro"]["regions"]))
+        for region, row in gdp.items():
+            for key in ("yoy_pct", "qoq_ann_pct", "nominal_yoy_pct",
+                        "nominal_qoq_ann_pct", "nominal_period_label"):
+                self.assertIn(key, row, f"{region} GDP row is missing {key}")
+            self.assertIsNotNone(row["nominal_yoy_pct"], region)
+
+    def test_cpi_carries_figures_on_gdps_quarter(self):
+        macro = self.payload["macro"]
+        for region, row in macro["inflation"].items():
+            for key in ("q_yoy_pct", "q_qoq_ann_pct", "q_period_label"):
+                self.assertIn(key, row, f"{region} CPI row is missing {key}")
+            # Labelled with GDP's quarter, which is the whole point.
+            self.assertEqual(row["q_period_label"], macro["gdp"][region]["period_label"], region)
+
+    def test_forecasts_carry_what_app_js_reads(self):
+        fc = self.payload["macro"]["forecasts"]
+        for key in ("edition", "projection_from", "years", "regions", "definition"):
+            self.assertIn(key, fc)
+        self.assertEqual(len(fc["years"]), 2)
+        self.assertEqual(set(fc["regions"]), set(self.payload["macro"]["regions"]))
+        for region, row in fc["regions"].items():
+            for leg in ("gdp", "nominal", "cpi"):
+                self.assertEqual(set(row[leg]), {str(y) for y in fc["years"]}, region)
+
+    def test_gdp_levels_carry_what_app_js_reads(self):
+        gl = self.payload["macro"]["gdp_levels"]
+        for key in ("periods", "projection_from", "history", "note", "units"):
+            self.assertIn(key, gl)
+        for measure in ("real_index", "nominal_usd", "ppp"):
+            series = gl["history"][measure]
+            expected = set(self.payload["macro"]["regions"]) - set(
+                gl.get("unavailable", {}).get(measure, []))
+            self.assertEqual(set(series), expected, measure)
+            for region, points in series.items():
+                years = [int(d[:4]) for d, _ in points]
+                # Consecutive years, every one a January 1st: the chart's
+                # common base matches dates exactly across regions.
+                self.assertEqual(years, list(range(years[0], years[-1] + 1)), region)
+                self.assertTrue(all(d.endswith("-01-01") for d, _ in points))
+                # Projections are in the series, past the boundary.
+                self.assertGreaterEqual(years[-1], gl["projection_from"], region)
+
+    def test_snapshot_history_carries_ten_year_and_nominal_growth(self):
+        h = self.payload["macro"]["history"]
+        for region in self.payload["regions"]:
+            self.assertTrue(h["yield_10y"].get(region), region)
+            self.assertTrue(h["gdp_nominal_yoy"].get(region), region)
 
     def test_data_quality_block_is_populated(self):
         dq = self.payload["data_quality"]

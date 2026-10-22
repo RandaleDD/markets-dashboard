@@ -149,6 +149,32 @@ class IngestTest(unittest.TestCase):
         self.assertEqual(store.watermark(self.conn, "test.gdp"), "2026-04-01",
                          "a revision must not move the watermark")
 
+    def test_a_projection_first_print_does_not_outrank_its_revisions(self):
+        """
+        A first print is stamped with its own date -- which for an IMF
+        projection is years ahead. Stamped 2031-01-01, the first forecast would
+        outrank every later edition's revision (each stamped with the day it
+        arrived) and latest_observations would serve it forever.
+        """
+        future = f"{datetime.now(timezone.utc).year + 5}-01-01"
+        self.attach(GDP, [(future, 2.0)])
+        vintage = self.conn.execute(
+            "SELECT vintage_date FROM observations WHERE series_id='test.gdp'").fetchone()[0]
+        self.assertEqual(vintage, datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+
+        # The next edition arrives on a later day and revises the projection.
+        class Later(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime.now(tz) + pd.Timedelta(days=180)
+        real = ingest.datetime
+        ingest.datetime = Later
+        try:
+            self.attach(GDP, [(future, 1.4)])
+        finally:
+            ingest.datetime = real
+        self.assertEqual(store.read_series(self.conn, "test.gdp").iloc[-1]["value"], 1.4)
+
     def test_empty_fetch_is_survivable(self):
         self.assertEqual(ingest.rows_to_attach(self.conn, PRICE, None), ([], 0))
 

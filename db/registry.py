@@ -76,10 +76,30 @@ from fetch import universe
 # ARRIVAL that is monthly. Worst case is the day before a batch: ~33 days of
 # unpublished month plus up to 6 days lost to weekly downsampling. 45 clears
 # that and still catches a skipped batch, which lands at ~63 days.
+#
+# `semiannual` is the IMF World Economic Outlook: April and October editions.
+# It is applied to ONE series, `imf.weo_edition`, whose single observation is
+# dated to the edition month -- the data series run to the last projection
+# year and are never old, so the edition carries the block's staleness. The
+# gap from an October edition to the next April one is ~6 months; 220 days
+# clears a late spring release and still catches a missed one (~365).
+#
+# `quarterly_national` is national-accounts GDP, the same reasoning as
+# `monthly_national` one grain up. A quarter is dated to its FIRST day and the
+# next one is published 1-2 months after IT ends, so the newest print peaks at
+# about six months plus that lag: Q2 (2026-04-01) is still the newest US
+# figure until the Q3 advance estimate around 30 October, ~212 days, and the
+# newest Swiss, Indian and Brazilian one until early December, ~245; China's
+# GEM series runs a few weeks later still. Under plain `quarterly` at 200
+# every GDP series in the store read stale from mid-October -- measured
+# 2026-10-22, all ten -- on a schedule, with every release on time. 270 clears
+# the latest of them and still catches a skipped quarter, which lands at ~335.
 MAX_AGE_DAYS = {"weekly": 14, "monthly": 70, "monthly_lagged": 120,
                 "monthly_month_end": 100, "monthly_batch": 45,
                 "monthly_national": 95,
-                "quarterly": 200, "policy": 150, "annual": 730}
+                "quarterly": 200, "quarterly_national": 270,
+                "policy": 150, "annual": 730,
+                "semiannual": 220}
 
 # Expected spacing between observations, for gap detection. "irregular" opts a
 # series out: a policy rate genuinely has no cadence between decisions.
@@ -88,7 +108,9 @@ PERIODICITY_OF_CADENCE = {"weekly": "weekly", "monthly": "monthly",
                           "monthly_batch": "weekly",
                           "monthly_national": "monthly",
                           "monthly_month_end": "monthly", "quarterly": "quarterly",
-                          "annual": "annual", "policy": "irregular"}
+                          "quarterly_national": "quarterly",
+                          "annual": "annual", "policy": "irregular",
+                          "semiannual": "annual"}
 
 # Sources that publish more often than the dashboard stores. Their fetched
 # history is reduced to one observation per completed week -- the last actual
@@ -113,6 +135,9 @@ class Series:
     native_periodicity: str | None = None
     # Bootstrap-only overrides, e.g. the BoE's deep archive zips.
     archive_kwargs: dict | None = None
+    # The series carries FORECASTS beside actuals (the IMF WEO), so every new
+    # edition restates its tail by design. See quality.check_basis_break.
+    has_projections: bool = False
 
     @property
     def max_age_days(self) -> int:
@@ -234,6 +259,101 @@ def _curve_archive_kwargs(src: str, kwargs: dict) -> dict | None:
     if src == "chinabond":
         return {**kwargs, "archive": True}
     return None
+
+
+def _gdp_series(region: str, cfg: dict, series_id: str, fallback_description: str,
+                unit: str, category: str = "GDP growth") -> Series:
+    """One GDP level series, real or nominal -- same sources, same rules."""
+    cadence = cfg.get("cadence", "annual" if cfg.get("freq") == "A" else "quarterly_national")
+    src = cfg["source"]
+    if src == "ons":
+        fetcher, kwargs, bounded = "fetch_ons_timeseries", {
+            "series_code": cfg["ons_series"], "dataset": cfg["ons_dataset"],
+            "frequency": cfg.get("ons_frequency", "months")}, False
+        source = f"ONS, {cfg['ons_dataset'].upper()}/{cfg['ons_series'].upper()}"
+    elif src == "worldbank_gem":
+        fetcher, kwargs, bounded = "fetch_worldbank_gem", {
+            "country": cfg["country"], "indicator": cfg["indicator"]}, True
+        source = f"World Bank GEM, {cfg['indicator']}"
+    elif src == "eurostat":
+        fetcher, kwargs, bounded = "fetch_eurostat", {
+            "dataset": cfg["eurostat_dataset"],
+            "filters": cfg["eurostat_filters"]}, True
+        source = f"Eurostat, {cfg['eurostat_dataset']}"
+    elif src == "snb":
+        cube = cfg.get("snb_cube", "gdprpq")
+        kwargs = {"measure": cfg["snb_measure"]}
+        if cube != "gdprpq":
+            kwargs["cube"] = cube
+        fetcher, bounded = "fetch_snb_gdp", True
+        source = f"SNB, {cube} ({cfg['snb_measure']})"
+    elif src == "oecd_qna":
+        fetcher, kwargs, bounded = "fetch_oecd_qna", {
+            "ref_area": cfg["ref_area"], "price_base": cfg["price_base"]}, True
+        source = f"OECD QNA, {cfg['ref_area']} ({cfg['price_base']})"
+    elif src == "ssb":
+        fetcher, kwargs, bounded = "fetch_ssb", {
+            "table": cfg["table"], "contents": cfg["ssb_contents"],
+            "filters": cfg.get("ssb_filters")}, True
+        source = f"SSB, table {cfg['table']} ({cfg['ssb_contents']})"
+    elif src == "fred":
+        fetcher, kwargs, bounded = "fetch_fred", {"series_id": cfg["series"]}, True
+        source = f"FRED, {cfg['series']}"
+    else:
+        raise ValueError(f"Unknown GDP source {src!r} for {series_id}")
+    return Series(
+        series_id=series_id, category=category, region=region,
+        description=cfg.get("definition") or fallback_description,
+        unit=unit, cadence=cadence, source=source, fetcher=fetcher,
+        fetch_kwargs=kwargs, bounded=bounded, revisable=True)
+
+
+def _imf_series() -> list[Series]:
+    """
+    The IMF WEO block: the edition marker, then indicator x region.
+
+    Annual observations, projections included, re-fetched in full every run
+    (they are revisable, and an edition revises its whole projection tail).
+    Their cadence is `annual` -- they are annual data -- with the edition
+    series alone on `semiannual`, because it alone has a meaningful age.
+    """
+    out = [Series(
+        series_id=universe.IMF_WEO_EDITION_SERIES, category="IMF forecast",
+        region="Global",
+        description="IMF World Economic Outlook edition currently served "
+                    "(value YYYYMM, dated to the edition month)",
+        unit="edition (YYYYMM)", cadence="semiannual",
+        source="IMF DataMapper, indicators metadata",
+        fetcher="fetch_imf_weo_edition", bounded=False, revisable=True,
+        native_periodicity="irregular")]
+    for indicator, meta in universe.IMF_WEO_INDICATORS.items():
+        for region, code in universe.IMF_WEO_COUNTRIES.items():
+            if region in meta.get("unavailable", ()):
+                continue  # catalogued as `no source found`; nothing to fetch
+            out.append(Series(
+                series_id=f"imf.{region}.{meta['key']}", category="IMF forecast",
+                region=region,
+                description=f"{region} {meta['name']} (IMF WEO, actuals and "
+                            f"projections)",
+                unit=meta["unit"], cadence="annual",
+                source=f"IMF DataMapper, {indicator}/{code}",
+                fetcher="fetch_imf_weo",
+                fetch_kwargs={"indicator": indicator, "country": code},
+                bounded=False, revisable=True, has_projections=True))
+    # The deflator, from the same WEO through the SDMX API; see universe.
+    for indicator, meta in universe.IMF_SDMX_INDICATORS.items():
+        for region, code in universe.IMF_SDMX_COUNTRIES.items():
+            out.append(Series(
+                series_id=f"imf.{region}.{meta['key']}", category="IMF forecast",
+                region=region,
+                description=f"{region} {meta['name']} (IMF WEO, actuals and "
+                            f"projections)",
+                unit=meta["unit"], cadence="annual",
+                source=f"IMF SDMX, WEO {indicator}/{code}",
+                fetcher="fetch_imf_sdmx",
+                fetch_kwargs={"indicator": indicator, "country": code},
+                bounded=False, revisable=True, has_projections=True))
+    return out
 
 
 def all_series() -> list[Series]:
@@ -386,38 +506,19 @@ def all_series() -> list[Series]:
                                       "unit": "I25", "freq": "M"}},
             bounded=True, revisable=True))
 
-    # --- GDP levels ---------------------------------------------------------
+    # --- GDP levels, real and nominal --------------------------------------
     for region, cfg in universe.GDP_GROWTH.items():
-        cadence = cfg.get("cadence", "annual" if cfg.get("freq") == "A" else "quarterly")
-        if cfg["source"] == "ons":
-            fetcher, kwargs, bounded = "fetch_ons_timeseries", {
-                "series_code": cfg["ons_series"], "dataset": cfg["ons_dataset"],
-                "frequency": cfg.get("ons_frequency", "months")}, False
-            source = f"ONS, {cfg['ons_dataset'].upper()}/{cfg['ons_series'].upper()}"
-        elif cfg["source"] == "worldbank_gem":
-            fetcher, kwargs, bounded = "fetch_worldbank_gem", {
-                "country": cfg["country"], "indicator": cfg["indicator"]}, True
-            source = f"World Bank GEM, {cfg['indicator']}"
-        elif cfg["source"] == "eurostat":
-            fetcher, kwargs, bounded = "fetch_eurostat", {
-                "dataset": cfg["eurostat_dataset"],
-                "filters": cfg["eurostat_filters"]}, True
-            source = f"Eurostat, {cfg['eurostat_dataset']}"
-        elif cfg["source"] == "snb":
-            fetcher, kwargs, bounded = "fetch_snb_gdp", {
-                "measure": cfg["snb_measure"]}, True
-            source = f"SNB, gdprpq ({cfg['snb_measure']})"
-        else:
-            fetcher, kwargs, bounded = "fetch_fred", {"series_id": cfg["series"]}, True
-            source = f"FRED, {cfg['series']}"
-        out.append(Series(
-            series_id=f"gdp.{region}", category="GDP growth", region=region,
-            description=cfg.get("definition")
-                        or f"{region} real GDP, chain-linked volume, seasonally "
-                           f"adjusted (level; YoY/QoQ derived downstream)",
-            unit="index/level (national currency, chain-linked)", cadence=cadence,
-            source=source, fetcher=fetcher, fetch_kwargs=kwargs, bounded=bounded,
-            revisable=True))
+        out.append(_gdp_series(
+            region, cfg, f"gdp.{region}",
+            f"{region} real GDP, chain-linked volume, seasonally adjusted "
+            f"(level; YoY/QoQ derived downstream)",
+            "index/level (national currency, chain-linked)"))
+    for region, cfg in universe.GDP_NOMINAL.items():
+        out.append(_gdp_series(
+            region, cfg, f"gdp_nominal.{region}",
+            f"{region} nominal GDP, current prices, seasonally adjusted "
+            f"(level; YoY/QoQ derived downstream)",
+            "level (national currency, current prices)", "Nominal GDP"))
 
     # The UK monthly nowcast, stored beside the quarterly series rather than in
     # place of it. Different measure, different grain, so a different id.
@@ -622,6 +723,8 @@ def all_series() -> list[Series]:
             cadence=li.get("cadence", "quarterly"), source=f"FRED, {li['series']}",
             fetcher="fetch_fred", fetch_kwargs={"series_id": li["series"]},
             bounded=True, revisable=True))
+
+    out += _imf_series()
 
     _assert_unique(out)
     return out

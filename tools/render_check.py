@@ -75,18 +75,27 @@ var navigator={userAgent:'jsc'};
 BOOT = r"""
 DATA = __DATA__;
 if (Array.isArray(DATA.regions) && DATA.regions.length) REGION_ORDER = DATA.regions;
+// Mirror main(): the macro tab has its own, longer region list.
+if (typeof MACRO_ORDER !== 'undefined' && DATA.macro && Array.isArray(DATA.macro.regions))
+  MACRO_ORDER = DATA.macro.regions;
 renderEquities(); renderYields(); renderMacro(); renderCurrencies();
 renderCommodities(); renderValuation(); renderCrossAsset();
-populateRegionSelector(); renderSnapshot(REGION_ORDER[0]);
+populateRegionSelector();
+// Every snapshot region renders without throwing; the last one is kept.
+REGION_ORDER.forEach(function(r){ renderSnapshot(r); });
 
 var out=[];
+function collect(suffix){
 Object.keys(nodes).sort().forEach(function(id){
-  if(id.indexOf('panel-')!==0) return;
+  if(id.indexOf('panel-')!==0 || id.indexOf('@')>=0) return;
   var h=nodes[id]._html||'';
   var tables=[];
   h.split('<table').slice(1).forEach(function(t,ti){
     var head=(t.match(/<thead>[\s\S]*?<\/thead>/)||[''])[0];
-    var nH=(head.match(/<t[hd][\s>]/g)||[]).length;
+    // A table may carry a band of column-group headings above its real ones;
+    // only the LAST header row maps one-to-one onto the body's cells.
+    var headRows=head.split('<tr').slice(1);
+    var nH=((headRows[headRows.length-1]||'').match(/<t[hd][\s>]/g)||[]).length;
     if(!nH) return;
     var body=t.replace(/<thead>[\s\S]*?<\/thead>/,'');
     var widths={};
@@ -98,8 +107,22 @@ Object.keys(nodes).sort().forEach(function(id){
     });
     tables.push({i:ti, head:nH, widths:widths});
   });
-  out.push({id:id, bytes:h.length, tables:tables});
+  out.push({id:id + suffix, bytes:h.length, tables:tables});
 });
+}
+collect('');
+// The macro tab's switches change which columns and rows are built, so the
+// non-default states are rendered and checked too.
+if (typeof giSel !== 'undefined') {
+  giSel.basis = 'qoq'; gdpSel.measure = 'real_index'; gdpSel.period = 'Max';
+  renderMacro();
+  var macro = {}; macro['panel-macro'] = nodes['panel-macro'];
+  var keep = nodes; nodes = macro; collect('@qoq+real+max'); nodes = keep;
+  gdpSel.measure = 'ppp'; gdpSel.display = 'indexed'; gdpSel.period = '5Y';
+  renderMacro();
+  macro['panel-macro'] = nodes['panel-macro'];
+  keep = nodes; nodes = macro; collect('@ppp+indexed+5y'); nodes = keep;
+}
 return JSON.stringify(out);
 """
 
@@ -133,7 +156,10 @@ def main() -> int:
     by_id = {p["id"]: p for p in panels}
     problems = []
 
-    for name in PANELS:
+    # Panels rendered a second time in a non-default switch state carry an
+    # "@state" suffix (see BOOT); each is checked like a panel of its own.
+    extra = sorted(i for i in by_id if "@" in i)
+    for name in PANELS + extra:
         panel = by_id.get(name)
         if panel is None or panel["bytes"] == 0:
             problems.append(f"{name}: rendered EMPTY")
@@ -159,7 +185,8 @@ def main() -> int:
         print(f"\n{len(problems)} problem(s). A column heading no longer lines up "
               f"with the cells under it, or a panel rendered blank.")
         return 1
-    print(f"\nAll {len(PANELS)} panels render and every column lines up.")
+    print(f"\nAll {len(PANELS)} panels (+{len(extra)} switch states) render and every "
+          f"column lines up.")
     return 0
 
 

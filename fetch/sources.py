@@ -932,10 +932,14 @@ def fetch_snb_cpi(measure: str, start: str | None = None) -> pd.DataFrame | None
         return None
 
 
-def fetch_snb_gdp(measure: str, start: str | None = None) -> pd.DataFrame | None:
+def fetch_snb_gdp(measure: str, start: str | None = None,
+                  cube: str = "gdprpq") -> pd.DataFrame | None:
     """
-    Swiss real GDP from cube `gdprpq`. `measure` is the D1 code:
-    'BBIPS' is the SPORT-EVENT ADJUSTED series and 'BBIP' the ordinary one.
+    Swiss GDP from cube `gdprpq` (real) or `gdpap` (current prices). `measure`
+    is the D1 code: 'BBIPS' is the SPORT-EVENT ADJUSTED series and 'BBIP' the
+    ordinary one. The two cubes share every dimension code -- `gdpap` was found
+    by enumerating its dimensions, 2026-10-22 -- and both carry the same two
+    traps, so one fetcher serves both.
 
     dimSel D0(WMF) picks the level in chain-linked CHF millions, reference year
     2020 (D0(VVK) would be a precomputed QoQ percentage; the pipeline derives
@@ -961,13 +965,13 @@ def fetch_snb_gdp(measure: str, start: str | None = None) -> pd.DataFrame | None
     if not measure:
         return None
     # start or the floor, never None -- see _SNB_GDP_FLOOR.
-    df = _snb_cube_rows("gdprpq", f"D0(WMF),D1({measure})", start or _SNB_GDP_FLOOR)
+    df = _snb_cube_rows(cube, f"D0(WMF),D1({measure})", start or _SNB_GDP_FLOOR)
     if df is None or "D1" not in df.columns:
         return None
     try:
         rows = df[df["D1"].astype(str).str.strip() == measure]
         if rows.empty:
-            logger.warning("SNB gdprpq: no rows for measure %s", measure)
+            logger.warning("SNB %s: no rows for measure %s", cube, measure)
             return None
         # '1980-Q2' -> 1980-04-01. This cube labels by period, unlike the others.
         return _frame([_period_start(d) for d in rows["Date"]], rows["Value"])
@@ -1147,16 +1151,22 @@ def fetch_ecb_spf(horizon: str, start: str | None = None) -> pd.DataFrame | None
 # ---------------------------------------------------------------------------
 _SSB_URL = "https://data.ssb.no/api/v0/en/table/{table}"
 _SSB_PERIOD_RE = re.compile(r"^(\d{4})M(\d{2})$")
+# Quarterly tables (09190, national accounts) label periods '2026K2' -- K for
+# kvartal -- and are dated here to the quarter's first day like every other
+# quarterly series.
+_SSB_QUARTER_RE = re.compile(r"^(\d{4})K([1-4])$")
 
 
 def fetch_ssb(table: str, contents: str, start: str | None = None,
               filters: dict | None = None) -> pd.DataFrame | None:
     """
-    One monthly SSB series. `table` is the numeric table id ('14710') and
-    `contents` the ContentsCode ('KpiIndMnd').
+    One SSB series, monthly ('2026M07') or quarterly ('2026K2'). `table` is
+    the numeric table id ('14710') and `contents` the ContentsCode
+    ('KpiIndMnd').
 
     `filters` supplies any further dimension selections the table requires,
-    as {dimension_code: value}. 14710 needs none.
+    as {dimension_code: value}. 14710 needs none; 09190 (quarterly national
+    accounts) needs Makrost, e.g. 'bnpb.nr23_9fn' for Mainland Norway GDP.
 
     The default selection returns only the LATEST period, so Tid is always
     requested explicitly -- 'top(N)' rather than a date range, because PxWeb
@@ -1196,11 +1206,17 @@ def fetch_ssb(table: str, contents: str, start: str | None = None,
             return None
         dates, out = [], []
         for period, value in zip(periods, values):
-            match = _SSB_PERIOD_RE.match(str(period))
-            if match is None or value is None:
+            if value is None:
                 continue
-            dates.append(pd.Timestamp(year=int(match.group(1)),
-                                      month=int(match.group(2)), day=1))
+            match = _SSB_PERIOD_RE.match(str(period))
+            if match is not None:
+                month = int(match.group(2))
+            else:
+                match = _SSB_QUARTER_RE.match(str(period))
+                if match is None:
+                    continue
+                month = (int(match.group(2)) - 1) * 3 + 1
+            dates.append(pd.Timestamp(year=int(match.group(1)), month=month, day=1))
             out.append(value)
         return _frame(dates, out)
     except Exception as exc:  # noqa: BLE001
@@ -1284,6 +1300,214 @@ def fetch_worldbank_gem(country: str, indicator: str,
         logger.warning("World Bank GEM parse failed for %s/%s: %s",
                        country, indicator, exc)
         return None
+
+
+# ---------------------------------------------------------------------------
+# OECD quarterly national accounts (SDMX) — India and Brazil GDP.
+#
+# Keyless SDMX-CSV from sdmx.oecd.org. The key is positional, thirteen
+# dimensions long; only area and price base vary here:
+#   Q . Y . <area> . S1 . . B1GQ . _Z . _Z . _Z . XDC . <price> . N . T0102
+# ADJUSTMENT=Y is calendar AND seasonally adjusted, and the OECD adjusts India
+# itself (MOSPI publishes unadjusted only). PRICE_BASE is V for current prices;
+# the volume code DIFFERS by country -- India's is Q (constant 2022-23
+# prices), Brazil's L (chain-linked) -- and asking for the wrong one returns an
+# empty body with HTTP 200, not an error. Verified 2026-10-22. T0102 rather
+# than T0101: both carry identical values, T0102 is the seasonally adjusted
+# table. Rate-limited per IP (tens of calls an hour), which four series a
+# week stay well inside.
+# ---------------------------------------------------------------------------
+_OECD_QNA_URL = ("https://sdmx.oecd.org/public/rest/data/"
+                 "OECD.SDD.NAD,DSD_NAMAIN1@DF_QNA,1.1/"
+                 "Q.Y.{area}.S1..B1GQ._Z._Z._Z.XDC.{price}.N.T0102")
+
+
+def fetch_oecd_qna(ref_area: str, price_base: str,
+                   start: str | None = None) -> pd.DataFrame | None:
+    """One quarterly GDP level, dated to the first day of its quarter."""
+    if not ref_area or not price_base:
+        return None
+    params = {"dimensionAtObservation": "AllDimensions"}
+    if start:
+        parsed = pd.to_datetime(start, errors="coerce")
+        if parsed is not None and not pd.isna(parsed):
+            params["startPeriod"] = f"{parsed.year}-Q{(parsed.month - 1) // 3 + 1}"
+    resp = _get(_OECD_QNA_URL.format(area=ref_area, price=price_base), params=params,
+                headers={"Accept": "application/vnd.sdmx.data+csv; charset=utf-8"})
+    if resp is None or not resp.text.strip():
+        logger.warning("OECD QNA %s/%s: empty response", ref_area, price_base)
+        return None
+    try:
+        df = pd.read_csv(io.StringIO(resp.text))
+        if df.empty or "TIME_PERIOD" not in df.columns:
+            logger.warning("OECD QNA %s/%s: no observations", ref_area, price_base)
+            return None
+        # Belt and braces: the key pins both, but a server-side wildcard
+        # fallback would otherwise mix price bases into one level series.
+        df = df[(df["REF_AREA"] == ref_area) & (df["PRICE_BASE"] == price_base)]
+        return _frame([_period_start(p) for p in df["TIME_PERIOD"]], df["OBS_VALUE"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("OECD QNA parse failed for %s/%s: %s", ref_area, price_base, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# IMF World Economic Outlook, via the DataMapper API.
+#
+# Traps, measured 2026-10-22:
+#   - The path's country filter is IGNORED: /NGDP_RPCH/USA returns all ~230
+#     economies and groups (~120kB). So the response is cached per indicator
+#     for the life of the process and sliced, rather than fetched ten times.
+#   - Actuals and projections share one column and nothing in the data marks
+#     the boundary. The edition is only in the indicators METADATA, as
+#     "World Economic Outlook (October 2026)"; fetch_imf_weo_edition stores it.
+#   - Years are string keys ("2026"), values bare floats, and a missing year is
+#     simply absent rather than null.
+#   - The euro area is the group code EURO, not EMU or EA.
+# ---------------------------------------------------------------------------
+_IMF_DATAMAPPER = "https://www.imf.org/external/datamapper/api/v1"
+_IMF_CACHE: dict[str, dict] = {}
+_IMF_EDITION_RE = re.compile(r"\((January|April|July|October)\s+(\d{4})\)")
+_IMF_EDITION_MONTH = {"January": 1, "April": 4, "July": 7, "October": 10}
+
+
+def _imf_values(indicator: str) -> dict | None:
+    if indicator in _IMF_CACHE:
+        return _IMF_CACHE[indicator]
+    resp = _get(f"{_IMF_DATAMAPPER}/{indicator}")
+    if resp is None:
+        return None
+    try:
+        values = resp.json()["values"][indicator]
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("IMF DataMapper %s: unexpected payload: %s", indicator, exc)
+        return None
+    _IMF_CACHE[indicator] = values
+    return values
+
+
+def fetch_imf_weo(indicator: str, country: str,
+                  start: str | None = None) -> pd.DataFrame | None:
+    """
+    One WEO indicator for one economy, annual, dated YYYY-01-01, actuals and
+    projections together. `start` is accepted and ignored: the whole response
+    arrives regardless, and the series is re-fetched in full anyway.
+    """
+    if not indicator or not country:
+        return None
+    values = _imf_values(indicator)
+    if values is None:
+        return None
+    series = values.get(country)
+    if not series:
+        logger.warning("IMF DataMapper %s: no data for %s", indicator, country)
+        return None
+    years = sorted(y for y in series if str(y).isdigit())
+    return _frame([pd.Timestamp(year=int(y), month=1, day=1) for y in years],
+                  [series[y] for y in years])
+
+
+def fetch_imf_weo_edition(start: str | None = None) -> pd.DataFrame | None:
+    """
+    The WEO edition the DataMapper currently serves, as one observation dated
+    to the edition's month with the value YYYYMM (202610 = October 2026).
+
+    Read from the real-growth indicator's metadata `source` string. Refuses the
+    response unless all four indicators the dashboard reads name the SAME
+    edition: mid-release, a mix would put two editions' forecasts side by side.
+    """
+    from fetch import universe  # local: universe imports nothing from here
+    resp = _get(f"{_IMF_DATAMAPPER}/indicators")
+    if resp is None:
+        return None
+    try:
+        meta = resp.json()["indicators"]
+        editions = set()
+        for indicator in universe.IMF_WEO_INDICATORS:
+            match = _IMF_EDITION_RE.search(str(meta[indicator].get("source", "")))
+            if match is None:
+                logger.warning("IMF DataMapper: no edition in %s metadata", indicator)
+                return None
+            editions.add((int(match.group(2)), _IMF_EDITION_MONTH[match.group(1)]))
+        if len(editions) != 1:
+            logger.warning("IMF DataMapper: indicators span editions %s", sorted(editions))
+            return None
+        year, month = editions.pop()
+        return _frame([pd.Timestamp(year=year, month=month, day=1)], [year * 100 + month])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("IMF DataMapper edition parse failed: %s", exc)
+        return None
+
+
+_IMF_SDMX_URL = ("https://api.imf.org/external/sdmx/3.0/data/dataflow/"
+                 "IMF.RES/WEO/+/{countries}.{indicator}.A")
+_IMF_SDMX_CACHE: dict[str, dict | None] = {}
+
+
+def _imf_sdmx_values(indicator: str) -> dict | None:
+    """{country code: {year: value}} for every IMF_SDMX_COUNTRIES code, one request."""
+    from fetch import universe
+    if indicator in _IMF_SDMX_CACHE:
+        return _IMF_SDMX_CACHE[indicator]
+    url = _IMF_SDMX_URL.format(countries="+".join(universe.IMF_SDMX_COUNTRIES.values()),
+                               indicator=indicator)
+    resp = _get(url, headers={"Accept": "application/vnd.sdmx.data+csv"})
+    out = None
+    if resp is not None:
+        try:
+            out = {}
+            for row in csv.DictReader(io.StringIO(resp.text)):
+                value = pd.to_numeric(row.get("OBS_VALUE"), errors="coerce")
+                if row.get("COUNTRY") and not pd.isna(value):
+                    out.setdefault(row["COUNTRY"], {})[int(row["TIME_PERIOD"])] = float(value)
+            out = out or None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("IMF SDMX %s parse failed: %s", indicator, exc)
+            out = None
+    _IMF_SDMX_CACHE[indicator] = out
+    return out
+
+
+def _imf_sdmx_same_edition() -> bool:
+    """
+    True when the SDMX API and the DataMapper serve the same WEO edition:
+    real GDP growth for this year and next agrees, for every region, to the
+    DataMapper's one-decimal rounding.
+    """
+    from fetch import universe
+    sdmx, dm = _imf_sdmx_values("NGDP_RPCH"), _imf_values("NGDP_RPCH")
+    if not sdmx or not dm:
+        return False
+    year = pd.Timestamp.now().year
+    for region, code in universe.IMF_SDMX_COUNTRIES.items():
+        mapper = dm.get(universe.IMF_WEO_COUNTRIES[region], {})
+        for y in (year, year + 1):
+            a, b = sdmx.get(code, {}).get(y), mapper.get(str(y))
+            if a is None or b is None or abs(round(a, 1) - float(b)) > 0.051:
+                logger.warning("IMF SDMX vs DataMapper disagree on %s %d real growth "
+                               "(%s vs %s): editions differ, refusing", region, y, a, b)
+                return False
+    return True
+
+
+def fetch_imf_sdmx(indicator: str, country: str,
+                   start: str | None = None) -> pd.DataFrame | None:
+    """
+    One WEO indicator from the IMF SDMX API, annual, dated YYYY-01-01,
+    projections included. Refused (None) unless the SDMX edition matches the
+    DataMapper's -- see universe.IMF_SDMX_INDICATORS.
+    """
+    if not indicator or not country:
+        return None
+    if not _imf_sdmx_same_edition():
+        return None
+    values = (_imf_sdmx_values(indicator) or {}).get(country)
+    if not values:
+        logger.warning("IMF SDMX %s: no data for %s", indicator, country)
+        return None
+    years = sorted(values)
+    return _frame([pd.Timestamp(year=y, month=1, day=1) for y in years],
+                  [values[y] for y in years])
 
 
 # ---------------------------------------------------------------------------

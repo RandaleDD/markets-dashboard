@@ -62,7 +62,8 @@ OVERLAP_DAYS = 14
 # slightly larger response, and the gain is that a rebasing lands as new
 # vintages across the whole history instead of on its tail.
 FULL_REFETCH_CADENCES = {"monthly", "monthly_lagged", "monthly_month_end",
-                         "monthly_national", "quarterly", "annual"}
+                         "monthly_national", "quarterly", "quarterly_national",
+                         "annual", "semiannual"}
 
 
 def refetch_in_full(series: registry.Series) -> bool:
@@ -178,7 +179,13 @@ def rows_to_attach(conn, series: registry.Series, df: pd.DataFrame) -> tuple[lis
         value = float(v)
         previous = stored.get(iso)
         if previous is None:
-            out.append((series.series_id, iso, iso, value))
+            # A first print is stamped with its own date -- except a date still
+            # in the FUTURE, which only a projection has (the IMF WEO runs to
+            # 2031). Stamped 2031-01-01, it would outrank every later revision,
+            # all of which carry today's vintage, and latest_observations would
+            # serve the first forecast forever. For every series without
+            # projections the date is never ahead of today, so this is inert.
+            out.append((series.series_id, iso, min(iso, today), value))
         elif abs(previous - value) > max(REVISION_TOLERANCE, abs(previous) * REVISION_TOLERANCE):
             out.append((series.series_id, iso, today, value))
             revisions += 1

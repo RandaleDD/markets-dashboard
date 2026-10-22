@@ -40,16 +40,27 @@ checkout is how the Actions runner gets yesterday's data instead of
 re-bootstrapping. `bootstrap.py` is a one-time seed, never on the schedule.
 
 ## Current status
-Last verified live run (2026-10-16, `--no-publish`): **126/135 `ok`, 5
-`partial`, 2 `stale` (Shiller CAPE, JP CPI via BIS), 2 `stubbed`, 0 `failed`.**
-Database: 173 tracked series, 162k observations. `site/data/latest.json` is
-~1.45 MB (~140 KB gzipped). The ChinaBond curve scrape failed that run and
-was carried on stored data.
+Last verified live run (2026-10-22, `--no-publish`): **152/162 `ok`, 5
+`partial`, 3 `stale` (Shiller CAPE, JP and IN CPI via BIS), 2 `stubbed`, 0
+`failed`.** Database: 233 stored series, 169k observations.
+`site/data/latest.json` is ~1.9 MB (~195 KB gzipped). That run the OECD
+answered with a Cloudflare challenge (see below), so India and Brazil GDP were
+carried on stored data.
 
-2026-10-16 added the **Price Levels** chart (Macroeconomics tab): eight
-headline NSA price indices rebased to 100 at one common month, 3M–20Y, in
-local currency or CHF. CH and NO are on Eurostat HICP for it (`hicp.*.index`);
-see SPEC.md's sourcing table for the basis per region.
+2026-10-22 reworked the **Macroeconomics tab**:
+- The growth/inflation **regime map is gone from the page**; `payload.regime`
+  is still exported and nothing reads it.
+- **India and Brazil are macro-only regions** (`universe.MACRO_REGIONS`, the
+  eight plus IN/BR). They appear on the Macroeconomics tab and nowhere else;
+  `REGIONS`, every other tab and the snapshot selector stay at eight.
+- One **Growth & Inflation** table replaced the GDP and Inflation tables: real
+  GDP, CPI, **nominal GDP** (the published current-price series,
+  `gdp_nominal.*`, not real + CPI), and IMF forecasts for this year and next,
+  with a YoY / latest-quarter-annualised switch and uncoloured trend arrows.
+- A **GDP by Region** chart from the IMF WEO (`imf.*`): Real (indexed only),
+  Nominal USD or PPP, absolute or indexed, projections dashed.
+- The **Regional Snapshot** gained a nominal GDP line and a **10-year yield vs
+  nominal growth** panel with r − g as its headline.
 
 The 2026-09-21 pass did eight requested changes and closed three long-standing
 gaps in the process:
@@ -307,6 +318,51 @@ trusting them — this section is a snapshot and goes stale on its own.
   itself and passes `presliced`. Its windows are in MONTHS (`PL_PERIOD_MONTHS`;
   YTD is based on the prior December), because a day-count "3M" on month-start
   dates quietly becomes two months.
+- **India and Brazil are `MACRO_REGIONS`, not `REGIONS`.** Iterate
+  `MACRO_ORDER` (app.js) or `universe.MACRO_REGIONS` (Python) for anything on
+  the Macroeconomics tab, and `REGION_ORDER` / `REGIONS` everywhere else. A
+  region chart there takes at most eight regions at once (`MAX_LINES`): the
+  palette has eight series colours, and ten regions would otherwise put two
+  lines in one colour.
+- **The IMF WEO block stores projections, and three things follow.** Years
+  from the stored edition's year on (`imf.weo_edition`, value YYYYMM) are
+  projections; the export ships that boundary as `projection_from` so the
+  frontend never guesses it. A future-dated first print is stamped with
+  today's vintage (`db/ingest.rows_to_attach`), or the first forecast would
+  outrank every revision forever. And `Series.has_projections` exempts these
+  series from `check_basis_break`, which every new edition would trip. The
+  edition series alone carries the block's staleness (`semiannual`).
+- **CPI's 3-month annualised rate is seasonally adjusted HERE**, because every
+  stored CPI index is NSA (`transform/growth.seasonally_adjusted_growth_series`:
+  classical monthly factors from the previous 8 complete years, no
+  look-ahead). It sits beside SA GDP in the same table row, and the
+  unadjusted figure is mostly the season. Label it as ours, never the agency's.
+- **In the Growth & Inflation table, CPI is on GDP's quarter** (`q_*` fields:
+  the quarter's average index, SA for QoQ), not the newest month, so the
+  three history cells in a row describe the same three months. The newest
+  monthly print is `yoy_pct`/`qoq_ann_pct` and stays the figure everywhere
+  else. Even aligned, real + CPI need not equal nominal: the GDP deflator is
+  not CPI.
+- **IMF nominal growth forecasts are derived** (real growth x deflator growth),
+  the deflator coming from the IMF SDMX API (`imf.<R>.deflator`) because the
+  DataMapper has no deflator and no national-currency GDP. The SDMX fetcher
+  refuses to store anything unless its real growth matches the DataMapper's,
+  which is the guard against pairing two WEO editions; keep it.
+- **The Growth & Inflation table shows values and arrows only**; every detail
+  (period, the other horizon, percentile, basis, source) is in the value's
+  tooltip. Add new detail there, not under the number.
+- **Norway GDP is MAINLAND (SSB 09190), real and nominal**, since 2026-10-22,
+  tagged `Mainland`; total GDP's oil and gas made nominal growth an energy
+  price. Its IMF forecasts are total-economy and say so.
+- **GDP is on cadence `quarterly_national` (270 days)**, not `quarterly`
+  (200): a quarter is dated to its first day and the next one lands 1-2 months
+  after it ENDS, so under 200 every GDP series read stale from mid-October on
+  a schedule.
+- **The OECD SDMX API feeds India and Brazil GDP and nothing else**, and sits
+  behind Cloudflare: a burst of manual calls earned a `403` bot challenge on
+  2026-10-22. Do not poke it repeatedly while debugging, and never try to get
+  around the challenge; the fetcher degrades to `None` and stored history
+  carries the series.
 - Equity index *levels* deliberately carry no percentile annotation — a price
   percentile on a trending series is always near 100th and says nothing.
   Volatility and drawdown carry it instead. This is accepted, not a gap.

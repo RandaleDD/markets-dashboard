@@ -37,7 +37,10 @@ from transform.real_rates import (CAVEATS as REAL_RATE_CAVEATS,
                                   real_rate)
 from transform.percentile import has_any, percentile_context
 from transform.regime import AXIS_DEFINITION, regime_coordinates
-from transform.growth import growth_series, latest_growth
+from transform.growth import (growth_series, latest_growth,
+                              latest_seasonally_adjusted_growth,
+                              quarter_average, seasonally_adjusted_growth_series,
+                              seasonally_adjusted_levels)
 from transform.returns import (ANNUALISE, WEEKS_PER_QUARTER, compact_history,
                                chf_per_unit_monthly, monthly_history,
                                compute_return_metrics)
@@ -291,6 +294,181 @@ def empty_payload(is_sample: bool) -> dict:
     }
 
 
+def _nominal_gdp(region, hist, status) -> dict:
+    """
+    The nominal GDP fields of one region's GDP row. Quarterly for every
+    region, so YoY is four quarters back and the short rate one quarter
+    annualised -- the same derivation as the real series beside it.
+    """
+    cfg = universe.GDP_NOMINAL.get(region)
+    if cfg is None:
+        return {}
+    df = hist.get(f"gdp_nominal.{region}")
+    st, as_of = _series_status(df, _cadence_of(f"gdp_nominal.{region}", "quarterly_national"))
+    status[f"gdp_nominal:{region}"] = st
+    return {
+        "nominal_yoy_pct": _pct_change(df, 4, "Q"),
+        "nominal_qoq_ann_pct": _pct_change(df, 1, "Q", annualise=4),
+        "nominal_context": _ctx(_growth_series(df, 4, "Q")),
+        "nominal_qoq_ann_context": _ctx(_growth_series(df, 1, "Q", annualise=4)),
+        "nominal_basis": cfg.get("basis"),
+        "nominal_as_of": as_of,
+        "nominal_period_label": _period_label(as_of, "Q"),
+    }
+
+
+def _cpi_on_quarter(idx_df, quarter_start) -> dict:
+    """
+    CPI measured over one calendar QUARTER (GDP's newest), from the quarter's
+    average index level -- the national-accounts convention. YoY against the
+    same quarter a year earlier, on the NSA index (a 4-quarter change cancels
+    the season); quarter-on-quarter annualised on the seasonally adjusted
+    index (transform/growth). Both None when the quarter is incomplete.
+    """
+    keys = ("q_yoy_pct", "q_qoq_ann_pct", "q_context", "q_qoq_ann_context", "q_period_label")
+    empty = dict.fromkeys(keys)
+    if idx_df is None or not quarter_start:
+        return empty
+    yoy = _growth_series(quarter_average(idx_df), 4, "Q")
+    qoq = _growth_series(quarter_average(seasonally_adjusted_levels(idx_df)), 1, "Q", annualise=4)
+
+    def at(frame):
+        if frame is None:
+            return None
+        hit = frame[pd.to_datetime(frame["date"]) == pd.Timestamp(quarter_start)]
+        return round(float(hit.iloc[-1]["value"]), 2) if not hit.empty else None
+
+    return {"q_yoy_pct": at(yoy), "q_qoq_ann_pct": at(qoq),
+            "q_context": _ctx(yoy) if yoy is not None else None,
+            "q_qoq_ann_context": _ctx(qoq) if qoq is not None else None,
+            "q_period_label": _period_label(quarter_start, "Q")}
+
+
+_EDITION_MONTHS = {1: "January", 4: "April", 7: "July", 10: "October"}
+
+
+def _by_year(df) -> dict[int, float]:
+    if df is None or df.empty:
+        return {}
+    return {pd.Timestamp(d).year: float(v) for d, v in zip(df["date"], df["value"])}
+
+
+def _contiguous_tail(years: dict[int, float]) -> dict[int, float]:
+    """The run of consecutive years ending at the latest one."""
+    if not years:
+        return {}
+    ys = sorted(years)
+    start = len(ys) - 1
+    while start > 0 and ys[start - 1] == ys[start] - 1:
+        start -= 1
+    return {y: years[y] for y in ys[start:]}
+
+
+def _imf_blocks(hist, status) -> tuple[dict, dict]:
+    """
+    (forecasts, gdp_levels) from the stored IMF WEO series.
+
+    The projection boundary is the stored edition's YEAR: in the October 2026
+    WEO, 2026 onwards is projected and 2025 back is actual or estimate. It is
+    computed here once and shipped, so the frontend never guesses it.
+    """
+    edition_df = hist.get(universe.IMF_WEO_EDITION_SERIES)
+    edition = _latest(edition_df)
+    st, edition_as_of = _series_status(edition_df, _cadence_of(
+        universe.IMF_WEO_EDITION_SERIES, "semiannual"))
+    status["imf:weo_edition"] = st
+    if edition is None:
+        projection_from, label = None, None
+    else:
+        year, month = divmod(int(edition), 100)
+        projection_from = year
+        label = f"World Economic Outlook, {_EDITION_MONTHS.get(month, month)} {year}"
+
+    this_year = datetime.now(timezone.utc).year
+    years = [this_year, this_year + 1]
+    forecasts = {
+        "source": "IMF World Economic Outlook (DataMapper)",
+        "edition": label, "edition_as_of": edition_as_of,
+        "projection_from": projection_from, "years": years,
+        "nominal_definition": "Nominal GDP growth in national currency, derived "
+                              "from the IMF's real growth and GDP deflator for the "
+                              "same year: (1 + real) x (1 + deflator growth) - 1. "
+                              "Within 0.05pp of the IMF's own national-currency "
+                              "GDP growth wherever that is published.",
+        "definition": "IMF WEO projections. Real GDP growth is the annual "
+                      "change in calendar-year GDP; CPI is the change in the "
+                      "ANNUAL AVERAGE price level, which differs from the "
+                      "latest year-on-year print beside it. The euro area "
+                      "is the IMF's own aggregate.",
+        "regions": {},
+    }
+    levels = {
+        "periods": universe.GDP_LEVEL_PERIODS,
+        "projection_from": projection_from, "edition": label,
+        "units": {"real_index": "index (first year of window = 100)",
+                  "nominal_usd": "USD billions, current prices",
+                  "ppp": "international dollars, billions (PPP), current prices"},
+        "history": {"real_index": {}, "nominal_usd": {}, "ppp": {}},
+        # Region x measure pairs with no source at all (the IMF has no euro
+        # area PPP aggregate), so the chart can say so rather than just omit.
+        "unavailable": {
+            meta["key"]: list(meta.get("unavailable", ()))
+            for meta in universe.IMF_WEO_INDICATORS.values() if meta.get("unavailable")},
+        "note": "Annual, IMF World Economic Outlook for every region, so all "
+                "three measures come from one publisher and one edition. "
+                "Nominal is converted to US dollars at market exchange rates, "
+                "so it moves with the dollar; PPP converts at purchasing power "
+                "parity, which removes most of that and raises lower-price "
+                "economies (China, India, Brazil) well above their dollar size. "
+                "Real is the IMF's constant-price growth chained into an "
+                "index: volumes in different currencies have no common unit, "
+                "so it is shown indexed only.",
+    }
+    for region in universe.IMF_WEO_COUNTRIES:
+        growth = _by_year(hist.get(f"imf.{region}.real_growth"))
+        cpi = _by_year(hist.get(f"imf.{region}.cpi_avg"))
+        deflator = _by_year(hist.get(f"imf.{region}.deflator"))
+        ok = bool(growth and cpi and edition is not None)
+        status[f"imf:{region}"] = (st if ok else "failed")
+
+        # Nominal growth, derived the same way for every region: real growth
+        # compounded with the deflator's growth. See universe.IMF_SDMX_INDICATORS
+        # for why the IMF's own national-currency GDP is not read directly.
+        def nominal(y):
+            if y not in growth or y not in deflator or (y - 1) not in deflator:
+                return None
+            return round(((1 + growth[y] / 100) * deflator[y] / deflator[y - 1] - 1) * 100, 2)
+
+        forecasts["regions"][region] = {
+            "gdp": {str(y): round(growth[y], 2) if y in growth else None for y in years},
+            "nominal": {str(y): nominal(y) for y in years},
+            "cpi": {str(y): round(cpi[y], 2) if y in cpi else None for y in years},
+            # Which economy the IMF's figure covers, where it differs from
+            # the actuals beside it (Norway: total vs Mainland).
+            "scope_note": ("IMF figures are for TOTAL Norway, oil and gas "
+                           "included; the actuals beside them are Mainland."
+                           if region == "NO" else None),
+        }
+        # Chain the growth rates into a level index. Only the run of
+        # consecutive years ending at the latest one: across a missing year
+        # there is no growth rate to chain, and skipping it would compress two
+        # years of growth into one step.
+        chain = _contiguous_tail(growth)
+        if len(chain) > 1:
+            ys = sorted(chain)
+            level, idx = 100.0, [[f"{ys[0]}-01-01", 100.0]]
+            for y in ys[1:]:
+                level *= 1 + chain[y] / 100.0
+                idx.append([f"{y}-01-01", round(level, 4)])
+            levels["history"]["real_index"][region] = idx
+        for key in ("nominal_usd", "ppp"):
+            vals = _contiguous_tail(_by_year(hist.get(f"imf.{region}.{key}")))
+            if len(vals) > 1:
+                levels["history"][key][region] = [
+                    [f"{y}-01-01", round(v, 3)] for y, v in sorted(vals.items())]
+    return forecasts, levels
+
+
 # ---------------------------------------------------------------------------
 # The export itself
 # ---------------------------------------------------------------------------
@@ -403,8 +581,12 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         status[f"cpi:{region}"] = st
         out["macro"]["inflation"][region] = {
             "yoy_pct": round(_latest(yoy_df), 2) if _latest(yoy_df) is not None else None,
-            # 3 monthly observations = one quarter, compounded to a yearly rate.
-            "qoq_ann_pct": _pct_change(idx_df, 3, "M", annualise=4),
+            # The latest three months, compounded to a yearly rate, with the
+            # season removed: every stored index is NSA, and an unadjusted
+            # 3-month change is mostly the season (transform/growth). GDP beside
+            # it is seasonally adjusted, so this keeps the QoQ view consistent.
+            "qoq_ann_pct": latest_seasonally_adjusted_growth(idx_df),
+            "qoq_ann_basis": "seasonally adjusted here",
             "as_of": as_of,
             "period_label": _period_label(as_of, "M"),
             # Which index this region's number actually is. These are NOT one
@@ -413,7 +595,7 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "basis": cpi_cfg.get("basis"),
             "yoy_is_derived": derived_yoy,
             "context": _ctx(yoy_df) if yoy_df is not None else None,
-            "qoq_ann_context": _ctx(_growth_series(idx_df, 3, "M", annualise=4)),
+            "qoq_ann_context": _ctx(seasonally_adjusted_growth_series(idx_df)),
         }
 
     # --- Macro: GDP (real, chain-linked, local currency, SA) ---
@@ -422,7 +604,7 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         df = hist.get(f"gdp.{region}")
         gdp_frames[region] = df
         freq = cfg.get("freq", "Q")
-        st, as_of = _series_status(df, cfg.get("cadence", "annual" if freq == "A" else "quarterly"))
+        st, as_of = _series_status(df, _cadence_of(f"gdp.{region}", "quarterly_national"))
         status[f"gdp:{region}"] = st
         # The short-horizon annualised rate: one quarter for quarterly regions,
         # the equivalent three months for monthly UK. An annual series has no
@@ -447,8 +629,27 @@ def build_payload(conn, is_sample: bool = False) -> dict:
             "basis": cfg.get("basis"),
             "as_of": as_of,
             "period_label": _period_label(as_of, freq),
+            **_nominal_gdp(region, hist, status),
         }
+    # --- CPI over GDP's own quarter, for the Growth & Inflation table, so a
+    # row's real GDP, CPI and nominal GDP all cover the same three months.
+    # The monthly figures above stay as they are: they are the newest print,
+    # which the snapshot, the real-rate table and the forecasts compare with.
+    for region, row in out["macro"]["inflation"].items():
+        gdp_as_of = (out["macro"]["gdp"].get(region) or {}).get("as_of")
+        row.update(_cpi_on_quarter(hist.get(f"cpi.{region}.index"), gdp_as_of))
     out["macro"]["gdp_definition"] = universe.GDP_DEFINITION
+    out["macro"]["nominal_gdp_definition"] = (
+        "Nominal GDP at current prices, national currency, seasonally adjusted, "
+        "as published — NOT real growth plus CPI. Nominal GDP is deflated by "
+        "the GDP deflator, which prices what an economy produces (exports in, "
+        "imports out), where CPI prices what households buy; the two part "
+        "ways when the terms of trade move. Switzerland is sport-event "
+        "adjusted here as well.")
+    # The Macroeconomics tab's own region list: the eight plus the regions
+    # sourced for macro alone. Nested here because the top-level key set is
+    # fixed by tests/test_export_shape.
+    out["macro"]["regions"] = universe.MACRO_REGIONS
 
     # --- History for the macro chart, on one MONTHLY grid.
     #
@@ -465,8 +666,13 @@ def build_payload(conn, is_sample: bool = False) -> dict:
     #
     # Nested under `macro` rather than added as a top-level key deliberately:
     # tests/test_export_shape asserts the top-level key set by exact equality.
-    macro_history = {"gdp_yoy": {}, "cpi_yoy": {}, "policy_rate": {}}
-    for region in universe.REGIONS:
+    macro_history = {"gdp_yoy": {}, "cpi_yoy": {}, "policy_rate": {},
+                     # For the Regional Snapshot's "10y vs nominal growth"
+                     # panel, which reaches back 20 years where the macro
+                     # chart stops at five. The curves' own tenor_history is
+                     # only three years deep, so the 10y is carried here too.
+                     "gdp_nominal_yoy": {}, "yield_10y": {}}
+    for region in universe.MACRO_REGIONS:
         gdp_cfg = universe.GDP_GROWTH.get(region, {})
         gdp_freq = gdp_cfg.get("freq", "Q")
         gdp_growth = _growth_series(gdp_frames.get(region), PERIODS_PER_YEAR[gdp_freq],
@@ -482,6 +688,14 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         rates = hist.get(f"policy_rate.{rate_region}")
         if rates is not None:
             macro_history["policy_rate"][region] = monthly_history(rates)
+        nominal = _growth_series(hist.get(f"gdp_nominal.{region}"), 4, "Q")
+        if nominal is not None and not nominal.empty:
+            macro_history["gdp_nominal_yoy"][region] = monthly_history(nominal, years=20)
+        ten = hist.get(f"curve.{region}.10Y")
+        if ten is not None:
+            # Month-END-of-month close on a month-start date, no carry: a
+            # missing month in a market yield is a gap, not an unchanged rate.
+            macro_history["yield_10y"][region] = monthly_history(ten, years=20, carry=False)
     out["macro"]["history"] = macro_history
     out["macro"]["history_note"] = (
         "Monthly grid. GDP and CPI are year-on-year growth derived from the "
@@ -544,7 +758,9 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         "US, Japan and China have no HICP and are national indices — the US "
         "and Japan include imputed owner-occupier rent, which HICP excludes. "
         "Switzerland and Norway are on HICP here, not the LIK/KPI in the "
-        "inflation table. Each line ends at its own latest release.")
+        "inflation table. India and Brazil are national indices (all-India "
+        "CPI, IPCA) and have no CHF view, because neither currency is "
+        "tracked. Each line ends at its own latest release.")
     price_levels["chf_note"] = (
         "Measured in CHF: the local price index times CHF per unit of local "
         "currency (the month's average of weekly closes). This mixes "
@@ -552,6 +768,13 @@ def build_payload(conn, is_sample: bool = False) -> dict:
         "prices there rose faster than Swiss prices once converted into "
         "francs: that country got more expensive for someone holding CHF.")
     out["macro"]["price_levels"] = price_levels
+
+    # --- IMF WEO: forecasts for the growth & inflation table, and GDP levels
+    # for the cross-region GDP chart. One publisher and one edition for every
+    # region, which is what makes the forecasts comparable with each other.
+    forecasts, gdp_levels = _imf_blocks(hist, status)
+    out["macro"]["forecasts"] = forecasts
+    out["macro"]["gdp_levels"] = gdp_levels
 
     # --- Growth / inflation regime coordinates (pure derivation) ---
     out["regime"]["axis_definition"] = AXIS_DEFINITION

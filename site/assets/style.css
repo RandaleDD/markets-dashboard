@@ -267,12 +267,10 @@ tr.chart-row > td { padding: 0; background: var(--page-plane); }
    font-family is inherited from body rather than restated, which is what keeps
    the axes on the same typeface as the tables beside them. */
 .line-chart .grid,
-.frame-chart .grid,
-.regime-chart .grid { stroke: var(--gridline); stroke-width: 1; }
+.frame-chart .grid { stroke: var(--gridline); stroke-width: 1; }
 
 .line-chart .axis,
-.frame-chart .axis,
-.regime-chart .axis {
+.frame-chart .axis {
   fill: var(--text-muted);
   font-family: inherit;
   font-variant-numeric: tabular-nums;
@@ -340,35 +338,6 @@ h2.mt { margin-top: 30px; }
 }
 .approx-warning ul { margin: 6px 0 0 16px; padding: 0; }
 .approx-warning li { margin: 3px 0; }
-
-/* --- Regime quadrant map --- */
-.regime-chart { width: 100%; height: auto; max-height: 480px; display: block; }
-.regime-chart .axis-line { stroke: var(--baseline); stroke-width: 1.5; }
-.regime-chart .axis { font-size: 11px; }
-/* The scaffold: tick numbers recede, the axis NAME is the thing you should be
-   able to read without looking for it, and the unit trails it in small type
-   so the label is a name first and a definition second. */
-.regime-chart .tick { fill: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
-.regime-chart .axis-name {
-  fill: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-.regime-chart .axis-unit { font-weight: 400; letter-spacing: 0; fill: var(--text-muted); }
-.regime-chart .quad-label { fill: var(--text-muted); font-size: 10px; opacity: 0.62; letter-spacing: 0.04em; font-style: italic; }
-.regime-pt circle { fill: var(--accent); opacity: 0.85; }
-/* The trail reads as background: the eye should land on the current position
-   first and follow the arrow back only if it asks where the region came from. */
-.regime-trail { stroke: var(--accent); stroke-width: 1.2; opacity: 0.45; }
-.regime-arrowhead { fill: var(--accent); opacity: 0.55; }
-.regime-pt circle.regime-prior { fill: none; stroke: var(--accent); stroke-width: 1.4; opacity: 0.5; }
-.regime-pt text { fill: var(--text-primary); font-size: 11px; font-weight: 600; }
-.regime-pt.lagged circle { fill: var(--text-muted); opacity: 0.55; }
-.regime-pt.lagged circle.regime-prior { fill: none; stroke: var(--text-muted); }
-.regime-pt.lagged .regime-trail { stroke: var(--text-muted); }
-.regime-controls { display: flex; align-items: center; gap: 12px; margin: 6px 0 10px; flex-wrap: wrap; }
-.regime-controls input[type="range"] { flex: 1; min-width: 200px; max-width: 420px; }
 
 /* --- Cross-asset correlation heatmap --- */
 table.corr-grid { border-collapse: separate; border-spacing: 2px; }
@@ -532,15 +501,6 @@ td.commentary {
   border-top: 1px solid var(--border);
 }
 
-/* --- Regime map explainer ------------------------------------------------ */
-.regime-explain {
-  font-size: 0.76rem;
-  color: var(--text-secondary);
-  line-height: 1.55;
-  max-width: 78ch;
-  margin: 10px 0 4px;
-}
-
 /* --- Regional snapshot: a cheat sheet, not a wall of boxes ---------------- */
 .snap-grid {
   display: grid;
@@ -622,4 +582,46 @@ td.commentary {
 .control-group-ccy { padding-left: 14px; border-left: 1px solid var(--border); }
 .control-group-ccy .chip.active {
   background: var(--accent); color: var(--surface-1); border-color: var(--accent);
+}
+
+/* --- Growth & inflation table ------------------------------------------- */
+/* The period a figure measures, under it: GDP's quarter and CPI's month
+   differ, so one shared Period column would misdate half the row. */
+.cell-sub { display: block; font-size: 0.66rem; color: var(--text-muted); margin-top: 1px; }
+/* Trend arrows are deliberately uncoloured: accelerating inflation is not
+   good news, and green/red would say it was. */
+.trend { font-size: 0.7rem; color: var(--text-secondary); margin-left: 4px; cursor: help; }
+.trend.flat { color: var(--text-muted); }
+/* Section rules between Real GDP growth, Nominal GDP growth and Inflation. */
+.gi-table tr.group-head th:nth-child(n+2),
+.gi-table tr:not(.group-head) > :nth-child(2),
+.gi-table tr:not(.group-head) > :nth-child(5),
+.gi-table tr:not(.group-head) > :nth-child(8) { border-left: 1px solid var(--border); }
+/* A lighter rule where the forecasts begin inside each section. */
+.gi-table tr:not(.group-head) > :nth-child(3),
+.gi-table tr:not(.group-head) > :nth-child(6),
+.gi-table tr:not(.group-head) > :nth-child(9) { border-left: 1px dashed var(--border); }
+.basis-switch { margin: 4px 0 10px; }
+
+/* A chip that cannot apply in the current combination (Real + Absolute). */
+.chip[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
+.chip[aria-disabled="true"]:hover { border-color: var(--border); color: var(--text-secondary); }
+
+/* --- Projection boundary on the GDP chart -------------------------------- */
+.frame-chart .proj-zone { fill: var(--stub-bg); opacity: 0.55; }
+.frame-chart .proj-line { stroke: var(--baseline); stroke-width: 1; stroke-dasharray: 3 3; }
+.frame-chart .proj-label { fill: var(--text-muted); font-size: 10px; letter-spacing: 0.04em; }
+.frame-chart .zero-line { stroke: var(--baseline); stroke-width: 1; }
+
+/* --- Snapshot relationship panel ----------------------------------------- */
+.snap-panel { margin-top: 18px; }
+.rg-headline { display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: baseline; margin: 0 0 10px; }
+.rg-headline .rg-value { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rg-headline .rg-read { font-size: 0.8rem; color: var(--text-secondary); max-width: 70ch; }
+
+/* Column-group band above a table's headings ("Historicals", "Forecasts"). */
+tr.group-head th {
+  font-size: 0.66rem; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 600; text-align: center;
+  border-bottom: 1px solid var(--border); padding-bottom: 4px;
 }

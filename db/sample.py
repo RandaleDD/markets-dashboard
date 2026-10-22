@@ -104,6 +104,12 @@ def _base_level(series: registry.Series) -> float:
         return 100.0            # an index level; growth is derived from it
     if series.series_id.startswith("inflexp."):
         return 2.4
+    if series.series_id.startswith("imf."):
+        # Growth rates wander in points around a plausible mean; the levels
+        # compound from a mid-sized economy's GDP in billions.
+        kind = series.series_id.rsplit(".", 1)[-1]
+        return {"real_growth": 2.0, "cpi_avg": 2.5,
+                "nominal_usd": 2500.0, "ppp": 3500.0}.get(kind, 100.0)
     return 100.0
 
 
@@ -123,18 +129,33 @@ def _dates(series: registry.Series) -> pd.DatetimeIndex:
 
 def frame_for(series: registry.Series, rng: random.Random) -> pd.DataFrame:
     """A synthetic [date, value] frame with the same shape a fetcher returns."""
+    if series.series_id == "imf.weo_edition":
+        # One observation, YYYYMM: the latest April or October before today.
+        now = pd.Timestamp.now()
+        year, month = (now.year, 10) if now.month >= 10 else \
+                      (now.year, 4) if now.month >= 4 else (now.year - 1, 10)
+        return pd.DataFrame({"date": [pd.Timestamp(year=year, month=month, day=1)],
+                             "value": [float(year * 100 + month)]})
     dates = _dates(series)
+    if series.has_projections:
+        # Annual, dated to January 1st like the IMF's own, running five years
+        # past the current one so the sample exercises the projection path.
+        this_year = pd.Timestamp.now().year
+        dates = pd.DatetimeIndex([pd.Timestamp(year=y, month=1, day=1)
+                                  for y in range(this_year - 30, this_year + 6)])
     base = _base_level(series)
     # A rate wanders in absolute percentage points; a price compounds. Treating
     # a 0.5% policy rate as a price would let it drift to zero and back.
     is_rate = (series.unit or "").strip().startswith("%") or series.series_id.startswith(
         ("policy_rate.", "curve.", "real_yield.", "inflexp.", "spread", "credit.", "cpi."))
+    # Annual figures move a year's worth per step, not a week's.
+    rate_step, level_step = (0.6, 0.05) if series.has_projections else (0.06, 0.012)
     values, level = [], float(base)
     for _ in dates:
         if is_rate:
-            level = max(0.01, level + rng.gauss(0, 0.06))
+            level = max(0.01, level + rng.gauss(0, rate_step))
         else:
-            level *= 1 + rng.gauss(0, 0.012)
+            level *= 1 + rng.gauss(0.03 if series.has_projections else 0, level_step)
         values.append(round(level, 4))
     return pd.DataFrame({"date": dates, "value": values})
 

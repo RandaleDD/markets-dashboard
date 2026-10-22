@@ -90,6 +90,10 @@ def _freshness(last: str | None, max_age_days: int) -> str:
     if not last:
         return "—"
     age = (pd.Timestamp.now().normalize() - pd.Timestamp(last).normalize()).days
+    if age < 0:
+        # Only a series carrying projections ends in the future (the IMF WEO);
+        # its freshness is the edition's, recorded on imf.weo_edition.
+        return f"projections to {pd.Timestamp(last).year} (age: see imf.weo_edition)"
     if age <= max_age_days:
         return f"fresh ({age}d old, limit {max_age_days}d)"
     return f"STALE ({age}d old, limit {max_age_days}d)"
