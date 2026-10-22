@@ -2,39 +2,45 @@
 """
 Publish what the pipeline just produced, and prove it landed.
 
-The database and `site/data/latest.json` are generated artefacts that are
-COMMITTED -- the checkout is how the Actions runner gets yesterday's data, and
-`site/` is what GitHub Pages serves. So "the local file" and "the published
-file" are the same file at two points in time, and they drift apart the moment
-a run finishes without a push. That drift is silent: the local dashboard looks
-refreshed, the live one is whatever was last pushed.
+The generated artefacts -- the database, `latest.json` and the coverage file --
+are NOT committed to main. They live on a `data` branch that always holds
+exactly ONE commit with no parent, replaced on every publish:
 
-This module closes that gap. `publish()` commits the generated artefacts and
-pushes; the push matches `pages.yml`'s `paths: site/**` filter, which is what
-actually redeploys the site (pushing to main is NOT enough on its own if the
-change misses that filter). `verify()` then polls the live URL until the
-published payload carries the same `generated_at` as the one on disk, because
-a push that started a deploy is not the same thing as a deploy that finished.
+    markets.db.gz       the store, gzipped (deterministic: mtime=0)
+    latest.json         what the site renders
+    DATA-COVERAGE.csv   what the store holds, per series
+    .github/workflows/pages.yml   a copy of main's, so a push here deploys
 
-Four things it deliberately refuses to do:
+Main is code and reviewed prose only. Nothing online keeps old versions of the
+data, and nothing needs to: `observations` is append-only, so the current
+database already contains every value and every revision it has ever seen.
+This checkout keeps its own rolling local snapshots in `data/history/`.
 
-  * publish sample data. `--mode sample` numbers are synthetic; the separate
-    sample database protects the store, nothing protects the JSON, and this is
-    the last gate before synthetic numbers reach the live site.
-  * run inside GitHub Actions. `weekly.yml` has its own commit-and-push step
-    with the bot identity, and two of them would race.
-  * commit anything that is not a generated artefact. Never `git add -A`: a
-    half-finished edit to `app.js` is not data, and it is not published by a
-    data refresh.
-  * resolve a conflict on the generated files. If the remote moved underneath
-    the run, the fix is to re-run the pipeline on top of it -- see CLAUDE.md.
+Concurrency is the same optimistic rule the old commit-to-main flow had, made
+explicit. `refs/markets/data-base` records which `data` commit this checkout's
+database was built on, and every push is `--force-with-lease` against it, so a
+push is refused if anyone else -- the Saturday Actions run, another clone --
+published in between. Nobody's rows are ever overwritten; the loser re-runs.
+
+`sync()` runs BEFORE fetching: it fast-forwards main (code) and brings the
+local database up to the published one. It refuses to replace a local
+database holding rows that were never published, because a source that only
+serves today's value (the Swiss curve's RSS top-up) cannot be re-fetched for a
+past week.
+
+The same module runs on the Mac and inside GitHub Actions. A push from the Mac
+starts `pages.yml`; a push made with the Actions token cannot start another
+workflow, so `weekly.yml` deploys the site itself. `verify()` polls the live
+URL until it serves this run's `generated_at` either way.
 """
 from __future__ import annotations
 
+import gzip
+import hashlib
 import logging
 import os
-import re
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -46,12 +52,19 @@ ROOT = Path(__file__).parent
 LIVE_URL = "https://randaledd.github.io/markets-dashboard/data/latest.json"
 SITE_URL = "https://randaledd.github.io/markets-dashboard/"
 BRANCH = "main"
+DATA_BRANCH = "data"
+BASE_REF = "refs/markets/data-base"
 
-# The generated artefacts, and nothing else. `site/index.html` is here only
-# because `pipeline.stamp_asset_versions()` rewrites its `?v=` query strings;
-# it is staged only when that stamp is the ONLY thing that changed in it.
-GENERATED = ("site/data/latest.json", "data/markets.db", "data/DATA-CATALOG.csv")
-STAMPED = "site/index.html"
+# Published name on the data branch -> local path. The database is gzipped.
+DATA_FILES = {
+    "markets.db.gz": "data/markets.db",
+    "latest.json": "site/data/latest.json",
+    "DATA-COVERAGE.csv": "data/DATA-COVERAGE.csv",
+}
+DB_PATH = DATA_FILES["markets.db.gz"]
+PAGES_WORKFLOW = ".github/workflows/pages.yml"
+HISTORY_DIR = "data/history"
+KEEP_SNAPSHOTS = 8
 
 # A deploy is two GitHub Actions steps on a shared queue; measured at about a
 # minute, and the concurrency group can make it wait behind another one.
@@ -63,12 +76,13 @@ class PublishError(RuntimeError):
     """Something went wrong that a human has to look at."""
 
 
-def _git(root: Path, *args: str, timeout: int = 120) -> subprocess.CompletedProcess:
+def _git(root: Path, *args: str, timeout: int = 120, text: bool = True,
+         input: str | None = None) -> subprocess.CompletedProcess:
     """Run git without ever opening an interactive credential prompt: this runs
     unattended from a double-clicked script, where a prompt is a hang."""
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    return subprocess.run(["git", "-C", str(root), *args],
-                          capture_output=True, text=True, env=env, timeout=timeout)
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True,
+                          text=text, input=input, env=env, timeout=timeout)
 
 
 def _out(proc: subprocess.CompletedProcess) -> str:
@@ -88,146 +102,233 @@ def skip_reason(mode: str, root: Path = ROOT) -> str | None:
     work, so the caller can say so once rather than failing late."""
     if mode != "live":
         return "sample data is never published"
-    if os.environ.get("GITHUB_ACTIONS"):
-        return "running in GitHub Actions, where weekly.yml does the commit"
     if not is_git_repo(root):
         return "not a git checkout"
     branch = current_branch(root)
     if branch != BRANCH:
-        return (f"on branch '{branch}', not '{BRANCH}' — Pages only ever "
-                f"deploys '{BRANCH}'")
+        return (f"on branch '{branch}', not '{BRANCH}' — only code on '{BRANCH}' "
+                f"may produce the published data")
     return None
 
 
-def _only_asset_stamp_changed(root: Path) -> bool:
-    """True when the only edit to index.html is the asset version stamp.
-
-    Anything else in that file is hand-written markup, which is a code change
-    and gets committed deliberately, not swept into a data refresh.
-    """
-    diff = _out(_git(root, "diff", "HEAD", "--unified=0", "--", STAMPED))
-    if not diff:
-        return False
-    changed = [ln for ln in diff.splitlines()
-               if ln.startswith(("+", "-")) and not ln.startswith(("+++", "---"))]
-    return bool(changed) and all(re.search(r"assets/[\w.]+\?v=[0-9a-f]+", ln)
-                                 for ln in changed)
+# ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
+def _sha256(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
-def _dirty(root: Path, path: str) -> bool:
-    return bool(_out(_git(root, "status", "--porcelain", "--", path)))
+def _rev(root: Path, ref: str) -> str | None:
+    return _out(_git(root, "rev-parse", "--verify", "--quiet", ref)) or None
 
 
-def stage(root: Path = ROOT) -> list[str]:
-    """Stage the generated artefacts that actually changed. Returns their paths."""
-    staged = []
-    for rel in GENERATED:
-        if (root / rel).exists() and _dirty(root, rel):
-            _git(root, "add", "--", rel)
-            staged.append(rel)
-    if _dirty(root, STAMPED) and _only_asset_stamp_changed(root):
-        _git(root, "add", "--", STAMPED)
-        staged.append(STAMPED)
-    return staged
+def _db_sha_of(root: Path, commit: str | None) -> str | None:
+    """The database hash a data commit records in its message."""
+    if not commit:
+        return None
+    for line in _out(_git(root, "log", "-1", "--format=%B", commit)).splitlines():
+        if line.startswith("db-sha256: "):
+            return line.split(": ", 1)[1].strip()
+    return None
 
 
-def unpublished_changes(root: Path = ROOT) -> list[str]:
-    """Tracked files changed but NOT published by this module -- code, mostly.
-    Reported so a refresh never leaves the impression it pushed those too."""
-    lines = _out(_git(root, "status", "--porcelain", "--untracked-files=no")).splitlines()
-    paths = [ln[3:].strip() for ln in lines if ln]
-    return sorted(p for p in paths if p not in GENERATED and p != STAMPED)
+def _snapshot(root: Path, label: str) -> None:
+    """Keep a gzipped copy of the local database; prune to KEEP_SNAPSHOTS."""
+    db = root / DB_PATH
+    if not db.exists():
+        return
+    hist = root / HISTORY_DIR
+    hist.mkdir(parents=True, exist_ok=True)
+    safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in label)[:32]
+    (hist / f"markets-{safe}.db.gz").write_bytes(gzip.compress(db.read_bytes(), mtime=0))
+    for old in sorted(hist.glob("markets-*.db.gz"), key=lambda p: p.stat().st_mtime)[:-KEEP_SNAPSHOTS]:
+        old.unlink()
 
 
-def sync(root: Path = ROOT) -> str:
-    """Fast-forward onto the remote BEFORE fetching data.
+def _remote_data(root: Path) -> tuple[str, str | None]:
+    """('ok', sha) / ('missing', None) / ('offline', None) for origin's data branch."""
+    proc = _git(root, "ls-remote", "origin", f"refs/heads/{DATA_BRANCH}")
+    if proc.returncode != 0:
+        return "offline", None
+    line = _out(proc)
+    return ("ok", line.split()[0]) if line else ("missing", None)
 
-    The Saturday Actions run pushes a newer database; starting a local run
-    behind it means either a wasted run or a conflict on a binary file at push
-    time. Fast-forward only -- if local and remote have genuinely diverged,
-    that is a real question and not one to answer automatically.
-    """
+
+# ---------------------------------------------------------------------------
+# sync: before a run
+# ---------------------------------------------------------------------------
+def sync_code(root: Path = ROOT) -> str:
+    """Fast-forward main onto origin. Fast-forward only -- divergence is a real
+    question and not one to answer automatically."""
     if not is_git_repo(root) or current_branch(root) != BRANCH:
         return "skipped"
-    if _git(root, "fetch", "--quiet", "origin", BRANCH, timeout=120).returncode != 0:
+    if _git(root, "fetch", "--quiet", "origin", BRANCH).returncode != 0:
         return "offline"
     behind = _out(_git(root, "rev-list", "--count", f"HEAD..origin/{BRANCH}"))
     if behind in ("", "0"):
-        return "already current"
-    # --autostash because a half-published previous run leaves the generated
-    # files modified, and `git checkout -- data/markets.db` is not an option:
-    # uncommitted observations are real history, and the sources that only
-    # serve today's value (the Swiss curve) cannot be re-fetched for a past
-    # week. Stash, fast-forward, put them back.
+        return "code already current"
     pull = _git(root, "pull", "--ff-only", "--autostash", "--quiet", "origin", BRANCH)
     if pull.returncode != 0:
         raise PublishError(
-            f"could not fast-forward onto origin/{BRANCH} ({behind} commit(s) "
-            f"behind): {(pull.stderr or '').strip()}. Nothing was changed. If the "
-            "two have genuinely diverged, sort that out before publishing — do "
-            "not hand-merge the generated files.")
+            f"could not fast-forward onto origin/{BRANCH} ({behind} commit(s) behind): "
+            f"{(pull.stderr or '').strip()}. Nothing was changed.")
     return f"fast-forwarded {behind} commit(s)"
 
 
-def _push(root: Path) -> subprocess.CompletedProcess:
-    return _git(root, "push", "origin", BRANCH, timeout=180)
+def sync_data(root: Path = ROOT) -> str:
+    """Bring the local database up to the published one, never over unpublished rows."""
+    if not is_git_repo(root):
+        return "skipped"
+    state, remote = _remote_data(root)
+    if state != "ok":
+        return ("offline" if state == "offline" else
+                "no data branch yet — this checkout's database is the only copy")
+    if _git(root, "fetch", "--quiet", "origin",
+            f"+refs/heads/{DATA_BRANCH}:refs/remotes/origin/{DATA_BRANCH}").returncode != 0:
+        return "offline"
+    base = _rev(root, BASE_REF)
+    local = _sha256(root / DB_PATH)
+    if local is not None and local == _db_sha_of(root, remote):
+        _git(root, "update-ref", BASE_REF, remote)
+        return "data already current"
+    if base == remote:
+        return "data already current (local rows not yet published)"
+    if local is not None and local != _db_sha_of(root, base):
+        raise PublishError(
+            f"this checkout's database has rows that were never published, and "
+            f"origin/{DATA_BRANCH} has moved on since. Neither is replaced. To keep "
+            f"the published one, move {DB_PATH} aside and re-run.")
+
+    if local is not None:
+        _snapshot(root, f"replaced-{time.strftime('%Y%m%d-%H%M%S')}")
+    for published, rel in DATA_FILES.items():
+        blob = _git(root, "cat-file", "blob", f"{remote}:{published}", text=False)
+        if blob.returncode != 0:
+            continue
+        data = gzip.decompress(blob.stdout) if published.endswith(".gz") else blob.stdout
+        target = root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = target.with_name(target.name + ".download")
+        tmp.write_bytes(data)
+        os.replace(tmp, target)
+    _git(root, "update-ref", BASE_REF, remote)
+    subject = _out(_git(root, "log", "-1", "--format=%s", remote))
+    return f"downloaded the published data ({subject})"
+
+
+def sync(root: Path = ROOT) -> str:
+    return f"{sync_code(root)}; {sync_data(root)}"
+
+
+# ---------------------------------------------------------------------------
+# publish: after a run
+# ---------------------------------------------------------------------------
+def _data_tree(root: Path) -> str:
+    entries = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for published, rel in sorted(DATA_FILES.items()):
+            src = root / rel
+            if not src.exists():
+                continue
+            if published.endswith(".gz"):
+                gz = Path(tmp) / published
+                gz.write_bytes(gzip.compress(src.read_bytes(), mtime=0))
+                src = gz
+            sha = _out(_git(root, "hash-object", "-w", str(src)))
+            entries.append(f"100644 blob {sha}\t{published}\n")
+    # GitHub reads a push-triggered workflow FROM THE PUSHED COMMIT. Without
+    # main's pages.yml in this tree, a push to `data` from the Mac would start
+    # no deploy at all. It is a copy; main's is the one that is edited.
+    workflow = _rev(root, f"HEAD:{PAGES_WORKFLOW}")
+    if workflow:
+        inner = _out(_git(root, "mktree", input=f"100644 blob {workflow}\tpages.yml\n"))
+        outer = _out(_git(root, "mktree", input=f"040000 tree {inner}\tworkflows\n"))
+        entries.append(f"040000 tree {outer}\t.github\n")
+    return _out(_git(root, "mktree", input="".join(entries)))
 
 
 def publish(generated_at: str, mode: str = "live", root: Path = ROOT,
             verify_deploy: bool = True) -> dict:
-    """Commit the generated artefacts, push, and confirm the site caught up."""
+    """Replace the data branch with this run's artefacts and confirm the site caught up."""
     reason = skip_reason(mode, root)
     if reason:
         logger.info("Publish: skipped — %s", reason)
         return {"published": False, "skipped": reason}
+    if not (root / DB_PATH).exists():
+        raise PublishError(f"no {DB_PATH} to publish")
 
-    staged = stage(root)
-    others = unpublished_changes(root)
-    if not staged:
-        ahead = _out(_git(root, "rev-list", "--count", f"origin/{BRANCH}..HEAD"))
-        if ahead in ("", "0"):
-            logger.info("Publish: nothing changed — the live site already has this run")
-            result = {"published": False, "skipped": "no change", "others": others}
-            if verify_deploy:
-                result["verified"] = verify(generated_at)
-            return result
-        logger.info("Publish: no new data, but %s commit(s) were never pushed", ahead)
-    else:
-        message = (f"Weekly data refresh {generated_at[:10]} "
-                   f"({generated_at[11:16]} UTC, run from Mac)")
-        commit = _git(root, "commit", "--quiet", "-m", message)
-        if commit.returncode != 0:
-            raise PublishError(f"git commit failed: {_out(commit)}{commit.stderr}")
-        logger.info("Publish: committed %s", ", ".join(staged))
+    base = _rev(root, BASE_REF)
+    tree = _data_tree(root)
+    if base and _rev(root, f"{base}^{{tree}}") == tree:
+        logger.info("Publish: nothing changed — the live site already has this run")
+        result = {"published": False, "skipped": "no change"}
+        if verify_deploy:
+            result["verified"] = verify(generated_at)
+        return result
 
-    push = _push(root)
+    where = "GitHub Actions" if os.environ.get("GITHUB_ACTIONS") else "Mac"
+    message = (f"Data {generated_at[:10]} ({generated_at[11:16]} UTC, run from {where})\n\n"
+               f"db-sha256: {_sha256(root / DB_PATH)}\n")
+    commit = _git(root, "commit-tree", tree, "-m", message)
+    if commit.returncode != 0:
+        raise PublishError(f"git commit-tree failed: {commit.stderr.strip()}")
+    new = _out(commit)
+
+    # The lease: the remote data branch must still be exactly the commit this
+    # database was built on (or must not exist yet, for the very first publish).
+    lease = f"--force-with-lease=refs/heads/{DATA_BRANCH}:{base or ''}"
+    push = _git(root, "push", "--quiet", lease, "origin",
+                f"{new}:refs/heads/{DATA_BRANCH}", timeout=180)
     if push.returncode != 0:
         stderr = (push.stderr or "").strip()
-        if "rejected" in stderr or "fetch first" in stderr:
+        if "stale info" in stderr or "rejected" in stderr or "fetch first" in stderr:
             raise PublishError(
-                "the remote moved while this run was in flight (the Saturday job, "
-                "most likely). Re-run `python3 pipeline.py --mode live`: it will "
-                "fast-forward first and rebuild on top of the newer database. Do "
-                "not merge the generated files by hand.")
+                "someone else published while this run was in flight (the Saturday "
+                "job, most likely). Re-run `python3 pipeline.py --mode live`: it "
+                "will download the newer database first and rebuild on top of it.")
         raise PublishError(f"git push failed: {stderr}")
-    logger.info("Publish: pushed to origin/%s — Pages is deploying", BRANCH)
+    _git(root, "update-ref", BASE_REF, new)
+    _git(root, "update-ref", f"refs/remotes/origin/{DATA_BRANCH}", new)
+    logger.info("Publish: replaced origin/%s with this run — Pages is deploying", DATA_BRANCH)
+    _snapshot(root, generated_at[:16])
+    _compact(root)
 
-    result = {"published": True, "staged": staged, "others": others}
-    if others:
-        logger.info("Publish: %d other changed file(s) were NOT published (%s)",
-                    len(others), ", ".join(others[:4]))
+    result = {"published": True, "commit": new}
     if verify_deploy:
         result["verified"] = verify(generated_at)
     return result
 
 
-def live_generated_at(timeout: int = 20) -> str | None:
-    """The `generated_at` the live site is currently serving, or None.
+# Each publish writes a new ~2 MB blob into the LOCAL object store, and git's
+# auto-gc counts objects, not bytes, so it never fires on its own. Superseded
+# data commits are unreachable once BASE_REF moves on, so a gc both packs the
+# repository and drops them. (Before the data branch, the committed database
+# took the local .git to 209 MB against 11 MB packed.)
+LOOSE_LIMIT_KB = 50 * 1024
 
-    Pages serves with max-age=600, so a bare request can be answered from an
-    edge cache that predates the deploy. The query string is what makes this a
-    read of the live object rather than of that cache.
-    """
+
+def _compact(root: Path) -> None:
+    """Pack the local repository once loose objects pass LOOSE_LIMIT_KB. Best effort."""
+    try:
+        counts = dict(line.split(": ", 1) for line in
+                      _out(_git(root, "count-objects", "-v")).splitlines() if ": " in line)
+        if int(counts.get("size", 0)) < LOOSE_LIMIT_KB:
+            return
+        if _git(root, "gc", "--quiet", timeout=600).returncode == 0:
+            logger.info("Publish: packed the local git history (loose objects were %d MB)",
+                        int(counts["size"]) // 1024)
+    except (ValueError, OSError, subprocess.SubprocessError):
+        pass
+
+
+def live_generated_at(timeout: int = 20) -> str | None:
+    """The `generated_at` the live site is currently serving, or None."""
     try:
         resp = requests.get(LIVE_URL, params={"cachebust": str(time.time())},
                             headers={"Cache-Control": "no-cache"}, timeout=timeout)
@@ -272,7 +373,7 @@ def main() -> None:
                         help="Push without waiting for the deploy to land.")
     args = parser.parse_args()
 
-    local_path = ROOT / "site" / "data" / "latest.json"
+    local_path = ROOT / DATA_FILES["latest.json"]
     payload = json.loads(local_path.read_text())
     local, is_sample = payload.get("generated_at"), payload.get("is_sample")
 

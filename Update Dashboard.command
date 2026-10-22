@@ -6,11 +6,11 @@
 # Every step is explained as it happens and anything that goes wrong stops the
 # script with a plain-English message rather than a stack trace.
 #
-# Publishing is not a question any more. The data files are committed files and
-# the live site is a checkout of them, so a refresh that stops on this Mac
-# leaves two different dashboards: the one on screen and the one at the URL.
-# pipeline.py now syncs, pushes and waits for the deploy as part of the run
-# itself -- this script just narrates it.
+# Publishing is not a question any more: a refresh that stops on this Mac would
+# leave two different dashboards, the one on screen and the one at the URL.
+# pipeline.py downloads the latest published data, fetches, publishes to the
+# `data` branch and waits for the deploy as part of the run itself -- this
+# script just narrates it.
 #
 # macOS runs a .command file in Terminal on double-click. Keep the executable
 # bit set (chmod +x) or Finder will open it in a text editor instead.
@@ -44,16 +44,15 @@ fi
 ok "all present"
 
 # ---------------------------------------------------------------------------
-# One call does the lot: fast-forward onto GitHub first (the Saturday run
-# pushes a newer database, and starting behind it is how you get a conflict on
-# a binary file), fetch only what is newer than what is stored, rebuild the
-# page data, push it, and wait for GitHub Pages to actually serve it. The
-# filter turns the pipeline's log into English.
+# One call does the lot: pick up the Saturday run's newer database from GitHub
+# first, fetch only what is newer than what is stored, rebuild the page data,
+# publish it, and wait for GitHub Pages to actually serve it. The filter turns
+# the pipeline's log into English.
 say "2/4  Fetching this week's data and publishing it"
 printf "%s  Only what is newer than what you already have.%s\n" "$dim" "$off"
 printf "%s  The push and the site rebuild take a couple of minutes.%s\n\n" "$dim" "$off"
 python3 pipeline.py --mode live 2>&1 \
-  | grep -E "Sync:|Ingest:|Quality:|Export:|Catalog synced|Wrote|Publish:|status changed|ERROR" \
+  | grep -E "Sync:|Ingest:|Quality:|Export:|Coverage written|Wrote|Publish:|status changed|ERROR" \
   | sed 's/^INFO [^:]*: /  /; s/^WARNING [^:]*: /  ! /; s/^ERROR [^:]*: /  x /'
 # The status of a pipeline is its LAST command, which here is sed and always
 # succeeds -- so read the FIRST one instead. Without this, a crashed refresh

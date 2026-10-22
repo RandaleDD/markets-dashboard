@@ -54,6 +54,26 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_PATH.read_text())
     conn.commit()
+    if not is_current_layout(conn):
+        # CREATE TABLE IF NOT EXISTS leaves a pre-existing table in its old
+        # form. Everything still works on it -- it is just twice the size.
+        logger.warning("observations is not in the current schema.sql layout; "
+                       "convert it once with `python3 tools/rebuild_store.py`")
+
+
+def _columns(conn: sqlite3.Connection, table: str = "observations") -> list[str]:
+    return [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+
+
+def is_current_layout(conn: sqlite3.Connection) -> bool:
+    """observations is WITHOUT ROWID with exactly the columns schema.sql declares."""
+    row = conn.execute("SELECT sql FROM sqlite_master "
+                       "WHERE type = 'table' AND name = 'observations'").fetchone()
+    if not row or "WITHOUT ROWID" not in row[0].upper():
+        return False
+    fresh = sqlite3.connect(":memory:")
+    fresh.executescript(SCHEMA_PATH.read_text())
+    return _columns(conn) == _columns(fresh)
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +99,40 @@ def upsert_catalog(conn: sqlite3.Connection, rows: list[dict]) -> int:
         payload)
     conn.commit()
     return len(payload)
+
+
+def retire_unregistered(conn: sqlite3.Connection, live_ids: set[str]) -> dict:
+    """
+    Settle catalog rows for series the registry no longer produces.
+
+    `upsert_catalog` only adds and overwrites, so a retired or renamed id
+    (cpi.US became cpi.US.index) otherwise stays in series_catalog forever,
+    looking exactly like a live series with no data. Two cases:
+
+      * nothing references it -- no observations, no flags: the row is
+        removed. It described nothing that was ever stored.
+      * history references it: the row stays, because those observations are
+        append-only and must still say what they are, and its status becomes
+        'retired'. Re-registering the id flips it back on the next upsert.
+
+    Takes the FULL set of registered ids. Never call it with a subset.
+    """
+    stale = catalog_ids(conn) - set(live_ids)
+    removed, retired = [], []
+    for sid in sorted(stale):
+        referenced = conn.execute(
+            "SELECT EXISTS (SELECT 1 FROM observations WHERE series_id = ?) "
+            "OR EXISTS (SELECT 1 FROM data_quality_flags WHERE series_id = ?)",
+            (sid, sid)).fetchone()[0]
+        if referenced:
+            conn.execute("UPDATE series_catalog SET status = 'retired' "
+                         "WHERE series_id = ? AND status != 'retired'", (sid,))
+            retired.append(sid)
+        else:
+            conn.execute("DELETE FROM series_catalog WHERE series_id = ?", (sid,))
+            removed.append(sid)
+    conn.commit()
+    return {"removed": removed, "retired": retired}
 
 
 def catalog(conn: sqlite3.Connection) -> dict[str, dict]:
@@ -121,13 +175,11 @@ def insert_observations(conn: sqlite3.Connection, rows: list[tuple], run_id: int
     """
     if not rows:
         return 0
-    now = datetime.now(timezone.utc).isoformat()
-    payload = [(sid, _iso(d), _iso(v), float(val), now, run_id) for sid, d, v, val in rows]
+    payload = [(sid, _iso(d), _iso(v), float(val), run_id) for sid, d, v, val in rows]
     before = conn.total_changes
     conn.executemany(
-        "INSERT INTO observations "
-        "(series_id, date, vintage_date, value, ingested_at, source_run_id) "
-        "VALUES (?, ?, ?, ?, ?, ?) "
+        "INSERT INTO observations (series_id, date, vintage_date, value, source_run_id) "
+        "VALUES (?, ?, ?, ?, ?) "
         "ON CONFLICT(series_id, date, vintage_date) DO NOTHING", payload)
     conn.commit()
     return conn.total_changes - before

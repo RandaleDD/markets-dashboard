@@ -3,5 +3,16 @@ __pycache__/
 .DS_Store
 
 # Sample runs write here so synthetic numbers can never reach the real store.
-# data/markets.db itself IS committed — it is the accumulated history.
 data/markets-sample.db
+
+# Generated artefacts. They are published on the single-commit `data` branch
+# (publish.py), never committed to main; data/history/ is this machine's own
+# rolling snapshots of the store.
+data/markets.db
+data/DATA-COVERAGE.csv
+data/history/
+site/data/latest.json
+
+# tools/rebuild_store.py: the pre-conversion copy and its work file.
+data/*.pre-rebuild
+data/*.rebuild

@@ -1,35 +1,20 @@
 """
-Keep DATA-CATALOG.csv a true mirror of what the database actually holds.
+Write data/DATA-COVERAGE.csv: what the database actually holds, per series.
 
-The catalog is the human-readable record of sourcing DECISIONS -- what each
-series is, where it comes from, what is known to be awkward about it. Those
-columns are written by a person and this module never touches them.
+DATA-CATALOG.csv is the human-readable record of sourcing DECISIONS and is
+written only by a person. Until 2026-10-22 this module rewrote coverage columns
+INTO it after every run, which made a hand-maintained file churn weekly, made
+it ~200 KB, and could append generated rows that silently displaced reviewed
+ones (seven duplicate pairs in Sep 2026). Now the measured half lives in its
+own generated file, published with the data on the `data` branch and never
+committed to main, and the reviewed file is read-only to the pipeline.
 
-What it does maintain, after every run, is the other half: what is genuinely
-in `data/markets.db` right now. Before this, the catalog could say "full"
-history and status "ok" for a series that had quietly stopped updating, and
-nothing would contradict it. Now the file answers both questions side by side
--- what we decided, and what we actually have -- in the same spreadsheet
-layout, so it can be opened and read without touching the database.
-
-Three rules that make this safe to run unattended:
-
-  - **Human prose is never overwritten.** Description, unit, source endpoint,
-    notes, recommended horizon and the source's own native periodicity are
-    read, preserved, and written back untouched.
-  - **Scope decisions are never overwritten.** `Status` is only ever flipped
-    between `ok` and `stale`, and only for a series that has a fetcher. A row
-    marked `planned (v2)`, `no source found`, `exists, not free` or
-    `descoped` keeps that status forever -- those are judgements about whether
-    a series is in scope at all, and a pipeline run has no business changing
-    them.
-  - **Rows are never removed.** A series that disappears from the registry
-    keeps its row and simply reports that it is not in the database.
-
-Series the database holds that the catalog has no row for are appended, so
-the mirror is complete in both directions -- that is how the eight
-`cpi.<region>.index` siblings, which the catalog folded into their parent
-rows, come to be listed.
+One row per identifier in the union of the catalog, the registry and the
+store, in catalog order, so the two files line up when read side by side.
+`Live status` is the measured answer: `ok`, `stale`, `missing` (registered,
+nothing stored), `retired` (stored, no longer registered) or `—` (out of scope).
+A registered series with no reviewed catalog row is logged, not appended:
+write its row by hand.
 """
 from __future__ import annotations
 
@@ -44,14 +29,19 @@ from db import registry, store
 
 logger = logging.getLogger("markets_dashboard.db.catalog_sync")
 
-CATALOG_CSV = Path(__file__).resolve().parent.parent / "data" / "DATA-CATALOG.csv"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+CATALOG_CSV = DATA_DIR / "DATA-CATALOG.csv"
+COVERAGE_CSV = DATA_DIR / "DATA-COVERAGE.csv"
 
 ID_COLUMN = "Identifier"
 STATUS_COLUMN = "Status"
 
-# Appended to the right of the human-authored columns, so the existing layout
-# is unchanged and the measured facts read as a block.
 COVERAGE_COLUMNS = [
+    "Identifier",
+    "Category",
+    "Region",
+    "Catalog status",
+    "Live status",
     "In database",
     "Stored periodicity",
     "Stored from",
@@ -61,11 +51,6 @@ COVERAGE_COLUMNS = [
     "Open data-quality flags",
     "Synced",
 ]
-
-# The only two statuses this module may write. Everything else is a scope
-# decision that belongs to whoever reviewed the sourcing.
-LIVE_STATUSES = {"ok", "stale"}
-
 
 def _coverage(conn) -> dict[str, dict]:
     """One pass over the view for every series' first/last date and count."""
@@ -99,119 +84,72 @@ def _freshness(last: str | None, max_age_days: int) -> str:
     return f"STALE ({age}d old, limit {max_age_days}d)"
 
 
-def sync(conn, path: Path | None = None) -> dict:
-    """Rewrite the coverage columns in place. Returns a short summary."""
-    path = Path(path) if path else CATALOG_CSV
-    if not path.exists():
-        logger.warning("No catalog at %s; nothing to sync", path)
-        return {"rows": 0, "updated": 0, "added": 0, "status_changes": []}
-
-    with path.open(newline="", encoding="utf-8-sig") as fh:
-        reader = csv.DictReader(fh)
-        original_fields = list(reader.fieldnames or [])
-        rows = list(reader)
+def sync(conn, catalog_path: Path | None = None, out_path: Path | None = None) -> dict:
+    """Rewrite the coverage file from the store. Never writes the catalog."""
+    catalog_path = Path(catalog_path) if catalog_path else CATALOG_CSV
+    out_path = Path(out_path) if out_path else COVERAGE_CSV
+    reviewed: list[dict] = []
+    if catalog_path.exists():
+        with catalog_path.open(newline="", encoding="utf-8-sig") as fh:
+            reviewed = [r for r in csv.DictReader(fh) if (r.get(ID_COLUMN) or "").strip()]
 
     series = registry.by_id()
     coverage = _coverage(conn)
     flags = _open_flags(conn)
     synced = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    fields = original_fields + [c for c in COVERAGE_COLUMNS if c not in original_fields]
-    seen, status_changes, updated = set(), [], 0
-
-    def fill(row: dict, series_id: str) -> None:
-        nonlocal updated
-        entry = series.get(series_id)
-        cover = coverage.get(series_id)
-        if cover:
-            row["In database"] = "yes"
-            row["Stored periodicity"] = entry.periodicity if entry else ""
-            row["Stored from"] = cover["first"]
-            row["Stored to"] = cover["last"]
-            row["Stored observations"] = f"{cover['n']:,}"
-            row["Freshness"] = _freshness(cover["last"], entry.max_age_days) if entry else ""
-        else:
-            row["In database"] = "no"
-            for column in ("Stored periodicity", "Stored from", "Stored to",
-                           "Stored observations", "Freshness"):
-                row[column] = "—"
-        row["Open data-quality flags"] = ", ".join(flags.get(series_id, [])) or "—"
-        row["Synced"] = synced
-
-        # Status: only ever ok <-> stale, and only where a fetcher exists.
-        current = (row.get(STATUS_COLUMN) or "").strip()
-        if entry and cover and current in LIVE_STATUSES:
-            live = "stale" if row["Freshness"].startswith("STALE") else "ok"
-            if live != current:
-                row[STATUS_COLUMN] = live
-                status_changes.append(f"{series_id}: {current} -> {live}")
-        updated += 1
-
-    for row in rows:
-        series_id = (row.get(ID_COLUMN) or "").strip()
-        seen.add(series_id)
-        fill(row, series_id)
-
-    # Duplicate identifiers are silent and permanent without this. `seen` above
-    # stops a THIRD row ever being appended, so once a pair exists both rows are
-    # refreshed forever and the sync stays idempotent -- there is nothing in the
-    # output to notice. They arise when a series is registered and the pipeline
-    # runs before its reviewed row is hand-written: the append below adds one,
-    # and the author then adds the other. Seven pairs accumulated that way
-    # between 2026-09-13 and 2026-09-19.
-    #
-    # It is not cosmetic. db/catalog.read_csv_rows builds {identifier: row} by
-    # dict comprehension, so the LAST row wins -- and the appended one sits
-    # below the hand-written one, which means the generated description and
-    # endpoint are what reach series_catalog while the reviewed prose is
-    # discarded.
-    #
-    # Warning rather than removing: this module owns the coverage columns and
-    # never removes a row. tests/test_catalog_sync asserts the committed
-    # catalog has none, so a recurrence fails the suite rather than waiting to
-    # be noticed here.
-    duplicates = sorted({sid for sid in seen
-                         if sid and sum(1 for r in rows
-                                        if (r.get(ID_COLUMN) or "").strip() == sid) > 1})
+    ids = [r[ID_COLUMN].strip() for r in reviewed]
+    by_id = {r[ID_COLUMN].strip(): r for r in reviewed}
+    duplicates = sorted({i for i in ids if ids.count(i) > 1})
     for series_id in duplicates:
-        logger.warning("Catalog has %d rows for %s; the LAST one wins when "
-                       "series_catalog is built, so the reviewed prose is being "
-                       "discarded. Delete the row whose notes begin 'Added "
-                       "automatically'.",
-                       sum(1 for r in rows if (r.get(ID_COLUMN) or "").strip() == series_id),
-                       series_id)
+        logger.warning("DATA-CATALOG.csv has %d rows for %s; the LAST one wins when "
+                       "series_catalog is built. Delete the other.",
+                       ids.count(series_id), series_id)
+    unreviewed = [sid for sid in series if sid not in by_id]
+    if unreviewed:
+        logger.warning("Registered but missing from DATA-CATALOG.csv (write their "
+                       "reviewed rows): %s", ", ".join(unreviewed))
+    order = list(dict.fromkeys(ids + unreviewed + sorted(set(coverage) - set(ids) - set(series))))
 
-    # Series the database holds that the catalog never listed.
-    added = []
-    for series_id, entry in series.items():
-        if series_id in seen:
-            continue
-        row = {field: "" for field in fields}
-        row.update({
-            "Category": entry.category, "Region": entry.region or "—",
-            ID_COLUMN: series_id, "Description": entry.description,
-            "Value unit / format": entry.unit,
-            "Native periodicity": entry.native_periodicity or entry.periodicity,
-            "Institution / endpoint": entry.source, STATUS_COLUMN: "ok",
-            "Notes / quirks": "Added automatically by db/catalog_sync.py: the "
-                              "database stores this series but the reviewed "
-                              "catalog had no row for it.",
-        })
-        fill(row, series_id)
+    rows, stale = [], []
+    for series_id in order:
+        entry, cover, cat = series.get(series_id), coverage.get(series_id), by_id.get(series_id, {})
+        row = {"Identifier": series_id,
+               "Category": cat.get("Category") or (entry.category if entry else ""),
+               "Region": cat.get("Region") or ((entry.region or "—") if entry else ""),
+               "Catalog status": (cat.get(STATUS_COLUMN) or "").strip() or "not in catalog",
+               "Open data-quality flags": ", ".join(flags.get(series_id, [])) or "—",
+               "Synced": synced}
+        if cover:
+            row.update({"In database": "yes",
+                        "Stored periodicity": entry.periodicity if entry else "",
+                        "Stored from": cover["first"], "Stored to": cover["last"],
+                        "Stored observations": f"{cover['n']:,}",
+                        "Freshness": _freshness(cover["last"], entry.max_age_days) if entry else ""})
+        else:
+            row.update({c: "—" for c in ("Stored periodicity", "Stored from", "Stored to",
+                                         "Stored observations", "Freshness")})
+            row["In database"] = "no"
+        if entry and cover:
+            row["Live status"] = "stale" if row["Freshness"].startswith("STALE") else "ok"
+        elif entry:
+            row["Live status"] = "missing"
+        elif cover:
+            row["Live status"] = "retired"
+        else:
+            row["Live status"] = "—"
+        if row["Live status"] == "stale":
+            stale.append(series_id)
         rows.append(row)
-        added.append(series_id)
 
-    with path.open("w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=COVERAGE_COLUMNS)
         writer.writeheader()
-        for row in rows:
-            writer.writerow({field: row.get(field, "") for field in fields})
+        writer.writerows(rows)
 
-    in_db = sum(1 for r in rows if r.get("In database") == "yes")
-    logger.info("Catalog synced: %d rows, %d in the database, %d added%s",
-                len(rows), in_db, len(added),
-                (f"; status changes: {', '.join(status_changes)}" if status_changes else ""))
-    for change in status_changes:
-        logger.warning("Catalog status changed — %s", change)
-    return {"rows": len(rows), "in_database": in_db, "added": added,
-            "status_changes": status_changes}
+    in_db = sum(1 for r in rows if r["In database"] == "yes")
+    logger.info("Coverage written: %d series, %d in the database, %d stale%s",
+                len(rows), in_db, len(stale), f" ({', '.join(stale)})" if stale else "")
+    return {"rows": len(rows), "in_db": in_db, "stale": stale,
+            "unreviewed": unreviewed, "duplicates": duplicates}

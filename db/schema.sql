@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS series_catalog (
     native_periodicity  TEXT,
     source              TEXT,
     max_age_days        INTEGER,            -- staleness threshold, cadence-aware
-    status              TEXT NOT NULL,      -- 'ok' | 'stale' | 'planned'
+    status              TEXT NOT NULL,      -- 'ok' | 'stale' | 'planned' | 'retired'
     notes               TEXT
 );
 
@@ -24,18 +24,25 @@ CREATE TABLE IF NOT EXISTS observations (
     date          TEXT NOT NULL,            -- ISO 8601, the period the value describes
     vintage_date  TEXT NOT NULL,            -- when this value was OBSERVED as of
     value         REAL NOT NULL,
-    ingested_at   TEXT NOT NULL,
-    source_run_id INTEGER REFERENCES pipeline_runs(run_id),
+    source_run_id INTEGER REFERENCES pipeline_runs(run_id),  -- when: pipeline_runs.started_at
     PRIMARY KEY (series_id, date, vintage_date)
-);
-CREATE INDEX IF NOT EXISTS idx_obs_series ON observations(series_id, date);
+) WITHOUT ROWID;
+-- WITHOUT ROWID stores the rows IN the primary-key b-tree, so the table and
+-- its key are one structure instead of two copies of the same three columns
+-- (28 MB -> ~14 MB on 162k rows). The key's (series_id, date) prefix serves
+-- every lookup the old idx_obs_series did, so that index is gone. There is no
+-- per-row ingested_at either: a 32-byte timestamp on every row that nothing
+-- read, and source_run_id already says which run attached it (another -7 MB).
+-- An existing database is converted once, by hand, with tools/rebuild_store.py
+-- -- SQLite cannot ALTER a table into this form, and init_db must not rebuild it.
+DROP INDEX IF EXISTS idx_obs_series;
 
 -- The ONLY place "current value" is computed. Not stored, not mutated --
 -- resolved fresh on every read as "the most recently observed vintage for
 -- this (series, date)". Adding a later vintage changes what this view returns
 -- without a single UPDATE ever touching the base table.
 CREATE VIEW IF NOT EXISTS latest_observations AS
-SELECT o.series_id, o.date, o.value, o.vintage_date, o.ingested_at
+SELECT o.series_id, o.date, o.value, o.vintage_date
 FROM observations o
 WHERE o.vintage_date = (
     SELECT MAX(o2.vintage_date) FROM observations o2

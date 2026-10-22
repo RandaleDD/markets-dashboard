@@ -46,6 +46,7 @@ def main() -> int:
 
     rows, report = catalog.build_rows()
     store.upsert_catalog(conn, rows)
+    store.retire_unregistered(conn, {r["series_id"] for r in rows})
     catalog.log_report(report)
     logger.info("series_catalog: %d series registered", len(rows))
 

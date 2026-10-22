@@ -11,7 +11,7 @@ on:
   workflow_dispatch: {} # allows manual "Run workflow" from the Actions tab
 
 permissions:
-  contents: write
+  contents: write # to replace the `data` branch
   pages: write
   id-token: write
 
@@ -22,9 +22,10 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # The database is committed, so the checkout IS the accumulated history.
-      # Without it the run would have no watermark and would re-bootstrap.
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -33,37 +34,27 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Fail if the database is missing
-        # A silent re-bootstrap would pull ~89MB of BoE archives and quietly
-        # replace an accumulated store, so this stops rather than guessing.
-        run: |
-          test -s data/markets.db || {
-            echo "::error::data/markets.db is missing. Run bootstrap.py and commit it."
-            exit 1
-          }
-
-      - name: Run pipeline (ingest -> quality -> export)
+      # pipeline.py does the data handling itself, exactly as on the Mac: it
+      # downloads the store from the `data` branch, refuses to run if that is
+      # impossible (rather than silently re-bootstrapping), ingests, and
+      # replaces the `data` branch with a lease so it can never overwrite a
+      # run that published in between. It exits non-zero if the publish
+      # failed, which stops the deploy below.
+      - name: Run pipeline (sync -> ingest -> quality -> export -> publish)
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }} # optional — fredgraph.csv path doesn't need it
-        run: python pipeline.py --mode live
-
-      # pipeline.py publishes itself when it is run on the Mac, but NOT here:
-      # publish.py stands down inside Actions (GITHUB_ACTIONS is set) precisely
-      # so this step and that one cannot race. The file list below is the same
-      # one as publish.GENERATED -- change both together.
-      - name: Commit refreshed data
         run: |
           git config user.name "markets-dashboard-bot"
           git config user.email "actions@users.noreply.github.com"
-          # DATA-CATALOG.csv is rewritten by db/catalog_sync.py on every run,
-          # so it has to be committed too or the next checkout discards the
-          # coverage the run just measured.
-          git add site/data/latest.json data/markets.db data/DATA-CATALOG.csv
-          git diff --staged --quiet || git commit -m "Weekly data refresh $(date -u +%Y-%m-%d)"
-          git push
+          python pipeline.py --mode live --no-verify
 
+      # A push made with GITHUB_TOKEN cannot start another workflow, so
+      # pages.yml never sees this run's push; deploy from here instead.
+      - run: python stamp_assets.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - uses: actions/deploy-pages@v4
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

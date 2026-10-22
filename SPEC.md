@@ -7,8 +7,9 @@ Live at https://randaledd.github.io/markets-dashboard/.
 
 Companion docs: `CLAUDE.md` (working conventions and the last verified run
 status) and `data/DATA-CATALOG.csv` — the reviewed sourcing decision for
-every series, which seeds the database's `series_catalog` table and which the
-pipeline keeps in step with what is actually stored on every run. Permanent
+every series, which seeds the database's `series_catalog` table. What is
+actually stored is written beside it, to the generated `DATA-COVERAGE.csv`, on
+every run. Permanent
 structural gaps are rows in it too, marked `no source found` with the reason
 and the date last checked. Endpoint mechanics and dead ends are in the
 appendix at the foot of this file.
@@ -159,9 +160,11 @@ paid short of a full commercial terminal — the spread of sources is by design.
     db/ingest.py        watermark -> fetch only what's newer -> INSERT OR IGNORE
     db/quality.py       staleness / gaps / outliers / curve consistency -> flags
     db/export.py        latest_observations -> site/data/latest.json
-    db/catalog_sync.py  writes what IS stored back into DATA-CATALOG.csv
+    db/catalog_sync.py  what IS stored -> data/DATA-COVERAGE.csv (generated)
     transform/          derived metrics, consumed by the export
-    pipeline.py         ingest -> quality -> export -> sync, in that order
+    publish.py          sync from / publish to the single-commit `data` branch
+    stamp_assets.py     asset version stamps in index.html (also run at deploy)
+    pipeline.py         sync -> ingest -> quality -> export -> coverage -> publish
     bootstrap.py        one-time seed; never on the schedule
 
 A persistent SQLite store (`data/markets.db`) → a JSON export
@@ -169,20 +172,20 @@ A persistent SQLite store (`data/markets.db`) → a JSON export
 Actions running the pipeline weekly and redeploying to GitHub Pages. No server
 to maintain; a public URL accessible from anywhere.
 
-### Deployment takes two workflows, and the second is easy to miss
+### Deployment: two workflows, two branches
 
-`weekly.yml` refreshes the data and commits it. `pages.yml` publishes `site/`.
-They are separate because Pages here is set to build **from a workflow**, so
-nothing reaches the live URL unless a workflow puts it there — for a long
-period none did, and pushes to `main` silently changed nothing anyone could
-see while the site served an old build.
+Pages here is set to build **from a workflow**, so nothing reaches the live URL
+unless a workflow puts it there — for a long period none did, and pushes to
+`main` silently changed nothing anyone could see while the site served an old
+build. The deployed site is main's `site/` plus `latest.json` from the `data`
+branch, version-stamped by `stamp_assets.py` at deploy time.
 
-`pages.yml` therefore triggers on `push` *and* on `weekly.yml` completing. The
-second trigger is the important one and the non-obvious one: the weekly job
-commits using `GITHUB_TOKEN`, and GitHub deliberately refuses to let a
-token-authored push start another workflow, so a `push` trigger alone would
-never fire for the Saturday run — the one that matters most. After any push,
-check that the live URL actually changed.
+`weekly.yml` runs the pipeline (which replaces the `data` branch) and then
+deploys itself, because it pushes with `GITHUB_TOKEN` and GitHub refuses to let
+a token-authored push start another workflow. `pages.yml` covers every other
+case: a push to `main` touching the site, a push to `data` from the Mac, or a
+manual run. After any push, `publish.verify()` checks the live URL actually
+changed.
 
 ### The store is append-only. This is the requirement, not an implementation detail.
 
@@ -234,18 +237,37 @@ accumulating file on every page load, and it means reimplementing all of
 a Python pipeline and no server. Worth revisiting only if the frontend ever
 needs something the weekly export genuinely cannot anticipate.
 
-### Why the database is committed
+### Where the database lives: the `data` branch, one commit, no history
 
-`weekly.yml` commits `data/markets.db` alongside `latest.json`. The checkout
-*is* the accumulated history — without it the runner would have no watermark
-and would silently re-bootstrap over the store, so the job fails loudly if the
-file is missing. Git's own history is the backup: every commit is a full,
-dated, retrievable snapshot held both locally and on GitHub.
+Until 2026-10-22 `data/markets.db` and `latest.json` were committed to `main`
+every week. That kept a full copy of every past version online for no
+purpose — the store is append-only, so the CURRENT file already contains
+every value and every revision it has ever seen — and it made generated files
+a standing source of merge conflicts. Now (`publish.py`):
+
+- `main` holds code and reviewed prose only; the generated files are
+  gitignored.
+- The `data` branch holds exactly one parentless commit — `markets.db.gz`,
+  `latest.json`, `DATA-COVERAGE.csv` — replaced on every publish with
+  `--force-with-lease` against the commit the local database was built on
+  (`refs/markets/data-base`). A publisher that lost a race is refused and
+  re-runs; nobody's rows are overwritten.
+- Before a run, `sync_data` downloads the published store if it is newer, and
+  refuses to replace a local one holding unpublished rows. A live run with no
+  store at all stops rather than re-bootstrapping over the real one.
+- Each checkout keeps rolling local snapshots in `data/history/` (8, ~2 MB
+  each). That is the only version history, and it is local by design.
+
+The main history was rewritten on 2026-10-22 to remove the 44 committed
+database versions and the old payloads; a bundle of the pre-rewrite repository
+was kept locally.
 
 This is also why the grain is weekly rather than daily. At daily grain the
 store was 585,503 observations and 98.7 MiB — and GitHub hard-rejects any file
 over 100 MiB, so it was 1.3 MiB from being unpushable on its first commit. At
-weekly it is 130,542 observations and 20.9 MiB, growing ~2 MiB a year.
+weekly it was 130,542 observations and 20.9 MiB. The 2026-10-22 slimming
+(WITHOUT ROWID, no duplicate index, no per-row `ingested_at`) took 170k
+observations to 9.7 MiB, 1.7 MiB gzipped as published.
 
 ### Adding a series later
 
@@ -358,8 +380,7 @@ Three strands, roughly in order of value. None is started.
 ## Appendix — endpoint reference
 
 Absorbed from the former `NETWORK.md`. Per-series quirks now live in
-`data/DATA-CATALOG.csv`'s "Notes / quirks" column, which the pipeline keeps in step
-with the database. What is kept here is the cross-cutting knowledge that
+`data/DATA-CATALOG.csv`'s "Notes / quirks" column. What is kept here is the cross-cutting knowledge that
 belongs to no single series and is expensive to re-derive.
 
 ### The User-Agent trap
@@ -673,6 +694,313 @@ allowed to be 150 days stale but is stored weekly like a price.
   and a sum of members' PPP figures is not something the IMF publishes.
 - **Yahoo has no CSI 300 index history** — `000300.SS`/`399300.SZ` accept only
   `period=1d/5d`. The CNY-priced tracker ETF `510300.SS` stands in.
+
+## Appendix — working notes (moved from CLAUDE.md, 2026-10-22)
+
+The full reasoning behind the one-line rules in CLAUDE.md, kept verbatim when
+CLAUDE.md was cut to its rules to save session tokens. Read the relevant entry
+before changing the thing it describes. Dated statements are as of writing.
+
+### Status snapshot as of 2026-10-16
+
+Last verified live run (2026-10-22, `--no-publish`): **152/162 `ok`, 5
+`partial`, 3 `stale` (Shiller CAPE, JP and IN CPI via BIS), 2 `stubbed`, 0
+`failed`.** Database: 233 stored series, 169k observations.
+`site/data/latest.json` is ~1.9 MB (~195 KB gzipped). That run the OECD
+answered with a Cloudflare challenge (see below), so India and Brazil GDP were
+carried on stored data.
+
+2026-10-22 reworked the **Macroeconomics tab**:
+- The growth/inflation **regime map is gone from the page**; `payload.regime`
+  is still exported and nothing reads it.
+- **India and Brazil are macro-only regions** (`universe.MACRO_REGIONS`, the
+  eight plus IN/BR). They appear on the Macroeconomics tab and nowhere else;
+  `REGIONS`, every other tab and the snapshot selector stay at eight.
+- One **Growth & Inflation** table replaced the GDP and Inflation tables: real
+  GDP, CPI, **nominal GDP** (the published current-price series,
+  `gdp_nominal.*`, not real + CPI), and IMF forecasts for this year and next,
+  with a YoY / latest-quarter-annualised switch and uncoloured trend arrows.
+- A **GDP by Region** chart from the IMF WEO (`imf.*`): Real (indexed only),
+  Nominal USD or PPP, absolute or indexed, projections dashed.
+- The **Regional Snapshot** gained a nominal GDP line and a **10-year yield vs
+  nominal growth** panel with r − g as its headline.
+
+The 2026-09-21 pass did eight requested changes and closed three long-standing
+gaps in the process:
+
+- **Swiss GDP** moved to SECO's sport-event-adjusted series (SNB `gdprpq`,
+  `D1(BBIPS)`) — FIFA/UEFA/IOC book licensing revenue in Switzerland, so the
+  unadjusted series spikes in tournament quarters.
+- **US and Europe valuation multiples** now exist. The US was a CONFIG gap, not
+  a data gap: `countrystats.xls` always had a "United States" row. Europe comes
+  from Damodaran's regional files for the STOXX Europe 600 row and is a
+  cap-weighted aggregate, a different statistic from the country medians and
+  labelled as one.
+- **Euro and sterling IG credit spreads** are CONSTRUCTED (iShares ETF yield to
+  worst less a duration-matched government curve), because nothing free
+  publishes them. 93bp and 108bp at launch. No history — they deepen weekly
+  from 2026-09-21.
+
+Known limits, none of them a to-do list:
+
+- **1 stale** — Shiller's CAPE file, ending 2024-09.
+- **2 stubbed** — Switzerland and China have no IG credit spread and no
+  prospect of one (SNB's rating buckets died with the 2025 cut; China has no
+  broad onshore IG corporate curve).
+- **5 partial** — cost-of-capital stacks missing one of their two rates. CH,
+  CN, JP and NO have a cost of equity but no credit spread; EZ has a cost of
+  debt but no ERP (no euro-area aggregate exists).
+- **Euro sovereign spreads are monthly and always will be.** The ECB `IRS`
+  legs have no daily variant and no single publisher offers free daily
+  per-country euro sovereign yields. A daily aggregate measure
+  (`G_N_C − G_N_A`, 29bp) sits beside them.
+- **4 open flags**: US CPI missing 2025-10, a 34-week hole in the BoE's real
+  and inflation 2y points, and Shiller's CAPE. All three are real and none is
+  fixable here.
+
+Re-run `python3 pipeline.py --mode live` to refresh these numbers before
+trusting them — this section is a snapshot and goes stale on its own.
+
+### Conventions, in full
+
+- One series/region = one entry in `fetch/universe.py`. Never hardcode a
+  ticker or series ID anywhere else.
+- **A revisable series slower than weekly is re-fetched in FULL every run**
+  (`db/ingest.FULL_REFETCH_CADENCES` — the 9 GDP and 14 CPI series). Do not
+  "optimise" this back to the watermark window. A source that re-chain-links a
+  level series rescales its whole history at once; a 14-day window reaches back
+  less than one quarterly observation, so the rebasing lands on the tail only
+  and splices two bases into one stored series. Nothing looks wrong — the
+  damage is in the growth rate computed across the seam. This is not
+  hypothetical: it published Swiss GDP at 3.06% YoY against 2.63%. See SPEC.md,
+  "The rebasing trap". `db/quality.check_basis_break` catches a recurrence.
+- **`observations` is append-only. No UPDATE, no DELETE, ever.** A revised GDP
+  or CPI print is a NEW row with a later `vintage_date`; the first print is
+  never touched, and `latest_observations` resolves to the newest vintage on
+  read. `tests/test_append_only.py` greps for violations — if it fails, the fix
+  is your code, not the test.
+- **The stored grain is weekly.** The run is Saturday 06:00 UTC and stores each
+  completed week's Friday close (or the last session before it, keeping its
+  real date). Anything computed from it is therefore weekly: volatility
+  annualises with sqrt(52), the windows are named in weeks, and there is no
+  1-day change. Never reintroduce a daily-grain label over weekly data.
+- Adding a series = one row in `universe.py`, then
+  `python3 bootstrap.py --series <id>` (repeatable). It backfills only the ids
+  named and leaves every other stored series untouched.
+- `bootstrap.py` pulls the deep archives: ~89MB of BoE GLC zips, plus ~10MB
+  across 25 `ctryprem` and 5 `countrystats` year-stamped Damodaran files. All
+  are `archive_kwargs` paths, so the weekly run reads only each source's
+  current file and never touches them. Run bootstrap once, by hand. A live run
+  that finds no store and cannot download one stops loudly rather than
+  silently re-bootstrapping over accumulated history.
+- Every fetcher in `fetch/sources.py` returns `None` on failure, never
+  raises — the pipeline must survive individual source outages.
+- `--mode sample` regenerates synthetic data for offline frontend work through
+  the *same* phases as live mode, against its own gitignored
+  `data/markets-sample.db` — so the no-network path cannot rot and synthetic
+  numbers never reach the real **store**.
+- **`--mode` defaults to `sample`, and every mode writes the same
+  `site/data/latest.json`.** A bare `--export-only` therefore overwrites the
+  local payload with synthetic numbers: the separate database protects the
+  store, not the JSON. Always write `--mode live --export-only`. Re-running
+  `--mode live` repairs it, and `latest.json` carries `is_sample` to tell you
+  which is on disk. Sample numbers cannot reach the *live site* — `publish.py`
+  refuses any mode but `live`, and `publish.py --check` refuses a payload
+  carrying `is_sample` — but they can and do overwrite the local file.
+- `--mode live` is the real thing. To preview, serve over http
+  (`cd site && python3 -m http.server 8000`) — `file://` breaks the JSON fetch.
+- A failed fetch must degrade to `None`, never a partial or malformed value —
+  the frontend's "not yet wired" label is driven by `None` in the JSON, not by
+  `source_status`.
+- **A quality flag closes itself when its condition clears.** `db/quality`
+  re-checks every run and resolves any open flag it no longer finds; the row is
+  kept with its original `raised_at`, so the history stays readable. Two things
+  it must never do, both held by `tests/test_flag_resolution.py`: a check that
+  did not run (no data, too few observations to calibrate) closes nothing, and
+  a windowed check never closes a finding OLDER than the window it examined —
+  otherwise a gap that simply aged past `GAP_WINDOW_DAYS` would be declared
+  fixed by a check that had stopped looking at it. A permanently-red indicator
+  is one you learn to scroll past, so **an open flag means currently true**.
+- **HTTP 200 does not mean the dataflow still exists.** Eurostat's
+  `prc_hicp_manr` and the ECB's `ICP` dataset were both discontinued on
+  2026-02-04 and both still answer every query normally, frozen at 2025-12.
+  Their successors need different dimension codes, not just a different id
+  (`coicop18=TOTAL` not `coicop=CP00`; `DATA_PROVIDER=4D0` not `4`). When a
+  series stops moving, check whether the dataflow was retired before assuming
+  the data is late — and when a series appears to vanish from an enumerable
+  API, ENUMERATE rather than guessing ids. Guessing missed the SNB's successor
+  cube seven times; listing the topic found it immediately.
+- HTTP 200 is not the same as current. Every series is age-checked against
+  `MAX_AGE_DAYS` and marked `stale` if it is behind its publication cadence.
+  **`stale` is a failure, not a pass.** Give any new fetcher the right cadence.
+- Pass headers per-source via `_get(...)`; there is no global set that works.
+  FRED breaks if you send a browser User-Agent, BoE and MOF break if you don't.
+- Prefer one request per curve over one per tenor, and bound big payloads with
+  `startPeriod`. Per-tenor fetching turned a single transient failure into a
+  `partial` curve, and unbounded ECB/BIS history hit read timeouts.
+- **A quarterly or monthly figure is labelled by its PERIOD, not by the date it
+  is filed under.** Agencies date an observation to the first day of the period
+  it covers, so Q2 2026 GDP is stored as `2026-04-01` and July's CPI as
+  `2026-07-01`. Showing only that date reads as months-stale data when it is
+  the newest release there is. `db/export._period_label` derives `period_label`
+  beside `as_of`, and the Macroeconomics tables show both.
+- Every displayed number must state its definition — contract and unit for
+  commodities, real-vs-nominal and YoY-vs-annualised for GDP, tenor and index
+  basis for inflation expectations. An unlabelled number that isn't comparable
+  to the ones beside it is a reporting error, not a data point.
+- Derived spreads must take both legs from the same source and vintage. ECB's
+  German yield differs from the Bundesbank's, so mixing them would put that
+  methodology gap into the spread.
+- `db/export.py` must set `out["source_status"] = status` before returning —
+  `empty_payload()` creates its own empty dict, so forgetting this silently
+  ships a payload with no status block. Same for `data_quality`, which
+  `pipeline.py` fills in after the export returns.
+- **The China curve is the one scrape here** (ChinaBond, 5y/10y/30y, no 2y).
+  Parse it by matching the header row by NAME and the government curve by its
+  name string — the response carries three curves and matching on position
+  would silently return a corporate one. A query wider than 365 days returns
+  HTTP 200 with a headers-only page, so zero rows means failure, and the
+  backfill walks one calendar year per request.
+- **Swiss GDP is the SPORT-EVENT ADJUSTED series** (SNB cube `gdprpq`,
+  `D0(WMF),D1(BBIPS)`, which is SECO's `cssa`). FIFA, UEFA and the IOC are
+  domiciled in Switzerland and book their licensing revenue there, so the
+  ordinary series spikes in tournament quarters on revenue that is not Swiss
+  economic activity — 2026-Q2 printed 2.63% YoY unadjusted against 2.15%
+  adjusted, and the sign of the gap flips between quarters, so it does not
+  cancel out of a growth rate. Eurostat cannot serve this at any dimension
+  combination (SPEC.md, dead ends), which is why CH alone among the eight is
+  not on `namq_10_gdp`. It is the one region carrying an extra adjustment, so
+  it is the one region with a `basis` label beside its number in the GDP table.
+  The cube has two traps of its own, both unlike the Swiss curve's: no
+  `fromDate` silently returns five quarters, and dates arrive as `1980-Q2`
+  rather than ISO. See `fetch_snb_gdp`.
+- **Switzerland's curve is official again.** The SNB never retired it; it moved
+  to cube `rendeiduebd` (`dimSel=D0(CHF)`, tenors in years-German — `10J`, not
+  `10Y`), which retired the TradingEconomics scrape on 2026-09-13. The cube
+  publishes daily data in a MONTHLY BATCH, so it carries the `monthly_batch`
+  cadence and the 10y alone is topped up from the SNB's RSS feed (`R10`) to
+  stay current between batches. `curve.CH.*` is no longer `irregular` and gap
+  detection applies normally.
+- **The euro and sterling IG credit spreads are CONSTRUCTED, not sourced.**
+  An iShares ETF's yield to worst less a government curve interpolated to that
+  ETF's own duration. Nothing free publishes these — SPEC.md's dead ends has
+  the enumeration that proves it rather than assuming it. Three things follow:
+  they are **yield-to-worst spreads, not OAS**, and must never share a column
+  with the US figure; their two legs come from **different publishers**, which
+  this project otherwise refuses for a spread; and they have **no history**,
+  because the iShares endpoint is a snapshot — they deepen one weekly point at
+  a time from 2026-09-21. The euro government leg is the ECB **AAA** curve
+  (`G_N_A`), not the all-ratings curve the Eurozone sovereign row uses: the
+  all-ratings blend already contains peripheral sovereign risk, which is not
+  corporate credit risk and must not net out of a corporate spread (93bp
+  against 68bp). Two curves, two purposes, each right for its own.
+- **`ER00`, `IBOXX*` and friends appear in ECB codelists but 404 on data.**
+  `CL_PROVIDER_FM_ID` enumerates ~120 licensed index codes the ECB does not
+  disseminate. A code existing in a codelist is not a series existing.
+- **Damodaran publishes two different statistics and they must not be mixed.**
+  `countrystats.xls` gives the MEDIAN across companies in a country;
+  `peEurope`/`pbvEurope`/`vebitdaEurope` give CAP-WEIGHTED AGGREGATES across a
+  region. For the US those read 22.6 and 26.6, and the regional files' plain
+  `Trailing PE` column is an unweighted mean reading 57.9 — never use it. The
+  aggregate row is `Grand Total` in some files and `Total Market` in others.
+  The valuation payload carries a per-region `basis` so the difference travels
+  with the figure.
+- **`check_basis_break` uses a different scale for a rate than for a level.**
+  A level is judged on the RELATIVE size of a partial restatement
+  (`BASIS_BREAK_PCT`, 0.25%); a series whose unit is already a percentage
+  (`registry.Series.is_rate` — the six CPI `% YoY` series) is judged on
+  percentage points AND on the share of history restated. The ratio test is
+  meaningless on a rate: a routine 0.1pp revision to a 3.3% inflation print is
+  −3.03%, which is how `cpi.EZ` spent two days flagged for an ordinary
+  correction. The SHARE half is the load-bearing one — the only two rate-series
+  events on record are both ~0.1pp, and what separates the real one (`cpi.DE`,
+  Eurostat's ECOICOP v2 switch, 84% of history restated) from the false one
+  (`cpi.EZ`, 0.3%) is how much moved, not how far.
+- **`data/DATA-CATALOG.csv` identifiers must be unique**, and
+  `tests/test_catalog_sync.py` now enforces it against the committed file. Seven
+  pairs accumulated in Sep 2026: registering a series and running the pipeline
+  before hand-writing its reviewed row makes `catalog_sync` append a generated
+  one, and nothing ever removes it. It is invisible from the sync's own output
+  — both rows get refreshed forever — and `db/catalog.read_csv_rows` keys a
+  dict by identifier, so the LAST row wins and the generated metadata silently
+  displaces the reviewed prose in `series_catalog`. **Write the reviewed row
+  before the first run, not after.**
+- **A source switch that changes what a series MEANS cannot be fixed by
+  appending**, and `tools/purge_series.py` is the hand-run repair for it. New
+  rows only displace old ones on dates they share, so differing grids
+  interleave; where they do share a date they usually share a `vintage_date`
+  too, and ON CONFLICT DO NOTHING then keeps the OLD value. Purge and reseed
+  when the quantity, frequency or index base changes — never for a revision,
+  which is what the append-only rule exists to protect.
+- `Update Dashboard.command` is Marco's double-click entry point: sync, fetch,
+  publish, preview. Keep it working and keep its output in plain English — it
+  is the one file here meant to be used without reading any code.
+- Never reference `assets/*` without the version query string. Pages caches
+  assets for 10 minutes, so unversioned URLs can pair fresh HTML with stale JS
+  and render a panel blank with nothing wrong in the code.
+  `stamp_asset_versions()` maintains these; don't strip them by hand.
+- **The price-level chart rebases on ONE common month, matched by date.**
+  `slicePeriod` cuts each line back from its own last date, and the regions'
+  latest releases differ by up to two months, so `dateChart`'s default slice
+  would give each region a different base. `priceLevelBlock` picks the base
+  itself and passes `presliced`. Its windows are in MONTHS (`PL_PERIOD_MONTHS`;
+  YTD is based on the prior December), because a day-count "3M" on month-start
+  dates quietly becomes two months.
+- **India and Brazil are `MACRO_REGIONS`, not `REGIONS`.** Iterate
+  `MACRO_ORDER` (app.js) or `universe.MACRO_REGIONS` (Python) for anything on
+  the Macroeconomics tab, and `REGION_ORDER` / `REGIONS` everywhere else. A
+  region chart there takes at most eight regions at once (`MAX_LINES`): the
+  palette has eight series colours, and ten regions would otherwise put two
+  lines in one colour.
+- **The IMF WEO block stores projections, and three things follow.** Years
+  from the stored edition's year on (`imf.weo_edition`, value YYYYMM) are
+  projections; the export ships that boundary as `projection_from` so the
+  frontend never guesses it. A future-dated first print is stamped with
+  today's vintage (`db/ingest.rows_to_attach`), or the first forecast would
+  outrank every revision forever. And `Series.has_projections` exempts these
+  series from `check_basis_break`, which every new edition would trip. The
+  edition series alone carries the block's staleness (`semiannual`).
+- **CPI's 3-month annualised rate is seasonally adjusted HERE**, because every
+  stored CPI index is NSA (`transform/growth.seasonally_adjusted_growth_series`:
+  classical monthly factors from the previous 8 complete years, no
+  look-ahead). It sits beside SA GDP in the same table row, and the
+  unadjusted figure is mostly the season. Label it as ours, never the agency's.
+- **In the Growth & Inflation table, CPI is on GDP's quarter** (`q_*` fields:
+  the quarter's average index, SA for QoQ), not the newest month, so the
+  three history cells in a row describe the same three months. The newest
+  monthly print is `yoy_pct`/`qoq_ann_pct` and stays the figure everywhere
+  else. Even aligned, real + CPI need not equal nominal: the GDP deflator is
+  not CPI.
+- **IMF nominal growth forecasts are derived** (real growth x deflator growth),
+  the deflator coming from the IMF SDMX API (`imf.<R>.deflator`) because the
+  DataMapper has no deflator and no national-currency GDP. The SDMX fetcher
+  refuses to store anything unless its real growth matches the DataMapper's,
+  which is the guard against pairing two WEO editions; keep it.
+- **The Growth & Inflation table shows values and arrows only**; every detail
+  (period, the other horizon, percentile, basis, source) is in the value's
+  tooltip. Add new detail there, not under the number.
+- **Norway GDP is MAINLAND (SSB 09190), real and nominal**, since 2026-10-22,
+  tagged `Mainland`; total GDP's oil and gas made nominal growth an energy
+  price. Its IMF forecasts are total-economy and say so.
+- **GDP is on cadence `quarterly_national` (270 days)**, not `quarterly`
+  (200): a quarter is dated to its first day and the next one lands 1-2 months
+  after it ENDS, so under 200 every GDP series read stale from mid-October on
+  a schedule.
+- **The OECD SDMX API feeds India and Brazil GDP and nothing else**, and sits
+  behind Cloudflare: a burst of manual calls earned a `403` bot challenge on
+  2026-10-22. Do not poke it repeatedly while debugging, and never try to get
+  around the challenge; the fetcher degrades to `None` and stored history
+  carries the series.
+- Equity index *levels* deliberately carry no percentile annotation — a price
+  percentile on a trending series is always near 100th and says nothing.
+  Volatility and drawdown carry it instead. This is accepted, not a gap.
+- No Node on this machine (`brew install node` fails on a simdjson bottle).
+  To actually execute `site/assets/app.js`, use `osascript -l JavaScript` with
+  a DOM shim — `python3 tools/render_check.py` does this and asserts every
+  table's column headings still line up with the cells under them. Run it
+  after touching `app.js` or after renaming anything in the payload: nothing
+  else catches a shifted column, because the page still renders and still
+  looks plausible. macOS-only, so it is a tool, not a CI test.
 
 ## Explicitly out of scope
 
