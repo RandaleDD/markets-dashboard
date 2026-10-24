@@ -1,0 +1,258 @@
+Identifier,Category,Region,Catalog status,Live status,In database,Stored periodicity,Stored from,Stored to,Stored observations,Freshness,Open data-quality flags,Synced
+equity.US.sp500,Equity index,US,ok,ok,yes,weekly,1927-12-30,2026-10-23,"5,158","fresh (1d old, limit 14d)",—,2026-10-24
+equity.US.nasdaq100,Equity index,US,ok,ok,yes,weekly,1985-10-04,2026-10-23,"2,145","fresh (1d old, limit 14d)",—,2026-10-24
+equity.US.russell2000,Equity index,US,ok,ok,yes,weekly,1987-09-11,2026-10-23,"2,044","fresh (1d old, limit 14d)",—,2026-10-24
+equity.UK.ftse100,Equity index,UK,ok,ok,yes,weekly,1984-01-06,2026-10-23,"2,235","fresh (1d old, limit 14d)",—,2026-10-24
+equity.EZ.stoxx600,Equity index,EZ,ok,ok,yes,weekly,2004-04-30,2026-10-23,"1,175","fresh (1d old, limit 14d)",—,2026-10-24
+equity.DE.dax,Equity index,DE,ok,ok,yes,weekly,1987-12-30,2026-10-23,"2,027","fresh (1d old, limit 14d)",—,2026-10-24
+equity.CH.smi,Equity index,CH,ok,ok,yes,weekly,1990-11-09,2026-10-23,"1,878","fresh (1d old, limit 14d)",—,2026-10-24
+equity.CN.csi300,Equity index,CN,ok,ok,yes,weekly,2012-05-04,2026-10-23,747,"fresh (1d old, limit 14d)",—,2026-10-24
+equity.CN.hangseng,Equity index,CN,ok,ok,yes,weekly,1987-01-02,2026-10-23,"2,079","fresh (1d old, limit 14d)",—,2026-10-24
+equity.JP.nikkei225,Equity index,JP,ok,ok,yes,weekly,1965-01-08,2026-10-23,"3,223","fresh (1d old, limit 14d)",—,2026-10-24
+equity.NO.osebx,Equity index,NO,ok,ok,yes,weekly,2013-03-08,2026-10-23,713,"fresh (1d old, limit 14d)",—,2026-10-24
+equity.EM.msci_em,Equity index,EM,ok,ok,yes,weekly,2003-04-17,2026-10-23,"1,230","fresh (1d old, limit 14d)",—,2026-10-24
+vol.US.vix,Volatility index,US,ok,ok,yes,weekly,1990-01-05,2026-10-23,"1,922","fresh (1d old, limit 14d)",—,2026-10-24
+vol.EZ.vstoxx,Volatility index,EZ,no source found,—,no,—,—,—,—,—,—,2026-10-24
+fx.dxy,Currency,—,ok,ok,yes,weekly,1971-01-08,2026-10-23,"2,913","fresh (1d old, limit 14d)",—,2026-10-24
+fx.eurusd,Currency,—,ok,ok,yes,weekly,2003-12-05,2026-10-23,"1,193","fresh (1d old, limit 14d)",—,2026-10-24
+fx.gbpusd,Currency,—,ok,ok,yes,weekly,2003-12-05,2026-10-23,"1,195","fresh (1d old, limit 14d)",—,2026-10-24
+fx.usdjpy,Currency,—,ok,ok,yes,weekly,1996-11-01,2026-10-23,"1,563","fresh (1d old, limit 14d)",—,2026-10-24
+fx.usdchf,Currency,—,ok,ok,yes,weekly,2003-09-19,2026-10-23,"1,206","fresh (1d old, limit 14d)",—,2026-10-24
+fx.eurchf,Currency,—,ok,ok,yes,weekly,2003-01-24,2026-10-23,"1,237","fresh (1d old, limit 14d)",—,2026-10-24
+fx.usdcny,Currency,—,ok,ok,yes,weekly,2001-06-26,2026-10-23,"1,292","fresh (1d old, limit 14d)",—,2026-10-24
+fx.eurnok,Currency,—,ok,ok,yes,weekly,2000-03-17,2026-10-23,"1,387","fresh (1d old, limit 14d)",—,2026-10-24
+commodity.brent,Commodity,Global,ok,ok,yes,weekly,2007-08-03,2026-10-23,"1,004","fresh (1d old, limit 14d)",—,2026-10-24
+commodity.natgas_hh,Commodity,Global,ok,ok,yes,weekly,2000-09-01,2026-10-23,"1,366","fresh (1d old, limit 14d)",—,2026-10-24
+commodity.natgas_ttf,Commodity,Global,ok,ok,yes,weekly,2017-10-27,2026-10-23,472,"fresh (1d old, limit 14d)",—,2026-10-24
+commodity.gold,Commodity,Global,ok,ok,yes,weekly,2000-09-01,2026-10-23,"1,366","fresh (1d old, limit 14d)",—,2026-10-24
+commodity.silver,Commodity,Global,ok,ok,yes,weekly,2000-09-01,2026-10-23,"1,366","fresh (1d old, limit 14d)",—,2026-10-24
+commodity.copper,Commodity,Global,ok,ok,yes,weekly,2000-09-01,2026-10-23,"1,366","fresh (1d old, limit 14d)",—,2026-10-24
+commodity.bcom,Commodity,Global,ok,ok,yes,weekly,2006-02-10,2026-10-23,"1,083","fresh (1d old, limit 14d)",—,2026-10-24
+policy_rate.US,Policy rate,US,ok,ok,yes,irregular,2001-08-31,2026-10-20,"1,321","fresh (4d old, limit 150d)",—,2026-10-24
+policy_rate.UK,Policy rate,UK,ok,ok,yes,irregular,2001-08-31,2026-10-19,"1,320","fresh (5d old, limit 150d)",—,2026-10-24
+policy_rate.EZ,Policy rate,EZ,ok,ok,yes,irregular,2001-08-31,2026-10-20,"1,321","fresh (4d old, limit 150d)",—,2026-10-24
+policy_rate.CH,Policy rate,CH,ok,ok,yes,irregular,2001-08-31,2026-10-20,"1,321","fresh (4d old, limit 150d)",—,2026-10-24
+policy_rate.CN,Policy rate,CN,ok,ok,yes,irregular,2001-08-31,2026-10-19,"1,317","fresh (5d old, limit 150d)",—,2026-10-24
+policy_rate.JP,Policy rate,JP,ok,ok,yes,irregular,2006-03-10,2026-10-20,905,"fresh (4d old, limit 150d)",—,2026-10-24
+policy_rate.NO,Policy rate,NO,ok,ok,yes,irregular,2001-08-31,2026-10-13,"1,317","fresh (11d old, limit 150d)",—,2026-10-24
+curve.US.2Y,Yield curve (nominal),US,ok,ok,yes,weekly,1976-06-04,2026-10-22,"2,638","fresh (2d old, limit 14d)",—,2026-10-24
+curve.US.5Y,Yield curve (nominal),US,ok,ok,yes,weekly,1962-01-05,2026-10-22,"3,390","fresh (2d old, limit 14d)",—,2026-10-24
+curve.US.10Y,Yield curve (nominal),US,ok,ok,yes,weekly,1962-01-05,2026-10-22,"3,390","fresh (2d old, limit 14d)",—,2026-10-24
+curve.US.30Y,Yield curve (nominal),US,ok,ok,yes,weekly,1977-02-18,2026-10-22,"2,601","fresh (2d old, limit 14d)",—,2026-10-24
+curve.UK.2Y,Yield curve (nominal),UK,ok,ok,yes,weekly,1979-01-05,2026-10-22,"2,503","fresh (2d old, limit 14d)",—,2026-10-24
+curve.UK.5Y,Yield curve (nominal),UK,ok,ok,yes,weekly,1979-01-05,2026-10-22,"2,503","fresh (2d old, limit 14d)",—,2026-10-24
+curve.UK.10Y,Yield curve (nominal),UK,ok,ok,yes,weekly,1979-01-05,2026-10-22,"2,503","fresh (2d old, limit 14d)",—,2026-10-24
+curve.UK.30Y,Yield curve (nominal),UK,ok,ok,yes,weekly,2016-01-08,2026-10-22,572,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.EZ.2Y,Yield curve (nominal),EZ,ok,ok,yes,weekly,2011-09-02,2026-10-22,800,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.EZ.5Y,Yield curve (nominal),EZ,ok,ok,yes,weekly,2011-09-02,2026-10-22,800,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.EZ.10Y,Yield curve (nominal),EZ,ok,ok,yes,weekly,2011-09-02,2026-10-22,800,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.EZ.30Y,Yield curve (nominal),EZ,ok,ok,yes,weekly,2011-09-02,2026-10-22,800,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.DE.2Y,Yield curve (nominal),DE,ok,ok,yes,weekly,1997-08-08,2026-10-23,"1,527","fresh (1d old, limit 14d)",—,2026-10-24
+curve.DE.5Y,Yield curve (nominal),DE,ok,ok,yes,weekly,1997-08-08,2026-10-23,"1,527","fresh (1d old, limit 14d)",—,2026-10-24
+curve.DE.10Y,Yield curve (nominal),DE,ok,ok,yes,weekly,1997-08-08,2026-10-23,"1,527","fresh (1d old, limit 14d)",—,2026-10-24
+curve.DE.30Y,Yield curve (nominal),DE,ok,ok,yes,weekly,2000-08-04,2026-10-23,"1,371","fresh (1d old, limit 14d)",—,2026-10-24
+curve.CH.10Y,Yield curve (nominal),CH,ok,ok,yes,weekly,1988-01-04,2026-10-23,"2,027","fresh (1d old, limit 45d)",—,2026-10-24
+curve.CH.2Y,Yield curve (nominal),CH,ok,ok,yes,weekly,1988-01-04,2026-09-30,"2,023","fresh (24d old, limit 45d)",—,2026-10-24
+curve.CH.5Y,Yield curve (nominal),CH,ok,ok,yes,weekly,1988-01-04,2026-09-30,"2,023","fresh (24d old, limit 45d)",—,2026-10-24
+curve.CH.30Y,Yield curve (nominal),CH,ok,ok,yes,weekly,1997-12-31,2026-09-30,"1,502","fresh (24d old, limit 45d)",—,2026-10-24
+curve.CN.2Y,Yield curve (nominal),CN,no source found,—,no,—,—,—,—,—,—,2026-10-24
+curve.CN.5Y,Yield curve (nominal),CN,ok,ok,yes,weekly,2006-03-03,2026-10-23,"1,069","fresh (1d old, limit 14d)",—,2026-10-24
+curve.CN.10Y,Yield curve (nominal),CN,ok,ok,yes,weekly,2006-03-03,2026-10-23,"1,069","fresh (1d old, limit 14d)",—,2026-10-24
+curve.CN.30Y,Yield curve (nominal),CN,ok,ok,yes,weekly,2006-03-03,2026-10-23,"1,069","fresh (1d old, limit 14d)",—,2026-10-24
+curve.JP.2Y,Yield curve (nominal),JP,ok,ok,yes,weekly,1974-09-27,2026-10-22,"2,660","fresh (2d old, limit 14d)",—,2026-10-24
+curve.JP.5Y,Yield curve (nominal),JP,ok,ok,yes,weekly,1974-09-27,2026-10-22,"2,725","fresh (2d old, limit 14d)",—,2026-10-24
+curve.JP.10Y,Yield curve (nominal),JP,ok,ok,yes,weekly,1986-07-11,2026-10-22,"2,110","fresh (2d old, limit 14d)",—,2026-10-24
+curve.JP.30Y,Yield curve (nominal),JP,ok,ok,yes,weekly,1999-09-03,2026-10-22,"1,424","fresh (2d old, limit 14d)",—,2026-10-24
+curve.NO.2Y,Yield curve (nominal),NO,ok,ok,yes,weekly,2015-01-02,2026-10-22,624,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.NO.5Y,Yield curve (nominal),NO,ok,ok,yes,weekly,2015-01-02,2026-10-22,624,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.NO.10Y,Yield curve (nominal),NO,ok,ok,yes,weekly,2015-01-02,2026-10-22,624,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.NO.30Y,Yield curve (nominal),NO,no source found,—,no,—,—,—,—,—,—,2026-10-24
+real_yield.US.5Y,Yield curve (real),US,ok,ok,yes,weekly,2003-01-03,2026-10-22,"1,251","fresh (2d old, limit 14d)",—,2026-10-24
+real_yield.US.10Y,Yield curve (real),US,ok,ok,yes,weekly,2003-01-03,2026-10-22,"1,251","fresh (2d old, limit 14d)",—,2026-10-24
+real_yield.US.30Y,Yield curve (real),US,ok,ok,yes,weekly,2010-02-26,2026-10-22,878,"fresh (2d old, limit 14d)",—,2026-10-24
+real_yield.US.2Y,Yield curve (real),US,no source found,—,no,—,—,—,—,—,—,2026-10-24
+real_yield.UK.2Y,Yield curve (real),UK,ok,ok,yes,weekly,1985-06-28,2026-10-22,"1,394","fresh (2d old, limit 14d)",gap,2026-10-24
+real_yield.UK.5Y,Yield curve (real),UK,ok,ok,yes,weekly,1985-01-04,2026-10-22,"2,190","fresh (2d old, limit 14d)",—,2026-10-24
+real_yield.UK.10Y,Yield curve (real),UK,ok,ok,yes,weekly,1985-01-04,2026-10-22,"2,190","fresh (2d old, limit 14d)",—,2026-10-24
+real_yield.UK.30Y,Yield curve (real),UK,ok,ok,yes,weekly,2016-01-08,2026-10-22,572,"fresh (2d old, limit 14d)",—,2026-10-24
+spread_benchmark.DE,Eurozone spread (benchmark leg),DE,ok,ok,yes,monthly,2011-09-01,2026-09-01,181,"fresh (53d old, limit 70d)",—,2026-10-24
+spread.FR,Eurozone spread,EZ,ok,ok,yes,monthly,2011-09-01,2026-09-01,181,"fresh (53d old, limit 70d)",—,2026-10-24
+spread.IT,Eurozone spread,EZ,ok,ok,yes,monthly,2011-09-01,2026-09-01,181,"fresh (53d old, limit 70d)",—,2026-10-24
+spread.ES,Eurozone spread,EZ,ok,ok,yes,monthly,2011-09-01,2026-09-01,181,"fresh (53d old, limit 70d)",—,2026-10-24
+cpi.UK,CPI,UK,ok,ok,yes,monthly,1989-01-01,2026-09-01,453,"fresh (53d old, limit 95d)",—,2026-10-24
+cpi.EZ,CPI,EZ,ok,ok,yes,monthly,1997-01-01,2026-09-01,357,"fresh (53d old, limit 95d)",—,2026-10-24
+cpi.DE,CPI,DE,ok,ok,yes,monthly,1997-01-01,2026-09-01,357,"fresh (53d old, limit 95d)",—,2026-10-24
+cpi.CH,CPI,CH,ok,ok,yes,monthly,1922-01-01,2026-09-01,"1,257","fresh (53d old, limit 95d)",—,2026-10-24
+cpi.CN,CPI,CN,ok,ok,yes,monthly,2001-09-01,2026-08-01,300,"fresh (84d old, limit 100d)",—,2026-10-24
+cpi.JP,CPI,JP,ok,stale,yes,monthly,2001-09-01,2026-07-01,299,"STALE (115d old, limit 100d)",stale,2026-10-24
+inflexp.US.market.5y,Inflation expectations (market),US,ok,ok,yes,weekly,2003-01-03,2026-10-23,"1,244","fresh (1d old, limit 14d)",—,2026-10-24
+inflexp.US.market.10y,Inflation expectations (market),US,ok,ok,yes,weekly,2003-01-03,2026-10-23,"1,244","fresh (1d old, limit 14d)",—,2026-10-24
+inflexp.US.market.5y5y_fwd,Inflation expectations (market),US,ok,ok,yes,weekly,2003-01-03,2026-10-23,"1,244","fresh (1d old, limit 14d)",—,2026-10-24
+inflexp.US.model.1y,Inflation expectations (model),US,ok,ok,yes,monthly,1982-01-01,2026-10-01,538,"fresh (23d old, limit 70d)",—,2026-10-24
+inflexp.US.model.5y,Inflation expectations (model),US,ok,ok,yes,monthly,1982-01-01,2026-10-01,538,"fresh (23d old, limit 70d)",—,2026-10-24
+inflexp.US.model.10y,Inflation expectations (model),US,ok,ok,yes,monthly,1982-01-01,2026-10-01,538,"fresh (23d old, limit 70d)",—,2026-10-24
+inflexp.UK.2y,Inflation expectations (market),UK,ok,ok,yes,weekly,1985-06-28,2026-10-22,"1,394","fresh (2d old, limit 14d)",gap,2026-10-24
+inflexp.UK.5y,Inflation expectations (market),UK,ok,ok,yes,weekly,1985-01-04,2026-10-22,"2,190","fresh (2d old, limit 14d)",—,2026-10-24
+inflexp.UK.10y,Inflation expectations (market),UK,ok,ok,yes,weekly,1985-01-04,2026-10-22,"2,190","fresh (2d old, limit 14d)",—,2026-10-24
+inflexp.EZ,Inflation expectations,EZ,"exists, not free",—,no,—,—,—,—,—,—,2026-10-24
+inflexp.EZ.1y,Inflation expectations,EZ,ok,ok,yes,quarterly,1999-01-01,2026-07-01,111,"fresh (115d old, limit 200d)",—,2026-10-24
+inflexp.EZ.2y,Inflation expectations,EZ,ok,ok,yes,quarterly,2000-07-01,2026-07-01,81,"fresh (115d old, limit 200d)",—,2026-10-24
+inflexp.EZ.5y,Inflation expectations,EZ,ok,ok,yes,quarterly,1999-01-01,2026-07-01,105,"fresh (115d old, limit 200d)",—,2026-10-24
+inflexp.DE,Inflation expectations,DE,"exists, not free",—,no,—,—,—,—,—,—,2026-10-24
+inflexp.FR,Inflation expectations,FR,descoped,—,no,—,—,—,—,—,—,2026-10-24
+inflexp.CN,Inflation expectations,CN,no source found,—,no,—,—,—,—,—,—,2026-10-24
+inflexp.CH,Inflation expectations,CH,no source found,—,no,—,—,—,—,—,—,2026-10-24
+inflexp.NO,Inflation expectations,NO,no source found,—,no,—,—,—,—,—,—,2026-10-24
+inflexp.JP,Inflation expectations,JP,"exists, not free",—,no,—,—,—,—,—,—,2026-10-24
+gdp.US,GDP growth,US,ok,ok,yes,quarterly,1947-01-01,2026-04-01,318,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp.DE,GDP growth,DE,ok,ok,yes,quarterly,1991-01-01,2026-04-01,142,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp.CH,GDP growth,CH,ok,ok,yes,quarterly,1980-04-01,2026-04-01,185,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp.JP,GDP growth,JP,ok,ok,yes,quarterly,1994-01-01,2026-04-01,130,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp.NO,GDP growth,NO,ok,ok,yes,quarterly,1978-01-01,2026-04-01,194,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp.CN,GDP growth,CN,ok,ok,yes,quarterly,1991-01-01,2026-04-01,142,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp.UK,GDP growth,UK,ok,ok,yes,quarterly,1955-01-01,2026-04-01,286,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp.UK.monthly_nowcast,GDP growth,UK,ok,ok,yes,monthly,1997-01-01,2026-08-01,356,"fresh (84d old, limit 120d)",—,2026-10-24
+gdp.EZ,GDP growth,EZ,ok,ok,yes,quarterly,1995-01-01,2026-04-01,126,"fresh (206d old, limit 270d)",—,2026-10-24
+valuation.US.cape,Valuation,US,ok,stale,yes,monthly,1881-01-01,2024-09-01,"1,725","STALE (783d old, limit 70d)",stale,2026-10-24
+erp.US,Equity risk premium,US,ok,ok,yes,annual,1961-12-31,2025-12-31,65,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.UK.pe,Valuation,UK,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.UK.pb,Valuation,UK,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.UK.ps,Valuation,UK,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.UK.ev_ebitda,Valuation,UK,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.DE.pe,Valuation,DE,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.DE.pb,Valuation,DE,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.DE.ps,Valuation,DE,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.DE.ev_ebitda,Valuation,DE,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.CH.pe,Valuation,CH,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.CH.pb,Valuation,CH,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.CH.ps,Valuation,CH,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.CH.ev_ebitda,Valuation,CH,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.CN.pe,Valuation,CN,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.CN.pb,Valuation,CN,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.CN.ps,Valuation,CN,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.CN.ev_ebitda,Valuation,CN,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.JP.pe,Valuation,JP,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.JP.pb,Valuation,JP,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.JP.ps,Valuation,JP,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.JP.ev_ebitda,Valuation,JP,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.NO.pe,Valuation,NO,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.NO.pb,Valuation,NO,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.NO.ps,Valuation,NO,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.NO.ev_ebitda,Valuation,NO,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.EZ,Valuation,EZ,descoped,—,no,—,—,—,—,—,—,2026-10-24
+erp.UK,Equity risk premium,UK,ok,ok,yes,annual,2000-12-31,2025-12-31,25,"fresh (297d old, limit 730d)",—,2026-10-24
+erp.DE,Equity risk premium,DE,ok,ok,yes,annual,2000-12-31,2025-12-31,26,"fresh (297d old, limit 730d)",—,2026-10-24
+erp.CH,Equity risk premium,CH,ok,ok,yes,annual,2000-12-31,2025-12-31,26,"fresh (297d old, limit 730d)",—,2026-10-24
+erp.CN,Equity risk premium,CN,ok,ok,yes,annual,2000-12-31,2025-12-31,26,"fresh (297d old, limit 730d)",—,2026-10-24
+erp.JP,Equity risk premium,JP,ok,ok,yes,annual,2000-12-31,2025-12-31,26,"fresh (297d old, limit 730d)",—,2026-10-24
+erp.NO,Equity risk premium,NO,ok,ok,yes,annual,2000-12-31,2025-12-31,26,"fresh (297d old, limit 730d)",—,2026-10-24
+erp.EZ,Equity risk premium,EZ,descoped,—,no,—,—,—,—,—,—,2026-10-24
+credit.US.ig_oas,Credit spread,US,ok,ok,yes,weekly,2023-09-01,2026-10-22,173,"fresh (2d old, limit 14d)",—,2026-10-24
+credit.US.hy_oas,Credit spread,US,ok,ok,yes,weekly,2023-09-01,2026-10-22,173,"fresh (2d old, limit 14d)",—,2026-10-24
+credit.EZ.hy_oas,Credit spread,EZ,ok,ok,yes,weekly,2023-09-01,2026-10-22,173,"fresh (2d old, limit 14d)",—,2026-10-24
+credit.EM.corp_oas,Credit spread,EM,ok,ok,yes,weekly,2023-09-01,2026-10-22,173,"fresh (2d old, limit 14d)",—,2026-10-24
+credit.US.ig_yield,Credit spread,US,ok,ok,yes,weekly,2023-09-15,2026-10-22,169,"fresh (2d old, limit 14d)",—,2026-10-24
+credit.DE.corp_yield,Credit spread,DE,ok,ok,yes,weekly,1979-01-05,2026-10-22,"2,501","fresh (2d old, limit 14d)",—,2026-10-24
+credit.DE.govt_yield,Credit spread,DE,ok,ok,yes,weekly,1978-01-06,2026-10-22,"2,549","fresh (2d old, limit 14d)",—,2026-10-24
+sloos.US.ci_large,Liquidity cycle,US,descoped,retired,yes,,1990-04-01,2026-07-01,146,,—,2026-10-24
+bond_proxy.IEF,Cross-asset proxy,Global,ok,ok,yes,weekly,2002-08-02,2026-10-23,"1,267","fresh (1d old, limit 14d)",—,2026-10-24
+bond_proxy.TLT,Cross-asset proxy,Global,descoped,retired,yes,,2002-08-02,2026-08-28,"1,258",,—,2026-10-24
+cpi.US.index,CPI,US,ok,ok,yes,monthly,1913-01-01,2026-09-01,"1,364","fresh (53d old, limit 95d)",gap,2026-10-24
+cpi.UK.index,CPI,UK,ok,ok,yes,monthly,1988-01-01,2026-09-01,465,"fresh (53d old, limit 95d)",—,2026-10-24
+cpi.EZ.index,CPI,EZ,ok,ok,yes,monthly,1996-01-01,2026-09-01,369,"fresh (53d old, limit 95d)",—,2026-10-24
+cpi.DE.index,CPI,DE,ok,ok,yes,monthly,1996-01-01,2026-09-01,369,"fresh (53d old, limit 95d)",—,2026-10-24
+cpi.CH.index,CPI,CH,ok,ok,yes,monthly,1921-01-01,2026-09-01,"1,269","fresh (53d old, limit 95d)",—,2026-10-24
+cpi.CN.index,CPI,CN,ok,ok,yes,monthly,2001-09-01,2026-08-01,300,"fresh (84d old, limit 100d)",—,2026-10-24
+cpi.JP.index,CPI,JP,ok,stale,yes,monthly,2001-09-01,2026-07-01,299,"STALE (115d old, limit 100d)",stale,2026-10-24
+cpi.NO.index,CPI,NO,ok,ok,yes,monthly,1920-03-01,2026-09-01,"1,279","fresh (53d old, limit 95d)",—,2026-10-24
+hicp.CH.index,CPI,CH,ok,ok,yes,monthly,2004-12-01,2026-09-01,262,"fresh (53d old, limit 95d)",—,2026-10-24
+hicp.NO.index,CPI,NO,ok,ok,yes,monthly,2000-01-01,2026-09-01,321,"fresh (53d old, limit 95d)",—,2026-10-24
+commodity.wti,Commodity,Global,ok,ok,yes,weekly,2000-08-25,2026-10-23,"1,367","fresh (1d old, limit 14d)",—,2026-10-24
+bond_proxy.IEGA,Cross-asset proxy,Global,ok,ok,yes,weekly,2014-06-06,2026-10-23,654,"fresh (1d old, limit 14d)",—,2026-10-24
+equity.UK.ftse_allshare,Equity index,UK,ok,ok,yes,weekly,1980-02-15,2026-10-23,"2,437","fresh (1d old, limit 14d)",—,2026-10-24
+equity.UK.ftse_aim,Equity index,UK,ok,ok,yes,weekly,1996-01-05,2026-10-23,"1,608","fresh (1d old, limit 14d)",—,2026-10-24
+equity.DE.mdax,Equity index,DE,ok,ok,yes,weekly,1996-03-01,2026-10-23,"1,600","fresh (1d old, limit 14d)",—,2026-10-24
+equity.CH.spi,Equity index,CH,ok,ok,yes,weekly,2013-03-08,2026-10-23,712,"fresh (1d old, limit 14d)",—,2026-10-24
+fx.usdhkd,Currency,—,ok,ok,yes,weekly,2001-07-20,2026-10-23,"1,285","fresh (1d old, limit 14d)",—,2026-10-24
+valuation.US.pe,Valuation,US,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.US.pb,Valuation,US,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.US.ps,Valuation,US,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.US.ev_ebitda,Valuation,US,ok,ok,yes,annual,2020-12-31,2025-12-31,6,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.EZ.pe,Valuation,EZ,ok,ok,yes,annual,2025-12-31,2025-12-31,1,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.EZ.pb,Valuation,EZ,ok,ok,yes,annual,2025-12-31,2025-12-31,1,"fresh (297d old, limit 730d)",—,2026-10-24
+valuation.EZ.ev_ebitda,Valuation,EZ,ok,ok,yes,annual,2025-12-31,2025-12-31,1,"fresh (297d old, limit 730d)",—,2026-10-24
+credit.EZ.ig_ytw,Credit spread,EZ,ok,ok,yes,weekly,2026-09-18,2026-10-23,6,"fresh (1d old, limit 14d)",—,2026-10-24
+credit.EZ.ig_duration,Credit spread,EZ,ok,ok,yes,weekly,2026-09-18,2026-10-23,6,"fresh (1d old, limit 14d)",—,2026-10-24
+curve.EZ.aaa_4Y,Yield curve,EZ,ok,ok,yes,weekly,2011-09-23,2026-10-22,793,"fresh (2d old, limit 14d)",—,2026-10-24
+curve.EZ.aaa_5Y,Yield curve,EZ,ok,ok,yes,weekly,2011-09-23,2026-10-22,793,"fresh (2d old, limit 14d)",—,2026-10-24
+credit.UK.ig_ytw,Credit spread,UK,ok,ok,yes,weekly,2026-09-18,2026-10-23,6,"fresh (1d old, limit 14d)",—,2026-10-24
+credit.UK.ig_duration,Credit spread,UK,ok,ok,yes,weekly,2026-09-18,2026-10-23,6,"fresh (1d old, limit 14d)",—,2026-10-24
+policy_rate.IN,Policy rate,IN,ok,ok,yes,irregular,2001-10-25,2026-10-19,"1,305","fresh (5d old, limit 150d)",—,2026-10-24
+policy_rate.BR,Policy rate,BR,ok,ok,yes,irregular,2001-10-26,2026-10-20,"1,305","fresh (4d old, limit 150d)",—,2026-10-24
+cpi.IN,CPI,IN,ok,stale,yes,monthly,2001-11-01,2026-07-01,297,"STALE (115d old, limit 100d)",stale,2026-10-24
+cpi.IN.index,CPI,IN,ok,stale,yes,monthly,2001-11-01,2026-07-01,297,"STALE (115d old, limit 100d)",stale,2026-10-24
+cpi.BR,CPI,BR,ok,ok,yes,monthly,2001-11-01,2026-08-01,298,"fresh (84d old, limit 100d)",—,2026-10-24
+cpi.BR.index,CPI,BR,ok,ok,yes,monthly,2001-11-01,2026-08-01,298,"fresh (84d old, limit 100d)",—,2026-10-24
+gdp.IN,GDP growth,IN,ok,ok,yes,quarterly,2004-04-01,2026-04-01,89,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp.BR,GDP growth,BR,ok,ok,yes,quarterly,1996-01-01,2026-04-01,122,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.US,Nominal GDP,US,ok,ok,yes,quarterly,1947-01-01,2026-04-01,318,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.UK,Nominal GDP,UK,ok,ok,yes,quarterly,1955-01-01,2026-04-01,286,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.EZ,Nominal GDP,EZ,ok,ok,yes,quarterly,1995-01-01,2026-04-01,126,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.DE,Nominal GDP,DE,ok,ok,yes,quarterly,1991-01-01,2026-04-01,142,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.CH,Nominal GDP,CH,ok,ok,yes,quarterly,1980-01-01,2026-04-01,186,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.JP,Nominal GDP,JP,ok,ok,yes,quarterly,1994-01-01,2026-04-01,130,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.NO,Nominal GDP,NO,ok,ok,yes,quarterly,1978-01-01,2026-04-01,194,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.CN,Nominal GDP,CN,ok,ok,yes,quarterly,1992-01-01,2026-04-01,138,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.IN,Nominal GDP,IN,ok,ok,yes,quarterly,2004-04-01,2026-04-01,89,"fresh (206d old, limit 270d)",—,2026-10-24
+gdp_nominal.BR,Nominal GDP,BR,ok,ok,yes,quarterly,1996-01-01,2026-04-01,122,"fresh (206d old, limit 270d)",—,2026-10-24
+imf.weo_edition,IMF forecast,Global,ok,ok,yes,irregular,2026-10-01,2026-10-01,1,"fresh (23d old, limit 220d)",—,2026-10-24
+imf.US.real_growth,IMF forecast,US,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.UK.real_growth,IMF forecast,UK,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.EZ.real_growth,IMF forecast,EZ,ok,ok,yes,annual,1992-01-01,2031-01-01,40,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.DE.real_growth,IMF forecast,DE,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CH.real_growth,IMF forecast,CH,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CN.real_growth,IMF forecast,CN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.JP.real_growth,IMF forecast,JP,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.NO.real_growth,IMF forecast,NO,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.IN.real_growth,IMF forecast,IN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.BR.real_growth,IMF forecast,BR,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.US.cpi_avg,IMF forecast,US,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.UK.cpi_avg,IMF forecast,UK,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.EZ.cpi_avg,IMF forecast,EZ,ok,ok,yes,annual,1991-01-01,2031-01-01,41,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.DE.cpi_avg,IMF forecast,DE,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CH.cpi_avg,IMF forecast,CH,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CN.cpi_avg,IMF forecast,CN,ok,ok,yes,annual,1981-01-01,2031-01-01,51,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.JP.cpi_avg,IMF forecast,JP,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.NO.cpi_avg,IMF forecast,NO,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.IN.cpi_avg,IMF forecast,IN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.BR.cpi_avg,IMF forecast,BR,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.US.nominal_usd,IMF forecast,US,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.UK.nominal_usd,IMF forecast,UK,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.EZ.nominal_usd,IMF forecast,EZ,ok,ok,yes,annual,1991-01-01,2031-01-01,41,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.DE.nominal_usd,IMF forecast,DE,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CH.nominal_usd,IMF forecast,CH,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CN.nominal_usd,IMF forecast,CN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.JP.nominal_usd,IMF forecast,JP,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.NO.nominal_usd,IMF forecast,NO,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.IN.nominal_usd,IMF forecast,IN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.BR.nominal_usd,IMF forecast,BR,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.US.ppp,IMF forecast,US,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.UK.ppp,IMF forecast,UK,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.EZ.ppp,IMF forecast,EZ,no source found,—,no,—,—,—,—,—,—,2026-10-24
+imf.DE.ppp,IMF forecast,DE,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CH.ppp,IMF forecast,CH,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CN.ppp,IMF forecast,CN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.JP.ppp,IMF forecast,JP,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.NO.ppp,IMF forecast,NO,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.IN.ppp,IMF forecast,IN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.BR.ppp,IMF forecast,BR,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.US.deflator,IMF forecast,US,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.UK.deflator,IMF forecast,UK,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.EZ.deflator,IMF forecast,EZ,ok,ok,yes,annual,1991-01-01,2031-01-01,41,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.DE.deflator,IMF forecast,DE,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CH.deflator,IMF forecast,CH,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.CN.deflator,IMF forecast,CN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.JP.deflator,IMF forecast,JP,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.NO.deflator,IMF forecast,NO,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.IN.deflator,IMF forecast,IN,ok,ok,yes,annual,1980-01-01,2031-01-01,52,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
+imf.BR.deflator,IMF forecast,BR,ok,ok,yes,annual,1987-01-01,2031-01-01,45,projections to 2031 (age: see imf.weo_edition),—,2026-10-24
