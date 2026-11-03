@@ -390,6 +390,14 @@ header h1 {
 }
 header .meta { font-size: 0.78rem; color: var(--text-muted); }
 
+/* Last-run stamp: one line above every tab's content (renderRunStamp). */
+.run-stamp {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+.run-stamp.stale { color: var(--delta-down); font-weight: 600; }
+
 /* Section headings read as rules, not shouts. */
 h2 {
   font-size: 0.82rem;

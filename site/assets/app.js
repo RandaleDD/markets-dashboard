@@ -17,6 +17,7 @@ async function main() {
   document.getElementById("as-of").textContent = DATA.generated_at
     ? new Date(DATA.generated_at).toLocaleString()
     : "unknown";
+  renderRunStamp();
 
   if (DATA.is_sample) {
     const banner = document.getElementById("sample-banner");
@@ -36,6 +37,28 @@ async function main() {
   setupTabs();
   setupChartToggles();
   setupTooltips();
+}
+
+// When the last pipeline run finished, above every tab. It sits in <main>
+// outside the panels because the panels re-render themselves on every control
+// click, which would wipe anything placed inside them. A run older than a
+// week plus a day means a Saturday refresh was missed, so it says so: the
+// 2026-10-31 run crashed and the page gave no hint.
+const RUN_STALE_DAYS = 8;
+function renderRunStamp() {
+  const el = document.getElementById("run-stamp");
+  if (!el) return;
+  if (!DATA.generated_at) { el.textContent = "Last data refresh: unknown"; return; }
+  const t = new Date(DATA.generated_at);
+  const when = t.toLocaleString("en-GB", {
+    timeZone: "Europe/Zurich", weekday: "short", day: "numeric", month: "short",
+    year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const days = Math.floor((Date.now() - t.getTime()) / 86400000);
+  const ago = days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+  const stale = days >= RUN_STALE_DAYS;
+  el.classList.toggle("stale", stale);
+  el.textContent = `Last data refresh completed ${when} Zurich time (${ago})` +
+    (stale ? " — the weekly refresh looks to have been missed." : "");
 }
 
 // ---------------------------------------------------------------------------
