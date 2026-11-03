@@ -74,6 +74,11 @@ CREATE INDEX IF NOT EXISTS idx_flags_open ON data_quality_flags(resolved) WHERE 
 -- `resolved` is set by db/quality when a re-check no longer finds the
 -- condition. The row is kept, not deleted: what was once wrong stays readable,
 -- and the same condition recurring later opens a NEW flag rather than
--- reopening the old one -- which is why `resolved` is part of this index.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_flags_unique
-    ON data_quality_flags(series_id, date, flag_type, resolved);
+-- reopening the old one. So uniqueness covers OPEN flags only: a condition that
+-- clears, recurs and clears again leaves two resolved rows, which is history,
+-- not a duplicate. The old index put `resolved` in the key instead, and the
+-- second close collided with the first -- cpi.JP's stale flag (closed
+-- 2026-09, reopened 2026-10-10) crashed the 2026-10-31 weekly run that way.
+DROP INDEX IF EXISTS idx_flags_unique;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_flags_open_unique
+    ON data_quality_flags(series_id, date, flag_type) WHERE resolved = 0;

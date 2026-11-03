@@ -97,6 +97,34 @@ class FlagResolution(unittest.TestCase):
         self.assertEqual(row[1], "was stale", "the finding's text survives closure")
         self.assertIsNotNone(row[2], "and so does when it was first raised")
 
+    def test_a_flag_that_recurs_can_close_a_second_time(self):
+        # cpi.JP on the same observation date: stale, caught up, stale again,
+        # caught up again. The second close used to collide with the first on
+        # the unique index and crash the 2026-10-31 weekly run.
+        old = (pd.Timestamp.now().normalize() - timedelta(days=400)).strftime("%Y-%m-%d")
+        fresh = (pd.Timestamp.now().normalize() - timedelta(days=30)).strftime("%Y-%m-%d")
+        for _ in range(2):
+            self.assertTrue(store.raise_flag(self.conn, QUARTERLY.series_id, old, "stale", "s"),
+                            "a recurrence opens a NEW flag")
+            self.assertFalse(store.raise_flag(self.conn, QUARTERLY.series_id, old, "stale", "s"),
+                             "but re-detecting an open one is a no-op")
+            self.reconcile(QUARTERLY, "stale",
+                           quality.check_staleness(self.conn, QUARTERLY, frame([fresh])))
+            self.assertEqual(self.open_flags(), set())
+        self.assertEqual(self.conn.execute(
+            "SELECT COUNT(*) FROM data_quality_flags WHERE resolved = 1").fetchone()[0], 2)
+
+    def test_an_old_store_gets_the_new_index(self):
+        # The published store was built with the old index; init_db must swap it.
+        self.conn.execute("DROP INDEX idx_flags_open_unique")
+        self.conn.execute("CREATE UNIQUE INDEX idx_flags_unique ON "
+                          "data_quality_flags(series_id, date, flag_type, resolved)")
+        store.init_db(self.conn)
+        names = {r[0] for r in self.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index'")}
+        self.assertIn("idx_flags_open_unique", names)
+        self.assertNotIn("idx_flags_unique", names)
+
     # -- the two ways it must not close a flag -------------------------------
     def test_a_check_that_did_not_run_closes_nothing(self):
         old = (pd.Timestamp.now().normalize() - timedelta(days=400)).strftime("%Y-%m-%d")

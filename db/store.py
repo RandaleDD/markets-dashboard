@@ -253,7 +253,7 @@ def _git_sha() -> str | None:
 def raise_flag(conn: sqlite3.Connection, series_id: str, obs_date: str,
                flag_type: str, detail: str) -> bool:
     """
-    Record a finding. The unique index on (series_id, date, flag_type, resolved)
+    Record a finding. The unique index on OPEN (series_id, date, flag_type)
     means re-detecting the same condition tomorrow is a no-op rather than a
     second row, so an unfixable gap doesn't grow the table without bound.
     Returns True when this was genuinely new.
