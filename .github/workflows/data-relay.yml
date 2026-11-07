@@ -1,0 +1,26 @@
+name: Relay a data publish to the Pages deploy
+
+# Lives on main but only ever RUNS from the `data` branch: publish.py copies
+# this file into every data commit, because GitHub reads a push-triggered
+# workflow from the pushed commit. Deliberately no `paths:` filter — each
+# publish replaces `data` with a new parentless commit, and a path filter on
+# such a force-push matched nothing, so no deploy ever started (2026-10-22).
+#
+# It does not deploy itself: the github-pages environment accepts main only.
+# It starts pages.yml on main instead — workflow_dispatch is the one event a
+# GITHUB_TOKEN may start. The Saturday run pushes `data` with GITHUB_TOKEN,
+# which starts nothing, so weekly.yml deploys for itself.
+on:
+  push:
+    branches: [data]
+
+permissions:
+  actions: write
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh workflow run pages.yml --ref main --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
